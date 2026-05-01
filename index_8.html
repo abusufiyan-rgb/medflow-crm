@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedFlow CRM</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="dns-prefetch" href="https://rmpmhkllnrrybiezpjfb.supabase.co">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F5F1;--surf:#fff;--surf2:#F0EFE9;--bdr:#E3E1D9;--bdr2:#CCCAB8;--tx:#1A1916;--tx2:#52504A;--tx3:#9B9890;--blue:#1A5FA6;--blue-bg:#EBF2FB;--blue-bd:#BFDBFE;--green:#166534;--green-bg:#DCFCE7;--green-bd:#86EFAC;--amber:#92400E;--amber-bg:#FEF3C7;--amber-bd:#FDE68A;--red:#991B1B;--red-bg:#FEE2E2;--red-bd:#FCA5A5;--purple:#4C1D95;--purple-bg:#EDE9FE;--purple-bd:#C4B5FD;--teal:#0F766E;--teal-bg:#CCFBF1;--teal-bd:#5EEAD4;--r:8px;--rs:5px;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
+button,input,select,textarea{font-family:'DM Sans',sans-serif;font-size:14px}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+#app{height:100vh}
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:224px;background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;flex-shrink:0}
+.main-col{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:54px;background:var(--surf);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 24px;gap:12px;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:24px}
+.sb-brand{padding:18px 16px 14px;border-bottom:1px solid var(--bdr)}
+.sb-logo{font-size:17px;font-weight:700;letter-spacing:-.4px}
+.sb-sub{font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace;margin-top:2px}
+.sb-nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--rs);cursor:pointer;color:var(--tx2);font-size:13px;font-weight:500;border:none;background:none;width:100%;text-align:left;transition:background .12s,color .12s;white-space:nowrap}
+.nav-item:hover{background:var(--surf2);color:var(--tx)}
+.nav-item.on{background:var(--blue-bg);color:var(--blue)}
+.nav-cnt{margin-left:auto;font-size:11px;padding:1px 7px;border-radius:10px;font-family:'DM Mono',monospace;background:var(--surf2);color:var(--tx3)}
+.nav-item.on .nav-cnt{background:var(--blue);color:#fff}
+.sb-foot{padding:12px 14px;border-top:1px solid var(--bdr)}
+.sb-name{font-size:13px;font-weight:600}
+.sb-role{font-size:11px;color:var(--tx3);margin-top:1px}
+.sb-out{margin-top:8px;width:100%;padding:6px;border:1px solid var(--bdr);border-radius:var(--rs);background:none;color:var(--tx2);font-size:12px;cursor:pointer}
+.sb-out:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.tb-title{font-size:15px;font-weight:600;letter-spacing:-.2px}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.role-pill{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.rp-agent{background:var(--green-bg);color:var(--green)}
+.rp-doctor{background:var(--blue-bg);color:var(--blue)}
+.rp-admin{background:var(--amber-bg);color:var(--amber)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:opacity .12s;line-height:1.4}
+.btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-blue:hover{opacity:.88}
+.btn-ghost{background:var(--surf);border-color:var(--bdr);color:var(--tx2)}.btn-ghost:hover{background:var(--surf2)}
+.btn-green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}.btn-green:hover{opacity:.85}
+.btn-purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd)}.btn-purple:hover{opacity:.85}
+.btn-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}.btn-amber:hover{opacity:.85}
+.btn-teal{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bd)}.btn-teal:hover{opacity:.85}
+.btn-sm{padding:5px 11px;font-size:12px}.btn-w{width:100%}
+.bdg{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.s-new{background:var(--surf2);color:var(--tx3);border-color:var(--bdr)}
+.s-claimed{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.s-in_progress{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.s-with_doctor{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd)}
+.s-prescribed{background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bd)}
+.s-converted{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.s-unqualified,.s-dnd,.s-closed{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.s-supplement{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.t-repeat{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd)}
+.t-new{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.t-recurring{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.ord-linked{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.ord-noagent{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.ord-unlinked{background:var(--surf2);color:var(--tx3);border-color:var(--bdr)}
+.age-ok{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);font-size:11px;padding:2px 7px;border-radius:10px;font-family:'DM Mono',monospace;font-weight:500;border-width:1px;border-style:solid;display:inline-flex}
+.age-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd);font-size:11px;padding:2px 7px;border-radius:10px;font-family:'DM Mono',monospace;font-weight:500;border-width:1px;border-style:solid;display:inline-flex}
+.age-old{background:var(--red-bg);color:var(--red);border-color:var(--red-bd);font-size:11px;padding:2px 7px;border-radius:10px;font-family:'DM Mono',monospace;font-weight:500;border-width:1px;border-style:solid;display:inline-flex}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:14px}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card-id{font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace}
+.card-row{display:flex;gap:6px;margin-bottom:5px;font-size:13px;align-items:baseline}
+.card-lbl{color:var(--tx3);font-size:12px;min-width:54px;flex-shrink:0}
+.card-acts{display:flex;flex-direction:column;gap:6px;margin-top:12px;border-top:1px solid var(--bdr);padding-top:12px}
+.card-ts{font-size:11px;color:var(--tx3);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr);display:flex;flex-direction:column;gap:3px;font-family:'DM Mono',monospace}
+.rx-box{background:var(--teal-bg);border:1px solid var(--teal-bd);border-radius:var(--rs);padding:8px 12px;margin-top:8px}
+.rx-box-lbl{font-size:10px;color:var(--teal);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.rx-box-val{font-size:13px;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-n{font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;margin-bottom:4px}
+.stat-l{font-size:11px;color:var(--tx3);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.pipe-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.pipe{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:14px;cursor:pointer;transition:border-color .12s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.pipe:hover,.pipe.on{border-color:var(--blue)}.pipe.on{background:var(--blue-bg)}
+.pipe-dot{width:8px;height:8px;border-radius:50%;margin-bottom:10px}
+.pipe-n{font-size:24px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.pipe-l{font-size:11px;color:var(--tx3);margin:3px 0 6px;font-weight:500}
+.pipe-a{font-size:10px;color:var(--tx3);font-family:'DM Mono',monospace}
+.pipe-bar-bg{height:3px;background:var(--bdr);border-radius:2px;margin-top:6px}
+.pipe-bar{height:3px;border-radius:2px}
+.oldest{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;margin-bottom:20px}
+.oldest-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:10px}
+.oldest-i{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surf2);border-radius:var(--rs)}
+.tbl-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surf2)}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bdr);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--bdr);font-size:13px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surf2)}
+.fld{margin-bottom:14px}
+.fld-l{font-size:12px;font-weight:500;color:var(--tx2);margin-bottom:5px;display:block}
+.inp{width:100%;padding:8px 11px;border:1px solid var(--bdr);border-radius:var(--rs);background:var(--surf);color:var(--tx);font-size:13px;outline:none}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,95,166,.1)}
+.inp[readonly]{background:var(--surf2);color:var(--tx3)}
+textarea.inp{resize:vertical;min-height:72px;line-height:1.5}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;padding:4px 10px;border:1px solid var(--bdr);border-radius:20px;font-size:12px;cursor:pointer;color:var(--tx3);user-select:none;background:var(--surf);transition:all .1s}
+.chip:hover{border-color:var(--blue);color:var(--tx)}
+.chip.on{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue);font-weight:500}
+.chip.ro{pointer-events:none}.chip.ro.on{background:var(--surf2);border-color:var(--bdr);color:var(--tx2)}
+.bmi-box{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);padding:12px 16px;display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.bmi-n{font-size:26px;font-weight:700;font-family:'DM Mono',monospace;letter-spacing:-.5px}
+.bmi-l{font-size:11px;color:var(--tx3);margin-bottom:2px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;backdrop-filter:blur(2px)}
+.modal{background:var(--surf);border-radius:var(--r);width:100%;max-width:660px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.15);border:1px solid var(--bdr)}
+.modal-sm{max-width:480px}.modal-lg{max-width:900px}
+.modal-hdr{padding:18px 20px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.modal-t{font-size:15px;font-weight:600}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-ftr{padding:14px 20px;border-top:1px solid var(--bdr);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.btn-x{background:none;border:none;font-size:20px;cursor:pointer;color:var(--tx3);line-height:1;padding:2px}.btn-x:hover{color:var(--tx)}
+.sec{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding-bottom:8px;border-bottom:1px solid var(--bdr);margin-bottom:12px;margin-top:4px}
+.banner{border-radius:var(--rs);padding:10px 14px;font-size:12px;margin-bottom:14px;border:1px solid transparent;line-height:1.5}
+.ban-blue{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)}
+.ban-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.ban-green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.ban-purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd)}
+.ban-red{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.fbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.fc{padding:5px 12px;border:1px solid var(--bdr);border-radius:20px;font-size:12px;cursor:pointer;background:var(--surf);color:var(--tx2);white-space:nowrap;transition:all .1s}
+.fc.on{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue);font-weight:500}
+.sinp{padding:7px 12px;border:1px solid var(--bdr);border-radius:var(--rs);background:var(--surf);font-size:13px;color:var(--tx);outline:none}
+.sinp:focus{border-color:var(--blue)}
+.date-filter{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rs);margin-bottom:16px;flex-wrap:wrap}
+.date-filter label{font-size:12px;color:var(--tx3);font-weight:500}
+.dq{padding:4px 10px;border:1px solid var(--bdr);border-radius:20px;font-size:11px;cursor:pointer;background:var(--surf);color:var(--tx2);white-space:nowrap;transition:all .1s}
+.dq.on{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue);font-weight:500}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-box{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:36px;width:100%;max-width:390px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.empty{text-align:center;padding:56px 20px;color:var(--tx3)}
+.empty-ico{font-size:36px;margin-bottom:12px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;vertical-align:middle}
+.spin-d{border-color:rgba(0,0,0,.1);border-top-color:var(--blue)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px;color:var(--tx3)}
+.mono{font-family:'DM Mono',monospace;font-size:12px}
+.doc-toggle{display:flex;gap:6px;margin-bottom:16px}
+.dt-btn{padding:5px 14px;border:1px solid var(--bdr);border-radius:var(--rs);background:none;font-size:12px;cursor:pointer;color:var(--tx2)}
+.dt-btn.on{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bd);font-weight:500}
+.reorder-tag{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-bd);border-radius:var(--rs);padding:4px 8px;font-size:11px;margin-top:6px;display:inline-block}
+.dup-warn{background:#FFF7ED;border:1px solid #FED7AA;border-radius:var(--rs);padding:10px 14px;font-size:12px;color:#C2410C;margin-top:6px}
+.ord-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.ord-card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ord-num{font-family:'DM Mono',monospace;font-size:13px;font-weight:500}
+.ord-row{display:flex;gap:8px;font-size:12px;color:var(--tx2);margin-bottom:4px}
+.ord-lbl{color:var(--tx3);min-width:80px}
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.preview-table th{background:var(--surf2);padding:7px 10px;text-align:left;font-weight:600;color:var(--tx3);font-size:11px;border-bottom:1px solid var(--bdr)}
+.preview-table td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--tx)}
+.preview-table tr:last-child td{border-bottom:none}
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--bdr);margin-bottom:20px}
+.tab-btn{padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--tx3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s}
+.tab-btn.on{color:var(--blue);border-bottom-color:var(--blue)}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading MedFlow…</span></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const{createClient}=supabase;
+const sb=createClient('https://rmpmhkllnrrybiezpjfb.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtcG1oa2xsbnJyeWJpZXpwamZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjA1ODAsImV4cCI6MjA5Mjg5NjU4MH0.HbHN6oc6bnEUlmZdIHB6fxO6r2M-17xo1BTG_pIAGNU');
+
+const CONDITIONS=['Type 2 Diabetes','High Blood Pressure','High Cholesterol','Sleep Apnea','PCOS','Heart Disease','Thyroid Problems','Depression','Eating Disorders','Pancreatitis History','Kidney/Liver Disease'];
+const MEDICATIONS=['None','Diabetes Medications','Hypertension Medications','Heart Medications','Insulin','Thyroid medications','Psychiatric medications','Other'];
+const METHODS=['Diet and Exercise','Weight loss Medications','Commercial Programs','Bariatric Consultation','First Attempt',"Doctor's recommendation",'Other'];
+const GI=['None','Severe stomach pain','Persistent nausea','Gastroparesis','Inflammatory bowel disease'];
+const POC=['Whatsapp sent','TC complete','Rescheduled for next day','Unanswered - Call 1 Done','Unanswered - Call 2 Done','Followup Required - Positive','Spam - DND - Not Interested','No Consultation needed','Prescription available with client','Call done - book consultation with Dietician','Incorrect Number','BMD link sent'];
+const RX=['Mounjaro 2.5mg','Mounjaro 5mg','Mounjaro 7.5mg','Mounjaro 10mg','Wegovy 0.25mg','Wegovy 0.5mg','Wegovy 1mg','Ozempic 0.25mg','Ozempic 0.5mg','Ozempic 1mg','Saxenda 0.6mg','Metformin 500mg','Metformin 1000mg','Other'];
+const SOURCES=['Instagram','Facebook','TikTok','Google Ads','WhatsApp','Referral','Walk-in','Website','Other'];
+const STAGES=[{k:'claimed',l:'Claimed',c:'#1A5FA6'},{k:'in_progress',l:'In Progress',c:'#D97706'},{k:'with_doctor',l:'With Doctor',c:'#6D28D9'},{k:'prescribed',l:'Prescribed',c:'#0D9488'},{k:'converted',l:'Converted',c:'#16A34A'},{k:'dnd',l:'DND',c:'#DC2626'}];
+const SL={new:'New',claimed:'Claimed',in_progress:'In Progress',with_doctor:'With Doctor',prescribed:'Prescribed',converted:'Converted',unqualified:'Unqualified',supplement:'Supplement Offer',dnd:'DND',closed:'Closed'};
+
+let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[];
+let NAV='dashboard',DF='all',AS='all',SRCH='',OSRCH='',OTAB='all';
+let DATE_FROM=null,DATE_TO=null,DATE_PRESET='all';
+
+const $=id=>document.getElementById(id);
+const da=d=>d?Math.max(0,Math.floor((Date.now()-new Date(d))/86400000)):0;
+const ageEl=d=>{const n=da(d);const s=document.createElement('span');s.className=n<=3?'age-ok':n<=7?'age-warn':'age-old';s.textContent=n+'d';return s;};
+const calcBMI=(h,w)=>(!h||!w)?null:parseFloat((w/((h/100)**2)).toFixed(1));
+const bmiInfo=b=>{if(!b)return{l:'—',c:'var(--tx3)',bg:'var(--surf2)'};if(b<18.5)return{l:'Underweight',c:'#92400E',bg:'#FEF3C7'};if(b<25)return{l:'Normal',c:'#166534',bg:'#DCFCE7'};if(b<30)return{l:'Overweight',c:'#92400E',bg:'#FEF3C7'};return{l:'Obese',c:'#991B1B',bg:'#FEE2E2'};};
+const fmtDT=d=>d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):null;
+const fmtD=d=>d?new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):null;
+
+function toast(msg,type='info'){
+  const cols={info:['#1A5FA6','#EBF2FB','#BFDBFE'],success:['#166534','#DCFCE7','#86EFAC'],error:['#991B1B','#FEE2E2','#FCA5A5']};
+  const[c,bg,br]=cols[type]||cols.info;
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;background:${bg};color:${c};border:1px solid ${br};padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-width:320px;line-height:1.5;`;
+  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3500);
+}
+async function logAct(lid,action,from,to,note=null){try{await sb.rpc('log_activity',{p_lead_id:lid,p_actor_id:USER.id,p_actor_name:PROF.name,p_actor_role:PROF.role,p_action:action,p_from:String(from||''),p_to:String(to||''),p_note:note});}catch(e){}}
+
+function getDateRange(){
+  const now=new Date();
+  if(DATE_PRESET==='today'){const s=new Date(now);s.setHours(0,0,0,0);return{from:s.toISOString(),to:now.toISOString()};}
+  if(DATE_PRESET==='week'){const s=new Date(now);s.setDate(s.getDate()-7);return{from:s.toISOString(),to:now.toISOString()};}
+  if(DATE_PRESET==='month'){const s=new Date(now);s.setDate(s.getDate()-30);return{from:s.toISOString(),to:now.toISOString()};}
+  if(DATE_PRESET==='3month'){const s=new Date(now);s.setDate(s.getDate()-90);return{from:s.toISOString(),to:now.toISOString()};}
+  if(DATE_PRESET==='custom'&&DATE_FROM&&DATE_TO)return{from:new Date(DATE_FROM).toISOString(),to:new Date(DATE_TO+'T23:59:59').toISOString()};
+  return null;
+}
+function applyDateFilter(leads){
+  const r=getDateRange();if(!r)return leads;
+  return leads.filter(l=>{const d=new Date(l.claimed_at||l.created_at);return d>=new Date(r.from)&&d<=new Date(r.to);});
+}
+function deduplicateLeads(leads){
+  const map=new Map();
+  const sorted=[...leads].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  sorted.forEach(l=>{
+    const key=l.email.toLowerCase();
+    if(!map.has(key)){map.set(key,l);return;}
+    const existing=map.get(key);
+    const diff=Math.abs(new Date(l.created_at)-new Date(existing.created_at))/(86400000);
+    if(diff>7)map.set(key+'_'+l.id,l);
+  });
+  return Array.from(map.values());
+}
+
+const SEL='*,client_profiles(full_name,bmi,conditions,doctor_notes,agent_notes),prescriptions(product,dosage_notes,doctor_name,is_current,prescribed_at)';
+async function loadLeads(){
+  try{
+    if(PROF.role==='agent'){
+      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false})]);
+      const seen=new Set();
+      LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));
+    }else if(PROF.role==='doctor'){
+      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').order('created_at',{ascending:false}),sb.from('leads').select(SEL).eq('doctor_id',USER.id).order('created_at',{ascending:false})]);
+      const seen=new Set();
+      LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});
+    }else{
+      const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false});
+      LEADS=deduplicateLeads(data||[]);
+    }
+  }catch(e){console.error('loadLeads',e);}
+}
+async function loadDoctors(){const{data}=await sb.from('profiles').select('*').eq('is_active',true);DOCTORS=data||[];}
+async function loadOrders(){
+  try{const{data}=await sb.from('orders').select('*').order('order_date',{ascending:false}).limit(500);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
+}
+
+function showAuth(){
+  document.getElementById('app').innerHTML=`<div class="auth-wrap"><div class="auth-box">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px">MedFlow CRM</div>
+    <div style="font-size:13px;color:var(--tx3);margin-bottom:24px">Lead Allocation & Conversion Tracking</div>
+    <div class="fld"><label class="fld-l">Email</label><input class="inp" id="loginEmail" type="email" placeholder="you@clinic.com" autocomplete="username"></div>
+    <div class="fld"><label class="fld-l">Password</label><input class="inp" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div id="loginErr" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
+    <button class="btn btn-blue btn-w" id="loginBtn" style="margin-top:16px">Sign In</button>
+    <div style="margin-top:18px;font-size:11px;color:var(--tx3);line-height:1.7;padding:12px;background:var(--surf2);border-radius:var(--rs)">Create users in <strong>Supabase → Auth → Users</strong>, then add a row in the <code>profiles</code> table with the UUID and role.</div>
+  </div></div>`;
+  async function doLogin(){
+    const email=$('loginEmail').value.trim(),pass=$('loginPass').value;
+    if(!email||!pass){showErr('Enter email and password');return;}
+    const btn=$('loginBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';
+    const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error){showErr(error.message);btn.disabled=false;btn.textContent='Sign In';return;}
+    const{data:prof,error:pe}=await sb.from('profiles').select('*').eq('id',data.user.id).single();
+    if(pe||!prof){showErr('Profile not found — ask admin to add your profile.');btn.disabled=false;btn.textContent='Sign In';return;}
+    USER=data.user;PROF=prof;await startApp();
+  }
+  function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
+  $('loginBtn').addEventListener('click',doLogin);
+  $('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  $('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});
+}
+
+async function startApp(){
+  document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading workspace…</span></div>';
+  await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);
+  NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'queue':'all_leads';
+  buildShell();
+}
+
+function buildShell(){
+  const app=document.getElementById('app');app.innerHTML='';
+  const shell=document.createElement('div');shell.className='shell';
+  const sbe=document.createElement('div');sbe.className='sidebar';
+  sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?` · ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;
+  const main=document.createElement('div');main.className='main-col';
+  main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;
+  shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);
+  $('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});
+  $('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;});
+  renderNav();renderView();
+}
+
+function renderNav(){
+  const navEl=$('sbnav');if(!navEl)return;
+  const items=getNavItems();navEl.innerHTML='';
+  items.forEach(item=>{
+    const btn=document.createElement('button');btn.className='nav-item'+(NAV===item.k?' on':'');
+    btn.innerHTML=`<span>${item.i}</span><span>${item.l}</span>${item.c!=null?`<span class="nav-cnt">${item.c}</span>`:''}`;
+    btn.addEventListener('click',()=>{NAV=item.k;DATE_PRESET='all';DATE_FROM=null;DATE_TO=null;renderNav();renderView();const tb=$('tbTitle');if(tb)tb.textContent=item.l;});
+    navEl.appendChild(btn);
+  });
+  const cur=getNavItems().find(i=>i.k===NAV);
+  const tb=$('tbTitle');if(tb&&cur)tb.textContent=cur.l;
+}
+
+function getNavItems(){
+  const r=PROF.role;
+  if(r==='agent')return[
+    {k:'dashboard',i:'▦',l:'Dashboard'},
+    {k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},
+    {k:'my_leads',i:'◈',l:'My Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status)).length},
+    {k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},
+    {k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},
+  ];
+  if(r==='doctor')return[
+    {k:'queue',i:'◉',l:'Consultation Queue',c:LEADS.filter(l=>l.status==='with_doctor').length},
+    {k:'done',i:'◎',l:'My Consultations',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},
+  ];
+  return[
+    {k:'all_leads',i:'▦',l:'All Leads'},
+    {k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},
+    {k:'agents',i:'◈',l:'Agents'},
+  ];
+}
+
+function mkDateFilter(onchange){
+  const wrap=document.createElement('div');wrap.className='date-filter';
+  wrap.innerHTML=`<label>Period:</label>`;
+  [['all','All Time'],['today','Today'],['week','Last 7d'],['month','Last 30d'],['3month','Last 90d'],['custom','Custom']].forEach(([val,lbl])=>{
+    const b=document.createElement('span');b.className='dq'+(DATE_PRESET===val?' on':'');b.textContent=lbl;
+    b.addEventListener('click',()=>{DATE_PRESET=val;if(val!=='custom'){DATE_FROM=null;DATE_TO=null;}wrap.querySelectorAll('.dq').forEach(x=>x.classList.remove('on'));b.classList.add('on');const cw=wrap.querySelector('.custom-dates');if(cw)cw.style.display=val==='custom'?'flex':'none';onchange();});
+    wrap.appendChild(b);
+  });
+  const cw=document.createElement('span');cw.className='custom-dates';cw.style.cssText='display:'+(DATE_PRESET==='custom'?'flex':'none')+';gap:6px;align-items:center';
+  cw.innerHTML=`<input type="date" id="df-from" value="${DATE_FROM||''}"><span style="color:var(--tx3)">→</span><input type="date" id="df-to" value="${DATE_TO||''}">`;
+  wrap.appendChild(cw);
+  cw.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{DATE_FROM=$('df-from')?.value||null;DATE_TO=$('df-to')?.value||null;onchange();}));
+  return wrap;
+}
+
+function renderView(){
+  const v=$('viewArea');if(!v)return;v.innerHTML='';
+  if(NAV==='dashboard')vDashboard(v);
+  else if(NAV==='pool')vGrid(v,LEADS.filter(l=>l.status==='new'),'Lead Pool',true);
+  else if(NAV==='my_leads')vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status)),'My Leads',true);
+  else if(NAV==='prescribed'){const b=document.createElement('div');b.className='banner ban-green';b.style.marginBottom='16px';b.textContent='💊 Prescription ready — follow up to confirm the order.';v.appendChild(b);vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed'),'Prescribed Leads',true);}
+  else if(NAV==='repeat'){const due=LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'&&l.reorder_due_at&&new Date(l.reorder_due_at)<=new Date(Date.now()+86400000));if(due.length){const b=document.createElement('div');b.className='banner ban-amber';b.style.marginBottom='16px';b.textContent=`🔁 ${due.length} lead(s) due for reorder.`;v.appendChild(b);}vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'),'Repeat / Old Leads',true);}
+  else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);
+  else if(NAV==='done')vGrid(v,LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)),'My Consultations',false);
+  else if(NAV==='all_leads')vAdmin(v);
+  else if(NAV==='orders')vOrders(v);
+  else if(NAV==='agents')vAgents(v);
+}
+
+function vDashboard(v){
+  const ml=applyDateFilter(LEADS.filter(l=>l.agent_id===USER.id));
+  const allMine=LEADS.filter(l=>l.agent_id===USER.id);
+  const bk={};STAGES.forEach(s=>bk[s.k]=ml.filter(l=>l.status===s.k));
+  const gmax=Math.max(1,...allMine.map(l=>da(l.claimed_at)));
+  const oldest=allMine.filter(l=>!['converted','dnd','closed'].includes(l.status)).sort((a,b)=>da(b.claimed_at)-da(a.claimed_at)).slice(0,4);
+  const due=allMine.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at&&new Date(l.reorder_due_at)<=new Date(Date.now()+86400000));
+  const fil=DF==='all'?ml:ml.filter(l=>l.status===DF);
+
+  const gr=document.createElement('div');gr.style.marginBottom='20px';
+  gr.innerHTML=`<div style="font-size:18px;font-weight:700;letter-spacing:-.3px">Good day, ${PROF.name.split(' ')[0]} 👋</div><div style="font-size:13px;color:var(--tx3);margin-top:2px">Your pipeline overview</div>`;
+  v.appendChild(gr);
+  if(due.length){const b=document.createElement('div');b.className='banner ban-amber';b.textContent=`🔁 ${due.length} repeat lead(s) due for reorder.`;v.appendChild(b);}
+  v.appendChild(mkDateFilter(()=>renderView()));
+
+  const prow=document.createElement('div');prow.className='pipe-row';
+  STAGES.forEach(s=>{
+    const arr=bk[s.k]||[];const avg=arr.length?Math.round(arr.reduce((a,l)=>a+da(l.claimed_at),0)/arr.length):0;const mx=arr.length?Math.max(...arr.map(l=>da(l.claimed_at))):0;const bW=mx>0?Math.round((mx/gmax)*100):0;
+    const p=document.createElement('div');p.className='pipe'+(DF===s.k?' on':'');
+    p.innerHTML=`<div class="pipe-dot" style="background:${s.c}"></div><div class="pipe-n" style="color:${s.c}">${arr.length}</div><div class="pipe-l">${s.l}</div>${arr.length?`<div class="pipe-a">avg ${avg}d · max ${mx}d</div><div class="pipe-bar-bg"><div class="pipe-bar" style="width:${bW}%;background:${s.c}"></div></div>`:'<div class="pipe-a">—</div>'}`;
+    p.addEventListener('click',()=>{DF=DF===s.k?'all':s.k;renderView();});prow.appendChild(p);
+  });
+  v.appendChild(prow);
+
+  if(oldest.length){
+    const o=document.createElement('div');o.className='oldest';
+    o.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em">Oldest Active Leads</div><div class="oldest-g">${oldest.map(l=>`<div class="oldest-i"><div><div style="font-size:13px;font-weight:500">${l.client_profiles?.full_name||l.lead_number}</div><span class="bdg s-${l.status}" style="margin-top:2px">${SL[l.status]||l.status}</span></div></div>`).join('')}</div>`;
+    const items=o.querySelectorAll('.oldest-i');oldest.forEach((l,i)=>{if(items[i])items[i].appendChild(ageEl(l.claimed_at));});v.appendChild(o);
+  }
+
+  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+  const ttl=document.createElement('div');ttl.style.cssText='font-size:13px;font-weight:500';ttl.textContent=`My leads (${fil.length})`;
+  const chips=document.createElement('div');chips.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+  const mkfc=(lbl,val)=>{const c=document.createElement('span');c.className='fc'+(DF===val?' on':'');c.textContent=lbl;c.addEventListener('click',()=>{DF=val;renderView();});return c;};
+  chips.appendChild(mkfc('All','all'));STAGES.forEach(s=>chips.appendChild(mkfc(s.l,s.k)));
+  hdr.appendChild(ttl);hdr.appendChild(chips);v.appendChild(hdr);
+
+  if(!fil.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">📭</div>No leads in this period / stage.';v.appendChild(e);return;}
+  const tw=document.createElement('div');tw.className='tbl-wrap';
+  tw.innerHTML=`<table><thead><tr><th>Lead</th><th>Name</th><th>Source</th><th>Type</th><th>Status</th><th>Age</th><th>Claimed</th><th>Consulted</th><th>Converted</th><th>POC</th><th>Rx</th></tr></thead><tbody>${fil.map(l=>`<tr>
+    <td class="mono">${l.lead_number}</td>
+    <td style="font-weight:500">${l.client_profiles?.full_name||'—'}</td>
+    <td style="font-size:12px;color:var(--tx3)">${l.source||'—'}</td>
+    <td><span class="bdg ${l.lead_type_tag==='recurring'?'t-recurring':l.lead_type==='repeat'?'t-repeat':'t-new'}">${l.lead_type_tag==='recurring'?'Recurring':l.lead_type}</span></td>
+    <td><span class="bdg s-${l.status}">${SL[l.status]||l.status}</span></td>
+    <td></td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.claimed_at)||'—'}</td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.consultation_at)||'—'}</td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.converted_at)||'—'}</td>
+    <td style="font-size:12px;color:var(--tx3)">${l.poc_status||'—'}</td>
+    <td style="font-size:11px">${l.prescriptions?.find(p=>p.is_current)?.product||'—'}</td>
+  </tr>`).join('')}</tbody></table>`;
+  const rows=tw.querySelectorAll('tbody tr');fil.forEach((l,i)=>{if(rows[i]){const td=rows[i].querySelectorAll('td')[5];if(td)td.appendChild(ageEl(l.claimed_at));}});
+  v.appendChild(tw);
+}
+
+function vGrid(v,leads,title,showDF=false){
+  const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=title;v.appendChild(h);
+  if(showDF)v.appendChild(mkDateFilter(()=>renderView()));
+  const filtered=showDF?applyDateFilter(leads):leads;
+  const cnt=document.createElement('div');cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';cnt.textContent=`${filtered.length} lead${filtered.length!==1?'s':''}`;v.appendChild(cnt);
+  if(!filtered.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">📭</div>No leads here.';v.appendChild(e);return;}
+  const g=document.createElement('div');g.className='grid';filtered.forEach(l=>g.appendChild(buildCard(l)));v.appendChild(g);
+}
+
+function buildCard(lead){
+  const role=PROF.role;
+  const rx=lead.prescriptions?.find(p=>p.is_current);
+  const cp=lead.client_profiles;
+  const due=lead.lead_type==='repeat'&&lead.reorder_due_at&&new Date(lead.reorder_due_at)<=new Date(Date.now()+86400000);
+  const card=document.createElement('div');card.className='card';
+
+  const hdr=document.createElement('div');hdr.className='card-hdr';
+  const idSpan=document.createElement('span');idSpan.className='card-id';idSpan.textContent=lead.lead_number;
+  if(lead.lead_type_tag==='recurring'){const t=document.createElement('span');t.className='bdg t-recurring';t.style.marginLeft='6px';t.textContent='Recurring';idSpan.appendChild(t);}
+  else if(lead.lead_type==='repeat'){const t=document.createElement('span');t.className='bdg t-repeat';t.style.marginLeft='6px';t.textContent='Repeat';idSpan.appendChild(t);}
+  const st=document.createElement('span');st.className=`bdg s-${lead.status}`;st.textContent=SL[lead.status]||lead.status;
+  hdr.appendChild(idSpan);hdr.appendChild(st);card.appendChild(hdr);
+
+  const addRow=(lbl,val,style='')=>{if(!val)return;const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">${lbl}</span><span${style?` style="${style}"`:''}}>${val}</span>`;card.appendChild(r);};
+  if(cp?.full_name){const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">Name</span><strong>${cp.full_name}</strong>`;card.appendChild(r);}
+  addRow('Phone',lead.phone);
+  const er=document.createElement('div');er.className='card-row';er.innerHTML=`<span class="card-lbl">Email</span><span style="font-size:12px;color:var(--tx3)">${lead.email}</span>`;card.appendChild(er);
+  if(lead.source)addRow('Source',lead.source,'font-size:12px;color:var(--tx3)');
+  if(lead.claimed_at){const r=document.createElement('div');r.className='card-row';r.innerHTML='<span class="card-lbl">Age</span>';r.appendChild(ageEl(lead.claimed_at));card.appendChild(r);}
+  if(lead.agent_name&&role!=='agent')addRow('Agent',lead.agent_name);
+  if(lead.doctor_name)addRow('Doctor',lead.doctor_name);
+  if(lead.poc_status){const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">POC</span><span style="font-size:11px;color:var(--tx3)">${lead.poc_status}</span>`;card.appendChild(r);}
+  if(lead.doc_changes){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--amber);margin-top:4px';w.textContent='⚠ Doctor updated profile';card.appendChild(w);}
+  if(rx){const b=document.createElement('div');b.className='rx-box';b.innerHTML=`<div class="rx-box-lbl">Prescription</div><div class="rx-box-val">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${rx.dosage_notes}</div>`:''}`;card.appendChild(b);}
+  if(due){const d=document.createElement('div');d.className='reorder-tag';d.textContent=`🔁 Reorder: ${fmtD(lead.reorder_due_at)}`;card.appendChild(d);}
+  const hasTs=lead.claimed_at||lead.consultation_at||lead.converted_at;
+  if(hasTs){const ts=document.createElement('div');ts.className='card-ts';if(lead.claimed_at)ts.innerHTML+=`<span>📋 Claimed: ${fmtDT(lead.claimed_at)}</span>`;if(lead.consultation_at)ts.innerHTML+=`<span>🩺 Consulted: ${fmtDT(lead.consultation_at)}</span>`;if(lead.converted_at)ts.innerHTML+=`<span>✅ Converted: ${fmtDT(lead.converted_at)}</span>`;card.appendChild(ts);}
+
+  const acts=[];
+  if(role==='agent'&&lead.status==='new')acts.push(['Claim Lead','btn-blue',()=>claimLead(lead)]);
+  if(lead.status!=='new')acts.push([cp?'View / Edit Profile':'Create Profile','btn-ghost',()=>openProfile(lead)]);
+  if(role==='agent'&&['claimed','in_progress','supplement','prescribed'].includes(lead.status))acts.push(['Update Status / POC','btn-ghost',()=>openStatus(lead)]);
+  if(role==='agent'&&['claimed','in_progress'].includes(lead.status)&&cp)acts.push(['Send to Doctor','btn-purple',()=>openAssign(lead)]);
+  if((role==='doctor'||role==='admin')&&lead.status==='with_doctor')acts.push(['Prescribe & Return','btn-green',()=>openPrescribe(lead)]);
+  if(role==='agent'&&lead.status==='prescribed')acts.push(['Mark Converted','btn-green',()=>openConvert(lead)]);
+  if(acts.length){const wrap=document.createElement('div');wrap.className='card-acts';acts.forEach(([lbl,cls,fn])=>{const btn=document.createElement('button');btn.className=`btn ${cls} btn-sm btn-w`;btn.textContent=lbl;btn.addEventListener('click',async()=>{btn.disabled=true;const orig=btn.textContent;btn.innerHTML=`<span class="spin"></span> ${orig}`;try{await fn();}catch(e){toast(e.message||'Error','error');}btn.disabled=false;btn.textContent=orig;});wrap.appendChild(btn);});card.appendChild(wrap);}
+  return card;
+}
+
+async function claimLead(lead){
+  const{error}=await sb.from('leads').update({status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString()}).eq('id',lead.id);
+  if(error)throw new Error(error.message);
+  await logAct(lead.id,'lead_claimed','new','claimed');
+  toast('Lead claimed!','success');await loadLeads();renderNav();renderView();
+}
+
+function mkModal(sm=false,lg=false){
+  const ov=document.createElement('div');ov.className='overlay';
+  const m=document.createElement('div');m.className='modal'+(sm?' modal-sm':lg?' modal-lg':'');
+  ov.appendChild(m);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);return{ov,m};
+}
+
+async function openProfile(lead){
+  const isDoc=PROF.role==='doctor';let docEdit=false;
+  let prof={lead_id:lead.id,conditions:[],medications:[],weight_methods:[],gi_issues:[]};
+  async function rebuild(){
+    const[{data:cp},{data:rx}]=await Promise.all([sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle(),sb.from('prescriptions').select('*').eq('lead_id',lead.id).eq('is_current',true).order('prescribed_at',{ascending:false}).limit(1).maybeSingle()]);
+    if(cp)prof={...cp};
+    document.querySelectorAll('.profile-ov').forEach(e=>e.remove());
+    const ov=document.createElement('div');ov.className='overlay profile-ov';
+    const m=document.createElement('div');m.className='modal';
+    const can=!isDoc||docEdit;
+    const bmi=calcBMI(parseFloat(prof.height_cm),parseFloat(prof.weight_kg));const bi=bmiInfo(bmi);
+    const inp=(id,v,type='text')=>`<input class="inp" id="pm${id}" type="${type}" value="${v||''}"${!can?' readonly':''}>`;
+    const sel=(id,v,opts)=>!can?`<input class="inp" value="${v||'—'}" readonly>`:`<select class="inp" id="pm${id}"><option value="">Select</option>${opts.map(o=>`<option${v===o?' selected':''}>${o}</option>`).join('')}</select>`;
+    const chips=(opts,arr,key)=>opts.map(o=>`<span class="chip${(arr||[]).includes(o)?' on':''}${!can?' ro':''}" data-key="${key}" data-v="${o.replace(/"/g,'&quot;')}">${o}</span>`).join('');
+    m.innerHTML=`<div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><span class="modal-t">Profile — ${lead.lead_number}</span>${lead.doc_changes?'<span style="background:var(--amber-bg);color:var(--amber);font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--amber-bd)">Doctor updated</span>':''}</div><button class="btn-x" id="pmClose">✕</button></div>
+    <div class="modal-body">
+      ${isDoc?`<div class="doc-toggle"><button class="dt-btn${!docEdit?' on':''}" id="pmView">View only</button><button class="dt-btn${docEdit?' on':''}" id="pmEdit">Edit mode</button></div>`:''}
+      ${rx?`<div class="banner ban-green"><strong>Current Rx · ${rx.doctor_name}:</strong> ${rx.product}${rx.dosage_notes?' — '+rx.dosage_notes:''}</div>`:''}
+      <div class="sec">Basic Information</div>
+      <div class="r2" style="margin-bottom:12px"><div class="fld"><label class="fld-l">Full Name</label>${inp('Name',prof.full_name)}</div><div class="fld"><label class="fld-l">Age</label>${inp('Age',prof.age,'number')}</div></div>
+      <div class="r3" style="margin-bottom:12px"><div class="fld"><label class="fld-l">Gender</label>${sel('Gender',prof.gender,['Male','Female','Other'])}</div><div class="fld"><label class="fld-l">Height (cm)</label>${inp('H',prof.height_cm,'number')}</div><div class="fld"><label class="fld-l">Weight (kg)</label>${inp('W',prof.weight_kg,'number')}</div></div>
+      <div class="bmi-box" id="pmBMI"><div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi||'—'}</div></div><span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>${bmi?`<span style="font-size:12px;color:var(--tx3)">${prof.height_cm}cm · ${prof.weight_kg}kg</span>`:''}</div>
+      <div class="sec">Goals & Motivation</div>
+      <div class="r2" style="margin-bottom:14px"><div class="fld"><label class="fld-l">Primary goal</label>${sel('Goal',prof.primary_goal,['Improve health','Manage diabetes or blood pressure','Increase energy','Cosmetic reasons',"Doctor's recommendation",'Other'])}</div><div class="fld"><label class="fld-l">Motivation (1–5)</label>${sel('Motiv',prof.motivation_score?.toString(),['1','2','3','4','5'])}</div></div>
+      <div class="sec">Medical Conditions ${can?'<span style="font-weight:400;text-transform:none;font-size:11px">(select all that apply)</span>':''}</div>
+      <div class="chips" style="margin-bottom:14px">${chips(CONDITIONS,prof.conditions,'conditions')}</div>
+      <div class="sec">Current Medications</div><div class="chips" style="margin-bottom:14px">${chips(MEDICATIONS,prof.medications,'medications')}</div>
+      <div class="sec">Weight Loss Methods Tried</div><div class="chips" style="margin-bottom:14px">${chips(METHODS,prof.weight_methods,'weight_methods')}</div>
+      <div class="sec">Gastrointestinal Issues</div><div class="chips" style="margin-bottom:14px">${chips(GI,prof.gi_issues,'gi_issues')}</div>
+      <div class="sec">Appetite & Budget</div>
+      <div class="r3" style="margin-bottom:14px"><div class="fld"><label class="fld-l">Appetite (1–5)</label>${sel('Appetite',prof.appetite_score?.toString(),['1','2','3','4','5'])}</div><div class="fld"><label class="fld-l">Monthly budget</label>${sel('Budget',prof.monthly_budget,['Upto 500 SAR','500-2000 SAR','2000 SAR+'])}</div><div class="fld"><label class="fld-l">Follow-ups?</label>${sel('Followup',prof.commit_followup,['Yes','No','Maybe'])}</div></div>
+      ${isDoc&&can?`<div class="sec">Clinical Notes <span style="font-weight:400;text-transform:none;font-size:11px">(doctor only)</span></div><textarea class="inp" id="pmDocNotes" style="margin-bottom:14px">${prof.doctor_notes||''}</textarea>`:''}
+      ${isDoc&&!can&&prof.doctor_notes?`<div class="banner ban-purple"><strong>Clinical Notes:</strong> ${prof.doctor_notes}</div>`:''}
+      ${!isDoc?`<div class="sec">Agent Notes</div><textarea class="inp" id="pmNotes" style="margin-bottom:14px">${prof.agent_notes||''}</textarea><div class="sec">POC Status</div><select class="inp" id="pmPOC" style="margin-bottom:14px"><option value="">Select POC…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select><div class="sec">Lead Status</div><select class="inp" id="pmStatus">${['claimed','in_progress','unqualified','supplement','dnd','closed'].map(s=>`<option value="${s}"${lead.status===s?' selected':''}>${SL[s]||s}</option>`).join('')}</select>`:''}
+    </div>
+    <div class="modal-ftr"><button class="btn btn-ghost" id="pmCancel">Close</button>${can?`<button class="btn btn-blue" id="pmSave">Save Profile</button>`:''}</div>`;
+    ov.appendChild(m);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);
+    m.querySelector('#pmClose').addEventListener('click',()=>ov.remove());
+    m.querySelector('#pmCancel').addEventListener('click',()=>ov.remove());
+    if(isDoc){m.querySelector('#pmView').addEventListener('click',()=>{docEdit=false;rebuild();});m.querySelector('#pmEdit').addEventListener('click',()=>{docEdit=true;rebuild();});}
+    const upBMI=()=>{const h=parseFloat(m.querySelector('#pmH')?.value),w=parseFloat(m.querySelector('#pmW')?.value);const b=calcBMI(h,w),bi2=bmiInfo(b);const box=m.querySelector('#pmBMI');if(box)box.innerHTML=`<div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi2.c}">${b||'—'}</div></div><span class="bdg" style="background:${bi2.bg};color:${bi2.c}">${bi2.l}</span>${b?`<span style="font-size:12px;color:var(--tx3)">${h}cm · ${w}kg</span>`:''}`;};
+    m.querySelector('#pmH')?.addEventListener('input',upBMI);m.querySelector('#pmW')?.addEventListener('input',upBMI);
+    m.querySelectorAll('[data-key]').forEach(c=>c.addEventListener('click',()=>{if(!can)return;const key=c.dataset.key,val=c.dataset.v;if(!prof[key])prof[key]=[];prof[key]=prof[key].includes(val)?prof[key].filter(x=>x!==val):[...prof[key],val];c.classList.toggle('on',prof[key].includes(val));}));
+    const sv=m.querySelector('#pmSave');
+    if(sv)sv.addEventListener('click',async()=>{sv.disabled=true;sv.innerHTML='<span class="spin"></span> Saving…';const h=parseFloat(m.querySelector('#pmH')?.value)||null,w=parseFloat(m.querySelector('#pmW')?.value)||null;const ts={lead_id:lead.id,full_name:m.querySelector('#pmName')?.value||null,age:m.querySelector('#pmAge')?.value?parseInt(m.querySelector('#pmAge').value):null,gender:m.querySelector('#pmGender')?.value||null,height_cm:h,weight_kg:w,bmi:calcBMI(h,w),primary_goal:m.querySelector('#pmGoal')?.value||null,motivation_score:m.querySelector('#pmMotiv')?.value?parseInt(m.querySelector('#pmMotiv').value):null,conditions:prof.conditions||[],medications:prof.medications||[],weight_methods:prof.weight_methods||[],gi_issues:prof.gi_issues||[],appetite_score:m.querySelector('#pmAppetite')?.value?parseInt(m.querySelector('#pmAppetite').value):null,monthly_budget:m.querySelector('#pmBudget')?.value||null,commit_followup:m.querySelector('#pmFollowup')?.value||null,agent_notes:m.querySelector('#pmNotes')?.value||prof.agent_notes||null,doctor_notes:m.querySelector('#pmDocNotes')?.value||prof.doctor_notes||null,last_updated_by:USER.id,last_updated_role:PROF.role};const{error}=prof.id?await sb.from('client_profiles').update(ts).eq('id',prof.id):await sb.from('client_profiles').insert(ts);if(!error){if(isDoc)await sb.from('leads').update({doc_changes:true}).eq('id',lead.id);const ns=m.querySelector('#pmStatus')?.value,np=m.querySelector('#pmPOC')?.value;if(ns||np){const u={};if(ns)u.status=ns;if(np)u.poc_status=np;await sb.from('leads').update(u).eq('id',lead.id);}await logAct(lead.id,'profile_updated','','','Profile saved');toast('Profile saved','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');sv.disabled=false;sv.textContent='Save Profile';}});
+  }
+  await rebuild();
+}
+
+async function openStatus(lead){
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Update Status — ${lead.lead_number}</span><button class="btn-x" id="stX">✕</button></div><div class="modal-body"><div class="fld"><label class="fld-l">Status</label><select class="inp" id="stSt">${['claimed','in_progress','unqualified','supplement','dnd','closed'].map(s=>`<option value="${s}"${lead.status===s?' selected':''}>${SL[s]||s}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="stPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="stCn">Cancel</button><button class="btn btn-blue" id="stSv">Save</button></div>`;
+  $('stX').addEventListener('click',()=>ov.remove());$('stCn').addEventListener('click',()=>ov.remove());
+  $('stSv').addEventListener('click',async()=>{const btn=$('stSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const ns=$('stSt').value,poc=$('stPOC').value;const{error}=await sb.from('leads').update({status:ns,poc_status:poc||lead.poc_status}).eq('id',lead.id);if(!error){await logAct(lead.id,'status_change',lead.status,ns,poc||null);toast('Updated','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Save';}});
+}
+
+async function openConvert(lead){
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Mark Converted — ${lead.lead_number}</span><button class="btn-x" id="cvX">✕</button></div><div class="modal-body"><div class="banner ban-green">Marking as converted starts a 27-day reorder timer automatically.</div><div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="cvPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">Notes (optional)</label><textarea class="inp" id="cvNotes"></textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="cvCn">Cancel</button><button class="btn btn-green" id="cvSv">Confirm Conversion</button></div>`;
+  $('cvX').addEventListener('click',()=>ov.remove());$('cvCn').addEventListener('click',()=>ov.remove());
+  $('cvSv').addEventListener('click',async()=>{const btn=$('cvSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const now=new Date().toISOString(),r=new Date(Date.now()+27*86400000).toISOString();const{error}=await sb.from('leads').update({status:'converted',converted_at:now,reorder_due_at:r,lead_type:'repeat',poc_status:$('cvPOC').value||lead.poc_status}).eq('id',lead.id);if(!error){await sb.from('conversion_history').insert({lead_id:lead.id,agent_id:USER.id,notes:$('cvNotes').value||null,cycle_number:1});await logAct(lead.id,'converted','prescribed','converted',`Reorder due: ${new Date(r).toLocaleDateString()}`);toast('Converted! Reorder timer set.','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Confirm Conversion';}});
+}
+
+async function openAssign(lead){
+  const docs=DOCTORS.filter(d=>d.role==='doctor');
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Send to Doctor — ${lead.lead_number}</span><button class="btn-x" id="asX">✕</button></div><div class="modal-body"><div class="fld"><label class="fld-l">Select Doctor</label><select class="inp" id="asDoc"><option value="">Choose…</option>${docs.map(d=>`<option value="${d.id}">${d.name}${d.specialty?' — '+d.specialty:''}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">Notes (optional)</label><textarea class="inp" id="asNotes" style="min-height:60px"></textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="asCn">Cancel</button><button class="btn btn-purple" id="asSv">Send to Doctor</button></div>`;
+  $('asX').addEventListener('click',()=>ov.remove());$('asCn').addEventListener('click',()=>ov.remove());
+  $('asSv').addEventListener('click',async()=>{const did=$('asDoc').value;if(!did){toast('Select a doctor','error');return;}const btn=$('asSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const doc=DOCTORS.find(d=>d.id===did);const now=new Date().toISOString();const{error}=await sb.from('leads').update({status:'with_doctor',doctor_id:did,doctor_name:doc.name,consultation_at:now}).eq('id',lead.id);if(!error){await logAct(lead.id,'sent_to_doctor',lead.status,'with_doctor',$('asNotes').value||null);toast('Sent to doctor','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Send to Doctor';}});
+}
+
+async function openPrescribe(lead){
+  const{data:cp}=await sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle();
+  const bmi=cp?.bmi,bi=bmiInfo(bmi);
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Prescribe — ${cp?.full_name||lead.lead_number}</span><button class="btn-x" id="rxX">✕</button></div><div class="modal-body">${bmi?`<div class="bmi-box" style="margin-bottom:16px"><div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi}</div></div><span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>${cp?.conditions?.length?`<span style="font-size:12px;color:var(--tx3)">${cp.conditions.slice(0,3).join(', ')}</span>`:''}</div>`:''} ${cp?.doctor_notes?`<div class="banner ban-purple"><strong>Your notes:</strong> ${cp.doctor_notes}</div>`:''}<div class="fld"><label class="fld-l">Prescribed Product</label><select class="inp" id="rxProd"><option value="">Select…</option>${RX.map(p=>`<option>${p}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">Dosage & Instructions</label><textarea class="inp" id="rxNotes"></textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="rxCn">Cancel</button><button class="btn btn-green" id="rxSv">Prescribe & Return to Agent</button></div>`;
+  $('rxX').addEventListener('click',()=>ov.remove());$('rxCn').addEventListener('click',()=>ov.remove());
+  $('rxSv').addEventListener('click',async()=>{const prod=$('rxProd').value;if(!prod){toast('Select a product','error');return;}const btn=$('rxSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';await sb.from('prescriptions').update({is_current:false}).eq('lead_id',lead.id);const{error}=await sb.from('prescriptions').insert({lead_id:lead.id,doctor_id:USER.id,doctor_name:PROF.name,product:prod,dosage_notes:$('rxNotes').value||null,is_current:true});if(!error){await sb.from('leads').update({status:'prescribed',doc_changes:false}).eq('id',lead.id);await logAct(lead.id,'prescription_issued','with_doctor','prescribed',`Prescribed: ${prod}`);toast('Prescription issued — lead returned to agent','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Prescribe & Return to Agent';}});
+}
+
+async function openReassignAgent(lead){
+  const agents=DOCTORS.filter(d=>d.role==='agent');
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Reassign Agent — ${lead.lead_number}</span><button class="btn-x" id="raX">✕</button></div><div class="modal-body"><div class="fld"><label class="fld-l">Current Agent</label><input class="inp" value="${lead.agent_name||'Unassigned'}" readonly></div><div class="fld"><label class="fld-l">Assign to</label><select class="inp" id="raAgent"><option value="">Select agent…</option>${agents.map(a=>`<option value="${a.id}|${a.name}"${lead.agent_id===a.id?' selected':''}>${a.name}</option>`).join('')}</select></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="raCn">Cancel</button><button class="btn btn-blue" id="raSv">Reassign</button></div>`;
+  $('raX').addEventListener('click',()=>ov.remove());$('raCn').addEventListener('click',()=>ov.remove());
+  $('raSv').addEventListener('click',async()=>{const val=$('raAgent').value;if(!val){toast('Select an agent','error');return;}const[aid,aname]=val.split('|');const btn=$('raSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const upd={agent_id:aid,agent_name:aname};if(!lead.claimed_at)upd.claimed_at=new Date().toISOString();if(lead.status==='new')upd.status='claimed';const{error}=await sb.from('leads').update(upd).eq('id',lead.id);if(!error){await logAct(lead.id,'agent_reassigned',lead.agent_name,aname,'Reassigned by admin');toast(`Assigned to ${aname}`,'success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Reassign';}});
+}
+
+function openBulkAssign(selectedIds){
+  const agents=DOCTORS.filter(d=>d.role==='agent');
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Bulk Assign — ${selectedIds.size} leads</span><button class="btn-x" id="baX">✕</button></div><div class="modal-body"><div class="banner ban-blue">${selectedIds.size} lead(s) will be assigned to the selected agent.</div><div class="fld"><label class="fld-l">Assign to Agent</label><select class="inp" id="baAgent"><option value="">Select agent…</option>${agents.map(a=>`<option value="${a.id}|${a.name}">${a.name}</option>`).join('')}</select></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="baCn">Cancel</button><button class="btn btn-blue" id="baSv">Assign ${selectedIds.size} Leads</button></div>`;
+  $('baX').addEventListener('click',()=>ov.remove());$('baCn').addEventListener('click',()=>ov.remove());
+  $('baSv').addEventListener('click',async()=>{const val=$('baAgent').value;if(!val){toast('Select an agent','error');return;}const[aid,aname]=val.split('|');const btn=$('baSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const ids=Array.from(selectedIds);const{error}=await sb.from('leads').update({agent_id:aid,agent_name:aname,status:'claimed',claimed_at:new Date().toISOString()}).in('id',ids);if(!error){toast(`${ids.length} leads assigned to ${aname}`,'success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent=`Assign ${ids.length} Leads`;}});
+}
+
+// ── ADD LEADS MODAL with Source field ────────────────────────
+function openAddLeads(){
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Add Leads</span><button class="btn-x" id="alX">✕</button></div>
+  <div class="modal-body">
+    <div class="r3"><div class="fld"><label class="fld-l">Lead Type</label><select class="inp" id="alType"><option value="new">New Lead</option><option value="repeat">Repeat / Old Lead</option></select></div>
+    <div class="fld"><label class="fld-l">Source</label><select class="inp" id="alSource"><option value="">Select source</option>${SOURCES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+    <div class="fld"><label class="fld-l">Assign to Agent (optional)</label><select class="inp" id="alAgent"><option value="">Unassigned (pool)</option>${DOCTORS.filter(d=>d.role==='agent').map(a=>`<option value="${a.id}|${a.name}">${a.name}</option>`).join('')}</select></div></div>
+    <div class="fld"><label class="fld-l">Bulk paste — one per line: email, phone</label><textarea class="inp" id="alBulk" style="min-height:90px;font-family:'DM Mono',monospace;font-size:12px" placeholder="patient@example.com, +966501234567"></textarea></div>
+    <div style="text-align:center;color:var(--tx3);font-size:12px;margin:8px 0">or single lead</div>
+    <div class="r2"><div class="fld"><label class="fld-l">Email</label><input class="inp" id="alEmail" type="email" placeholder="email@example.com"></div><div class="fld"><label class="fld-l">Phone</label><input class="inp" id="alPhone" placeholder="+966…"></div></div>
+    <div id="dupWarn"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="alCn">Cancel</button><button class="btn btn-blue" id="alSv">Add Leads</button></div>`;
+  $('alX').addEventListener('click',()=>ov.remove());$('alCn').addEventListener('click',()=>ov.remove());
+  $('alEmail').addEventListener('blur',async()=>{
+    const email=$('alEmail').value.trim();if(!email)return;
+    const{data}=await sb.from('leads').select('id,lead_number,status,created_at').ilike('email',email).gte('created_at',new Date(Date.now()-7*86400000).toISOString()).limit(1);
+    const warn=$('dupWarn');
+    if(data&&data.length){warn.innerHTML=`<div class="dup-warn">⚠ A lead with this email already exists in the last 7 days (${data[0].lead_number} · ${SL[data[0].status]||data[0].status}). Adding again will mark it as recurring.</div>`;}
+    else warn.innerHTML='';
+  });
+  $('alSv').addEventListener('click',async()=>{
+    const btn=$('alSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const type=$('alType').value,source=$('alSource').value,agentVal=$('alAgent').value;
+    const bulk=$('alBulk').value.trim(),email=$('alEmail').value.trim(),phone=$('alPhone').value.trim();
+    const agentData=agentVal?{agent_id:agentVal.split('|')[0],agent_name:agentVal.split('|')[1],status:'claimed',claimed_at:new Date().toISOString()}:{};
+    const rows=[];
+    if(bulk)bulk.split('\n').forEach(line=>{const parts=line.split(',').map(s=>s.trim());const[e,p]=parts;if(e&&p)rows.push({email:e.toLowerCase(),phone:p,lead_type:type,status:agentVal?'claimed':'new',source:source||null,...agentData});});
+    if(email&&phone)rows.push({email:email.toLowerCase(),phone,lead_type:type,status:agentVal?'claimed':'new',source:source||null,...agentData});
+    if(!rows.length){toast('Enter at least one lead','error');btn.disabled=false;btn.textContent='Add Leads';return;}
+    let skipped=0;const finalRows=[];
+    for(const row of rows){
+      const{data:dup}=await sb.from('leads').select('id').ilike('email',row.email).in('status',['new','claimed','in_progress']).gte('created_at',new Date(Date.now()-7*86400000).toISOString()).limit(1);
+      if(dup&&dup.length){skipped++;toast(`Skipped duplicate: ${row.email}`, 'error');}
+      else finalRows.push(row);
+    }
+    if(!finalRows.length){btn.disabled=false;btn.textContent='Add Leads';return;}
+    const{error}=await sb.from('leads').insert(finalRows);
+    if(!error){toast(`${finalRows.length} lead(s) added${skipped?`, ${skipped} duplicate(s) skipped`:''}`, 'success');ov.remove();await loadLeads();renderNav();renderView();}
+    else{toast(error.message,'error');btn.disabled=false;btn.textContent='Add Leads';}
+  });
+}
+
+// ── ORDERS VIEW ──────────────────────────────────────────────
+function vOrders(v){
+  const noAgent=ORDERS.filter(o=>!o.has_agent);
+  const unlinked=ORDERS.filter(o=>!o.is_linked);
+  const linked=ORDERS.filter(o=>o.is_linked);
+
+  // Stats
+  const stats=document.createElement('div');stats.className='stats';
+  [[ORDERS.length,'Total Orders','var(--tx)'],[linked.length,'Linked to Lead','var(--green)'],[noAgent.length,'No Agent','var(--red)'],[unlinked.length,'No Lead Match','var(--tx3)']].forEach(([n,l,c])=>{const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);});
+  v.appendChild(stats);
+
+  if(noAgent.length){const b=document.createElement('div');b.className='banner ban-red';b.textContent=`⚠ ${noAgent.length} order(s) are not linked to any agent. Use "Import Orders" to upload purchase data or reassign leads.`;v.appendChild(b);}
+
+  // Tab bar
+  const tabBar=document.createElement('div');tabBar.className='tab-bar';
+  [['all','All Orders'],['no_agent','No Agent'],['unlinked','No Lead Match'],['linked','Linked']].forEach(([k,l])=>{
+    const b=document.createElement('button');b.className='tab-btn'+(OTAB===k?' on':'');b.textContent=l;
+    b.addEventListener('click',()=>{OTAB=k;renderView();});tabBar.appendChild(b);
+  });
+  v.appendChild(tabBar);
+
+  // Filter bar
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search order#, email, phone…';si.value=OSRCH;si.style.width='240px';
+  si.addEventListener('input',e=>{OSRCH=e.target.value;renderView();});fb.appendChild(si);
+  const importBtn=document.createElement('button');importBtn.className='btn btn-teal btn-sm';importBtn.style.marginLeft='auto';importBtn.textContent='⬆ Import Orders';importBtn.addEventListener('click',openImportOrders);fb.appendChild(importBtn);
+  v.appendChild(fb);
+
+  let display=ORDERS;
+  if(OTAB==='no_agent')display=noAgent;
+  else if(OTAB==='unlinked')display=unlinked;
+  else if(OTAB==='linked')display=linked;
+  if(OSRCH)display=display.filter(o=>[o.order_number,o.email,o.phone].some(x=>(x||'').toLowerCase().includes(OSRCH.toLowerCase())));
+
+  const tw=document.createElement('div');tw.className='tbl-wrap';
+  tw.innerHTML=`<table><thead><tr><th>Order #</th><th>Email</th><th>Phone</th><th>Product</th><th>Order Date</th><th>Amount</th><th>Lead</th><th>Agent</th><th>Status</th></tr></thead>
+  <tbody>${display.length?display.map(o=>`<tr>
+    <td class="mono">${o.order_number}</td>
+    <td style="font-size:12px;color:var(--tx3)">${o.email||'—'}</td>
+    <td style="font-size:12px">${o.phone||'—'}</td>
+    <td style="font-weight:500">${o.product||'—'}</td>
+    <td style="font-size:12px;font-family:'DM Mono',monospace">${o.order_date?fmtD(o.order_date):'—'}</td>
+    <td style="font-family:'DM Mono',monospace">${o.amount?`${o.amount.toLocaleString()} SAR`:'—'}</td>
+    <td style="font-size:12px">${o.lead_id?LEADS.find(l=>l.id===o.lead_id)?.lead_number||'Linked':'—'}</td>
+    <td style="font-size:12px">${o.agent_name||'<span style="color:var(--red);font-weight:500">No agent</span>'}</td>
+    <td>${o.is_linked&&o.has_agent?'<span class="bdg ord-linked">Linked</span>':o.is_linked&&!o.has_agent?'<span class="bdg ord-noagent">No Agent</span>':'<span class="bdg ord-unlinked">Unmatched</span>'}</td>
+  </tr>`).join(''):`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--tx3)">No orders found</td></tr>`}</tbody></table>`;
+  v.appendChild(tw);
+}
+
+// ── IMPORT ORDERS MODAL ──────────────────────────────────────
+function openImportOrders(){
+  const{ov,m}=mkModal(false,true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Import Purchase Orders</span><button class="btn-x" id="ioX">✕</button></div>
+  <div class="modal-body">
+    <div class="banner ban-blue">Paste your order data below. Each row will automatically be matched to a lead by email or phone. If matched, the agent is also linked. Orders with no matching lead are shown as "Unmatched". Orders with no agent are flagged as "No Agent".</div>
+    <div class="sec">Expected Format — one order per line:</div>
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px;font-family:'DM Mono',monospace;font-size:12px;margin-bottom:14px;color:var(--tx2)">order_number, email, phone, product, order_date (YYYY-MM-DD), amount</div>
+    <div class="fld"><label class="fld-l">Paste order data</label><textarea class="inp" id="ioBulk" style="min-height:160px;font-family:'DM Mono',monospace;font-size:12px" placeholder="ORD-001, patient@example.com, +966501234567, Mounjaro 5mg, 2025-01-10, 1200&#10;ORD-002, other@example.com, +966509876543, Ozempic 0.5mg, 2025-01-11, 900"></textarea></div>
+    <div id="ioPreview"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="ioCn">Cancel</button><button class="btn btn-ghost" id="ioPreviewBtn">Preview</button><button class="btn btn-teal" id="ioSv" disabled>Import Orders</button></div>`;
+  $('ioX').addEventListener('click',()=>ov.remove());$('ioCn').addEventListener('click',()=>ov.remove());
+
+  let parsedRows=[];
+  $('ioPreviewBtn').addEventListener('click',()=>{
+    const raw=$('ioBulk').value.trim();if(!raw){toast('Paste some data first','error');return;}
+    parsedRows=[];const errors=[];
+    raw.split('\n').forEach((line,i)=>{
+      if(!line.trim())return;
+      const parts=line.split(',').map(s=>s.trim());
+      if(parts.length<3){errors.push(`Line ${i+1}: not enough columns`);return;}
+      const[order_number,email,phone,product,order_date,amount]=parts;
+      if(!order_number){errors.push(`Line ${i+1}: missing order number`);return;}
+      parsedRows.push({order_number,email:email?.toLowerCase()||null,phone:phone||null,product:product||null,order_date:order_date||null,amount:amount?parseFloat(amount):null});
+    });
+    const pv=$('ioPreview');
+    if(errors.length){pv.innerHTML=`<div class="banner ban-amber">${errors.join('<br>')}</div>`;}
+    pv.innerHTML+=`<div style="font-size:13px;font-weight:500;margin:12px 0 8px">${parsedRows.length} order(s) ready to import:</div>
+    <div style="overflow-x:auto"><table class="preview-table"><thead><tr><th>#</th><th>Order No.</th><th>Email</th><th>Phone</th><th>Product</th><th>Date</th><th>Amount</th></tr></thead>
+    <tbody>${parsedRows.slice(0,10).map((r,i)=>`<tr><td>${i+1}</td><td class="mono">${r.order_number}</td><td>${r.email||'—'}</td><td>${r.phone||'—'}</td><td>${r.product||'—'}</td><td class="mono">${r.order_date||'—'}</td><td>${r.amount||'—'}</td></tr>`).join('')}
+    ${parsedRows.length>10?`<tr><td colspan="7" style="text-align:center;color:var(--tx3);font-style:italic">… and ${parsedRows.length-10} more</td></tr>`:''}</tbody></table></div>`;
+    $('ioSv').disabled=parsedRows.length===0;
+  });
+
+  $('ioSv').addEventListener('click',async()=>{
+    if(!parsedRows.length){toast('Preview first','error');return;}
+    const btn=$('ioSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Importing…';
+    const{error}=await sb.from('orders').insert(parsedRows);
+    if(!error){toast(`${parsedRows.length} order(s) imported and auto-matched`,'success');ov.remove();await loadOrders();renderView();}
+    else{toast(error.message,'error');btn.disabled=false;btn.textContent='Import Orders';}
+  });
+}
+
+function vAdmin(v){
+  let sel=new Set();
+  const filtered=applyDateFilter(LEADS).filter(l=>{
+    const ms=!SRCH||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>x.toLowerCase().includes(SRCH.toLowerCase()));
+    return ms&&(AS==='all'||l.status===AS);
+  });
+  const cnt={total:LEADS.length,u:LEADS.filter(l=>l.status==='new').length,a:LEADS.filter(l=>['claimed','in_progress'].includes(l.status)).length,d:LEADS.filter(l=>l.status==='with_doctor').length,c:LEADS.filter(l=>l.status==='converted').length};
+  const stats=document.createElement('div');stats.className='stats';
+  [[cnt.total,'Total','var(--tx)'],[cnt.u,'Unclaimed','var(--tx3)'],[cnt.a,'Active','var(--amber)'],[cnt.d,'With Doctor','var(--purple)'],[cnt.c,'Converted','var(--green)']].forEach(([n,l,c])=>{const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);});
+  v.appendChild(stats);
+  v.appendChild(mkDateFilter(()=>renderView()));
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search…';si.value=SRCH;si.style.width='220px';si.addEventListener('input',e=>{SRCH=e.target.value;renderView();});fb.appendChild(si);
+  ['all','new','claimed','in_progress','with_doctor','prescribed','converted','unqualified','dnd'].forEach(s=>{const c=document.createElement('span');c.className='fc'+(AS===s?' on':'');c.textContent=s==='all'?'All':SL[s]||s;c.addEventListener('click',()=>{AS=s;renderView();});fb.appendChild(c);});
+  const addBtn=document.createElement('button');addBtn.className='btn btn-blue btn-sm';addBtn.style.marginLeft='auto';addBtn.textContent='+ Add Leads';addBtn.addEventListener('click',openAddLeads);fb.appendChild(addBtn);
+  const bulkBtn=document.createElement('button');bulkBtn.className='btn btn-amber btn-sm';bulkBtn.id='bulkBtn';bulkBtn.style.display='none';bulkBtn.textContent='Bulk Assign (0)';bulkBtn.addEventListener('click',()=>openBulkAssign(sel));fb.appendChild(bulkBtn);
+  v.appendChild(fb);
+  const tw=document.createElement('div');tw.className='tbl-wrap';
+  tw.innerHTML=`<table><thead><tr><th><input type="checkbox" id="selAll"></th><th>Lead</th><th>Email</th><th>Phone</th><th>Name</th><th>Source</th><th>Type</th><th>Age</th><th>Agent</th><th>Doctor</th><th>Status</th><th>Claimed</th><th>Consulted</th><th>Converted</th><th>Rx</th><th>Actions</th></tr></thead>
+  <tbody>${filtered.length?filtered.map(l=>`<tr data-id="${l.id}">
+    <td><input type="checkbox" class="rcb" data-id="${l.id}"></td>
+    <td class="mono">${l.lead_number}</td>
+    <td style="font-size:12px;color:var(--tx3)">${l.email}</td>
+    <td style="font-size:12px">${l.phone}</td>
+    <td style="font-weight:500">${l.client_profiles?.full_name||'—'}</td>
+    <td style="font-size:12px;color:var(--tx3)">${l.source||'—'}</td>
+    <td><span class="bdg ${l.lead_type_tag==='recurring'?'t-recurring':l.lead_type==='repeat'?'t-repeat':'t-new'}">${l.lead_type_tag==='recurring'?'Recurring':l.lead_type}</span></td>
+    <td></td>
+    <td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td>
+    <td style="font-size:12px">${l.doctor_name||'—'}</td>
+    <td><span class="bdg s-${l.status}">${SL[l.status]||l.status}</span></td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.claimed_at)||'—'}</td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.consultation_at)||'—'}</td>
+    <td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.converted_at)||'—'}</td>
+    <td style="font-size:11px">${l.prescriptions?.find(p=>p.is_current)?.product||'—'}</td>
+    <td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm" data-ra="${l.id}">Reassign</button><button class="btn btn-ghost btn-sm" data-prof="${l.id}">Profile</button></div></td>
+  </tr>`).join(''):`<tr><td colspan="16" style="text-align:center;padding:40px;color:var(--tx3)">No leads found</td></tr>`}</tbody></table>`;
+  const rows=tw.querySelectorAll('tbody tr[data-id]');filtered.forEach((l,i)=>{if(rows[i]){const td=rows[i].querySelectorAll('td')[7];if(td)td.appendChild(ageEl(l.claimed_at||l.created_at));}});
+  $('selAll').addEventListener('change',e=>{tw.querySelectorAll('.rcb').forEach(cb=>{cb.checked=e.target.checked;if(e.target.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);});updateBulk();});
+  tw.querySelectorAll('.rcb').forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);updateBulk();}));
+  function updateBulk(){const btn=$('bulkBtn');if(btn){btn.style.display=sel.size?'inline-flex':'none';btn.textContent=`Bulk Assign (${sel.size})`;}}
+  tw.querySelectorAll('[data-ra]').forEach(b=>b.addEventListener('click',()=>{const l=LEADS.find(x=>x.id===b.dataset.ra);if(l)openReassignAgent(l);}));
+  tw.querySelectorAll('[data-prof]').forEach(b=>b.addEventListener('click',()=>{const l=LEADS.find(x=>x.id===b.dataset.prof);if(l)openProfile(l);}));
+  v.appendChild(tw);
+}
+
+function vAgents(v){
+  const agents=DOCTORS.filter(d=>d.role==='agent');
+  const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=`Agents (${agents.length})`;v.appendChild(h);
+  const tw=document.createElement('div');tw.className='tbl-wrap';
+  tw.innerHTML=`<table><thead><tr><th>Name</th><th>Email</th><th>Total</th><th>Active</th><th>With Doctor</th><th>Converted</th></tr></thead><tbody>${agents.map(a=>{const al=LEADS.filter(l=>l.agent_id===a.id);return`<tr><td style="font-weight:500">${a.name}</td><td style="font-size:12px;color:var(--tx3)">${a.email}</td><td>${al.length}</td><td style="color:var(--amber);font-weight:500">${al.filter(l=>['claimed','in_progress'].includes(l.status)).length}</td><td style="color:var(--purple);font-weight:500">${al.filter(l=>l.status==='with_doctor').length}</td><td style="color:var(--green);font-weight:500">${al.filter(l=>l.status==='converted').length}</td></tr>`;}).join('')||`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--tx3)">No agents found</td></tr>`}</tbody></table>`;
+  v.appendChild(tw);
+}
+
+async function init(){
+  try{const{data:{session}}=await sb.auth.getSession();if(session){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(prof){USER=session.user;PROF=prof;await startApp();return;}}}catch(e){console.error('init',e);}
+  showAuth();
+}
+init();
+</script>
+</body>
+</html>
