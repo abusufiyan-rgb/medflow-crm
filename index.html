@@ -234,26 +234,29 @@ function deduplicateLeads(leads){
   return Array.from(map.values());
 }
 
-const SEL='*,client_profiles(full_name,bmi,conditions,doctor_notes,agent_notes),prescriptions(product,dosage_notes,doctor_name,is_current,prescribed_at)';
+// Slim select for list views — fast
+const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,agent_id,agent_name,doctor_id,doctor_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,client_profiles(full_name,bmi),prescriptions(product,is_current)';
+// Full select for profile modal
+const SEL_FULL='*,client_profiles(*),prescriptions(*)';
 async function loadLeads(){
   try{
     if(PROF.role==='agent'){
-      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false})]);
+      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false}).limit(300)]);
       const seen=new Set();
       LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));
     }else if(PROF.role==='doctor'){
-      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').order('created_at',{ascending:false}),sb.from('leads').select(SEL).eq('doctor_id',USER.id).order('created_at',{ascending:false})]);
+      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').order('created_at',{ascending:false}).limit(200),sb.from('leads').select(SEL).eq('doctor_id',USER.id).order('created_at',{ascending:false}).limit(200)]);
       const seen=new Set();
       LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});
     }else{
-      const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false});
+      const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false}).limit(500);
       LEADS=deduplicateLeads(data||[]);
     }
   }catch(e){console.error('loadLeads',e);}
 }
 async function loadDoctors(){const{data}=await sb.from('profiles').select('*').eq('is_active',true);DOCTORS=data||[];}
 async function loadOrders(){
-  try{const{data}=await sb.from('orders').select('*').order('order_date',{ascending:false}).limit(500);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
+  try{const{data}=await sb.from('orders').select('id,order_number,email,phone,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,consultation_status,city,region,quantity,payment_method,notes').order('order_date',{ascending:false}).limit(300);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
 }
 
 async function loadCustomers(){
@@ -325,7 +328,7 @@ async function loadHPLeads(){
       .not('status','in','(converted,closed,dnd)')
       .order('created_at',{ascending:false});
     if(role==='agent') q=q.or(`status.eq.new,agent_id.eq.${USER.id}`);
-    const{data,error}=await q;
+    q=q.limit(100);const{data,error}=await q;
     if(!error)HP_LEADS=data||[];
     else console.warn('loadHPLeads:',error.message);
   }catch(e){console.warn('loadHPLeads:',e);}
@@ -580,7 +583,7 @@ async function openProfile(lead){
   const isDoc=PROF.role==='doctor';let docEdit=false;
   let prof={lead_id:lead.id,conditions:[],medications:[],weight_methods:[],gi_issues:[]};
   async function rebuild(){
-    const[{data:cp},{data:rx}]=await Promise.all([sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle(),sb.from('prescriptions').select('*').eq('lead_id',lead.id).eq('is_current',true).order('prescribed_at',{ascending:false}).limit(1).maybeSingle()]);
+    const[{data:cp},{data:rx}]=await Promise.all([sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle(),sb.from('prescriptions').select('*').eq('lead_id',lead.id).order('prescribed_at',{ascending:false}).limit(3).maybeSingle()]);
     if(cp)prof={...cp};
     document.querySelectorAll('.profile-ov').forEach(e=>e.remove());
     const ov=document.createElement('div');ov.className='overlay profile-ov';
