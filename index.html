@@ -620,7 +620,8 @@ function buildCard(lead){
   if(lead.agent_name&&role!=='agent')addRow('Agent',lead.agent_name);
   if(lead.doctor_name)addRow('Doctor',lead.doctor_name);
   if(lead.poc_status){const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">POC</span><span style="font-size:11px;color:var(--tx3)">${lead.poc_status}</span>`;card.appendChild(r);}
-  if(lead.doc_changes){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--amber);margin-top:4px';w.textContent='⚠ Doctor updated profile';card.appendChild(w);}
+  if(lead.doctor_action==='rejected'){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--red);background:var(--red-bg);border:1px solid var(--red-bd);border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.5';w.innerHTML='❌ <strong>Rejected by Dr. '+( lead.doctor_name||'Doctor')+':</strong> '+(lead.doctor_action_note||'');card.appendChild(w);}
+  else if(lead.doc_changes){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--amber);margin-top:4px';w.textContent='⚠ Doctor updated profile';card.appendChild(w);}
   if(lead.is_high_potential&&lead.high_potential_reason){const w=document.createElement('div');w.style.cssText='font-size:11px;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.5';w.innerHTML='⭐ <strong>High Potential:</strong> '+lead.high_potential_reason;card.appendChild(w);}
   if(rx){const b=document.createElement('div');b.className='rx-box';b.innerHTML=`<div class="rx-box-lbl">Prescription</div><div class="rx-box-val">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${rx.dosage_notes}</div>`:''}`;card.appendChild(b);}
   if(due){const d=document.createElement('div');d.className='reorder-tag';d.textContent=`🔁 Reorder: ${fmtD(lead.reorder_due_at)}`;card.appendChild(d);}
@@ -709,25 +710,95 @@ async function openStatus(lead){
 }
 
 async function openConvert(lead){
-  // Find auto-matched order for this lead
-  const matchedOrder=ORDERS.find(o=>
-    (o.email||'').toLowerCase()===(lead.email||'').toLowerCase()
-    && o.is_linked && ['COMPLETED','PROCESSING'].includes((o.order_status||'').toUpperCase())
-  );
+  // Get orders for this lead's email that are COMPLETED and not yet linked to a converted lead
+  const{data:availOrders}=await sb.from('orders')
+    .select('id,order_number,product,order_date,amount,order_status')
+    .ilike('email',lead.email)
+    .in('order_status',['COMPLETED','PROCESSING','completed','processing'])
+    .order('order_date',{ascending:false})
+    .limit(20);
+
+  const orders=availOrders||[];
   const{ov,m}=mkModal(true);
-  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Mark Converted — ${lead.lead_number}</span><button class="btn-x" id="cvX">✕</button></div>
-  <div class="modal-body">
-    <div class="banner ban-green">Marking as converted starts a 27-day reorder timer automatically.</div>
-    <div class="fld"><label class="fld-l">Order Number</label>
-      <input class="inp" id="cvOrder" placeholder="Enter or auto-fetched below" value="${matchedOrder?matchedOrder.order_number:''}">
-      ${matchedOrder?`<div style="font-size:11px;color:var(--green);margin-top:4px">✓ Auto-matched: ${matchedOrder.product||''} · ${matchedOrder.amount?matchedOrder.amount.toLocaleString()+' SAR':''}</div>`:'<div style="font-size:11px;color:var(--tx3);margin-top:4px">No matching order found — enter manually if available</div>'}
-    </div>
-    <div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="cvPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div>
-    <div class="fld"><label class="fld-l">Notes (optional)</label><textarea class="inp" id="cvNotes"></textarea></div>
+
+  m.innerHTML=`<div class="modal-hdr">
+    <span class="modal-t">Convert Lead — ${lead.lead_number}</span>
+    <button class="btn-x" id="cvX">✕</button>
   </div>
-  <div class="modal-ftr"><button class="btn btn-ghost" id="cvCn">Cancel</button><button class="btn btn-green" id="cvSv">Confirm Conversion</button></div>`;
-  $('cvX').addEventListener('click',()=>ov.remove());$('cvCn').addEventListener('click',()=>ov.remove());
-  $('cvSv').addEventListener('click',async()=>{const btn=$('cvSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const now=new Date().toISOString(),r=new Date(Date.now()+27*86400000).toISOString();const{error}=await sb.from('leads').update({status:'converted',converted_at:now,reorder_due_at:r,lead_type:'repeat',poc_status:$('cvPOC').value||lead.poc_status}).eq('id',lead.id);if(!error){await sb.from('conversion_history').insert({lead_id:lead.id,agent_id:USER.id,notes:$('cvNotes').value||null,cycle_number:1});await logAct(lead.id,'converted','prescribed','converted',`Reorder due: ${new Date(r).toLocaleDateString()}`);toast('Converted! Reorder timer set.','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Confirm Conversion';}});
+  <div class="modal-body">
+    <div class="banner ban-blue">Select the matching order to link this lead to. The order date becomes the conversion date.</div>
+    <div class="fld">
+      <label class="fld-l">Select Order <span style="color:var(--red)">*</span></label>
+      <select class="inp" id="cvOrder">
+        <option value="">— Choose order —</option>
+        ${orders.map(o=>`<option value="${o.order_number}|${o.order_date}">
+          ${o.order_number} · ${o.product||'—'} · ${o.order_date?fmtD(o.order_date):''} · ${o.amount?o.amount.toLocaleString()+' SAR':''}
+        </option>`).join('')}
+        <option value="manual|">Enter manually (no matching order found)</option>
+      </select>
+    </div>
+    <div id="cvManualWrap" style="display:none">
+      <div class="fld"><label class="fld-l">Order Number (manual)</label>
+        <input class="inp" id="cvManualOrder" placeholder="Enter order number…">
+      </div>
+    </div>
+    ${!orders.length?`<div class="banner ban-amber">No completed orders found for ${lead.email}. You can still convert manually or check the Orders section.</div>`:''}
+    <div class="fld"><label class="fld-l">POC Status</label>
+      <select class="inp" id="cvPOC">
+        <option value="">Select…</option>
+        ${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fld"><label class="fld-l">Notes (optional)</label>
+      <textarea class="inp" id="cvNotes" style="min-height:60px"></textarea>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="btn btn-ghost" id="cvCn">Cancel</button>
+    <button class="btn btn-green" id="cvSv">Confirm Conversion</button>
+  </div>`;
+
+  $('cvX').addEventListener('click',()=>ov.remove());
+  $('cvCn').addEventListener('click',()=>ov.remove());
+
+  // Show manual input when "manual" selected
+  $('cvOrder').addEventListener('change',()=>{
+    const manual=$('cvOrder').value.startsWith('manual|');
+    $('cvManualWrap').style.display=manual?'block':'none';
+  });
+
+  $('cvSv').addEventListener('click',async()=>{
+    const sel=$('cvOrder').value;
+    if(!sel){toast('Select an order to link','error');return;}
+    const isManual=sel.startsWith('manual|');
+    const orderNum=isManual?($('cvManualOrder')?.value?.trim()||null):sel.split('|')[0];
+    const orderDate=isManual?null:sel.split('|')[1];
+    if(isManual&&!orderNum){toast('Enter an order number or select from the list','error');return;}
+
+    const btn=$('cvSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const convAt=orderDate?new Date(orderDate).toISOString():new Date().toISOString();
+    const reorderAt=new Date(new Date(convAt).getTime()+27*86400000).toISOString();
+
+    const{error}=await sb.from('leads').update({
+      status:'converted',
+      converted_at:convAt,
+      reorder_due_at:reorderAt,
+      lead_type:'repeat',
+      order_number_linked:orderNum,
+      poc_status:$('cvPOC').value||lead.poc_status,
+    }).eq('id',lead.id);
+
+    if(!error){
+      await sb.from('conversion_history').insert({
+        lead_id:lead.id,agent_id:USER.id,
+        notes:$('cvNotes').value||null,cycle_number:1,
+      });
+      await logAct(lead.id,'converted','prescribed','converted',
+        'Linked order: '+(orderNum||'—'));
+      toast('Lead converted and linked to order '+orderNum,'success');
+      ov.remove();await loadLeads();renderNav();renderView();
+    }else{toast(error.message,'error');btn.disabled=false;btn.textContent='Confirm Conversion';}
+  });
 }
 
 async function openAssign(lead){
@@ -742,9 +813,147 @@ async function openPrescribe(lead){
   const{data:cp}=await sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle();
   const bmi=cp?.bmi,bi=bmiInfo(bmi);
   const{ov,m}=mkModal(true);
-  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Prescribe — ${cp?.full_name||lead.lead_number}</span><button class="btn-x" id="rxX">✕</button></div><div class="modal-body">${bmi?`<div class="bmi-box" style="margin-bottom:16px"><div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi}</div></div><span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>${cp?.conditions?.length?`<span style="font-size:12px;color:var(--tx3)">${cp.conditions.slice(0,3).join(', ')}</span>`:''}</div>`:''} ${cp?.doctor_notes?`<div class="banner ban-purple"><strong>Your notes:</strong> ${cp.doctor_notes}</div>`:''}<div class="fld"><label class="fld-l">Prescribed Product</label><select class="inp" id="rxProd"><option value="">Select…</option>${RX.map(p=>`<option>${p}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">Dosage & Instructions</label><textarea class="inp" id="rxNotes"></textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="rxCn">Cancel</button><button class="btn btn-green" id="rxSv">Prescribe & Return to Agent</button></div>`;
-  $('rxX').addEventListener('click',()=>ov.remove());$('rxCn').addEventListener('click',()=>ov.remove());
-  $('rxSv').addEventListener('click',async()=>{const prod=$('rxProd').value;if(!prod){toast('Select a product','error');return;}const btn=$('rxSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';await sb.from('prescriptions').update({is_current:false}).eq('lead_id',lead.id);const{error}=await sb.from('prescriptions').insert({lead_id:lead.id,doctor_id:USER.id,doctor_name:PROF.name,product:prod,dosage_notes:$('rxNotes').value||null,is_current:true});if(!error){await sb.from('leads').update({status:'prescribed',doc_changes:false}).eq('id',lead.id);await logAct(lead.id,'prescription_issued','with_doctor','prescribed',`Prescribed: ${prod}`);toast('Prescription issued — lead returned to agent','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Prescribe & Return to Agent';}});
+
+  m.innerHTML=`<div class="modal-hdr">
+    <span class="modal-t">Review Consultation — ${cp?.full_name||lead.lead_number}</span>
+    <button class="btn-x" id="rxX">✕</button>
+  </div>
+  <div class="modal-body">
+    ${bmi?`<div class="bmi-box" style="margin-bottom:14px">
+      <div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi}</div></div>
+      <span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>
+      ${cp?.conditions?.length?`<span style="font-size:12px;color:var(--tx3)">${cp.conditions.slice(0,3).join(', ')}</span>`:''}
+    </div>`:''}
+    ${cp?.doctor_notes?`<div class="banner ban-purple"><strong>Your previous notes:</strong> ${cp.doctor_notes}</div>`:''}
+    ${lead.consultation_type==='direct'?`<div class="banner ban-blue">⚡ <strong>Direct consultation</strong> — routed by rule engine from first order ${lead.order_number_linked||''}</div>`:''}
+
+    <div class="sec">Doctor Decision</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div id="rxApproveCard" style="border:2px solid var(--bdr);border-radius:var(--r);padding:14px;cursor:pointer;text-align:center;transition:all .15s">
+        <div style="font-size:22px;margin-bottom:6px">✅</div>
+        <div style="font-weight:600;font-size:13px">Approve</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:3px">Patient can proceed — prescribe medication</div>
+      </div>
+      <div id="rxRejectCard" style="border:2px solid var(--bdr);border-radius:var(--r);padding:14px;cursor:pointer;text-align:center;transition:all .15s">
+        <div style="font-size:22px;margin-bottom:6px">❌</div>
+        <div style="font-weight:600;font-size:13px">Reject</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:3px">Not suitable — return to agent</div>
+      </div>
+    </div>
+
+    <div id="rxApproveForm" style="display:none">
+      <div class="fld"><label class="fld-l">Prescribed Product</label>
+        <select class="inp" id="rxProd">
+          <option value="">Select product…</option>
+          ${RX.map(p=>`<option>${p}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld"><label class="fld-l">Dosage & Instructions</label>
+        <textarea class="inp" id="rxNotes"></textarea>
+      </div>
+      <div class="fld"><label class="fld-l">Clinical Notes (optional)</label>
+        <textarea class="inp" id="rxDocNotes">${cp?.doctor_notes||''}</textarea>
+      </div>
+    </div>
+
+    <div id="rxRejectForm" style="display:none">
+      <div class="fld"><label class="fld-l">Reason for Rejection <span style="color:var(--red)">*</span></label>
+        <select class="inp" id="rxRejectReason">
+          <option value="">Select reason…</option>
+          <option>Not medically suitable</option>
+          <option>Incomplete profile — needs more info</option>
+          <option>Contraindication found</option>
+          <option>Requires in-person consultation</option>
+          <option>Patient declined</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="fld"><label class="fld-l">Notes for Agent</label>
+        <textarea class="inp" id="rxRejectNote" placeholder="Explain what the agent should do next…"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="btn btn-ghost" id="rxCn">Cancel</button>
+    <button class="btn btn-green" id="rxApproveBtn" style="display:none">✅ Approve & Prescribe</button>
+    <button class="btn btn-red" id="rxRejectBtn" style="display:none;background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">❌ Reject</button>
+  </div>`;
+
+  $('rxX').addEventListener('click',()=>ov.remove());
+  $('rxCn').addEventListener('click',()=>ov.remove());
+
+  // Card selection
+  $('rxApproveCard').addEventListener('click',()=>{
+    $('rxApproveCard').style.cssText+='border-color:var(--green);background:var(--green-bg)';
+    $('rxRejectCard').style.cssText+='border-color:var(--bdr);background:var(--surf)';
+    $('rxApproveForm').style.display='block';
+    $('rxRejectForm').style.display='none';
+    $('rxApproveBtn').style.display='inline-flex';
+    $('rxRejectBtn').style.display='none';
+  });
+  $('rxRejectCard').addEventListener('click',()=>{
+    $('rxRejectCard').style.cssText+='border-color:var(--red);background:var(--red-bg)';
+    $('rxApproveCard').style.cssText+='border-color:var(--bdr);background:var(--surf)';
+    $('rxRejectForm').style.display='block';
+    $('rxApproveForm').style.display='none';
+    $('rxRejectBtn').style.display='inline-flex';
+    $('rxApproveBtn').style.display='none';
+  });
+
+  // APPROVE
+  $('rxApproveBtn').addEventListener('click',async()=>{
+    const prod=$('rxProd').value;
+    if(!prod){toast('Select a product','error');return;}
+    const btn=$('rxApproveBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    await sb.from('prescriptions').update({is_current:false}).eq('lead_id',lead.id);
+    const{error}=await sb.from('prescriptions').insert({
+      lead_id:lead.id,doctor_id:USER.id,doctor_name:PROF.name,
+      product:prod,dosage_notes:$('rxNotes').value||null,is_current:true,
+    });
+    if(!error){
+      // Update clinical notes if changed
+      if(cp&&$('rxDocNotes').value!==cp.doctor_notes){
+        await sb.from('client_profiles').update({doctor_notes:$('rxDocNotes').value}).eq('id',cp.id);
+      }
+      await sb.from('leads').update({
+        status:'prescribed',
+        doc_changes:false,
+        doctor_action:'approved',
+        doctor_action_at:new Date().toISOString(),
+      }).eq('id',lead.id);
+      await logAct(lead.id,'prescription_issued','with_doctor','prescribed',
+        'Approved. Prescribed: '+prod);
+      toast('Approved — prescription issued, lead returned to agent','success');
+      ov.remove();await loadLeads();renderNav();renderView();
+    }else{toast(error.message,'error');btn.disabled=false;btn.innerHTML='✅ Approve & Prescribe';}
+  });
+
+  // REJECT
+  $('rxRejectBtn').addEventListener('click',async()=>{
+    const reason=$('rxRejectReason').value;
+    if(!reason){toast('Select a rejection reason','error');return;}
+    const btn=$('rxRejectBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const note=$('rxRejectNote').value;
+    const{error}=await sb.from('leads').update({
+      status:'in_progress',
+      doc_changes:true,
+      doctor_action:'rejected',
+      doctor_action_at:new Date().toISOString(),
+      doctor_action_note:reason+(note?' — '+note:''),
+    }).eq('id',lead.id);
+    if(!error){
+      // Update profile with rejection note
+      if(cp){
+        await sb.from('client_profiles').update({
+          doctor_notes:'REJECTED: '+reason+(note?' — '+note:''),
+        }).eq('id',cp.id);
+      }
+      await logAct(lead.id,'consultation_rejected','with_doctor','in_progress',
+        'Rejected: '+reason+(note?' — '+note:''));
+      toast('Rejected — lead returned to agent with notes','success');
+      ov.remove();await loadLeads();renderNav();renderView();
+    }else{toast(error.message,'error');btn.disabled=false;btn.innerHTML='❌ Reject';}
+  });
 }
 
 async function openReassignAgent(lead){
@@ -1593,125 +1802,351 @@ async function openCustomerProfile(cust){
 
 // ── UPLOAD AGENT MAPPING (Admin) ──────────────────────────────
 function openUploadMapping(){
+  const agents=DOCTORS.filter(d=>d.role==='agent');
   const{ov,m}=mkModal(false,true);
-  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Upload Customer-Agent Mapping</span><button class="btn-x" id="umX">✕</button></div>
-  <div class="modal-body">
-    <div class="banner ban-blue">Upload an Excel file mapping customer emails to agent names. Matched customers will be assigned to their agents automatically.</div>
-    <div class="fld">
-      <label class="fld-l">Upload .xlsx / .csv file</label>
-      <div id="umDrop" style="border:2px dashed var(--bdr2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;background:var(--surf2)">
-        <div style="font-size:28px;margin-bottom:6px">📋</div>
-        <div style="font-size:13px;font-weight:500;color:var(--tx2)">Drag & drop mapping file here</div>
-        <div style="font-size:12px;color:var(--tx3);margin-top:4px">Format: Customer Email, Agent Name (or Agent Email)</div>
-        <input type="file" id="umFile" accept=".xlsx,.xls,.csv" style="display:none">
-      </div>
-      <div id="umFileName" style="font-size:12px;color:var(--teal);margin-top:6px;font-family:'DM Mono',monospace"></div>
-    </div>
-    <div id="umPreview"></div>
+
+  m.innerHTML=`<div class="modal-hdr">
+    <span class="modal-t">Assign Customers to Agents</span>
+    <button class="btn-x" id="umX">✕</button>
   </div>
-  <div class="modal-ftr"><button class="btn btn-ghost" id="umCn">Cancel</button><button class="btn btn-blue" id="umSv" disabled>Apply Mapping</button></div>`;
-  $('umX').addEventListener('click',()=>ov.remove());
-  $('umCn').addEventListener('click',()=>ov.remove());
+  <div class="modal-body">
+    <!-- Tab bar -->
+    <div class="tab-bar" style="margin-bottom:16px">
+      <button class="tab-btn on" id="umTabUpload">⬆ Upload File</button>
+      <button class="tab-btn" id="umTabManual">✏ Manual Entry</button>
+      <button class="tab-btn" id="umTabConflicts">⚠ Conflicts <span id="umConflictBadge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">0</span></button>
+    </div>
 
-  let mappingRows=[];
+    <!-- UPLOAD TAB -->
+    <div id="umPanelUpload">
+      <div class="banner ban-blue" style="margin-bottom:14px">
+        Upload a file with customer emails, phone numbers, and agent names.
+        Duplicates (same customer assigned to multiple agents) will be flagged for resolution.
+      </div>
+      <div class="fld">
+        <label class="fld-l">Select Agent (optional — applies to all rows without an agent column)</label>
+        <select class="inp" id="umDefaultAgent">
+          <option value="">Use agent column from file</option>
+          ${agents.map(a=>`<option value="${a.id}|${a.name}">${a.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld">
+        <label class="fld-l">Upload file (.xlsx or .csv)</label>
+        <div id="umDrop" style="border:2px dashed var(--bdr2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;background:var(--surf2);transition:all .15s">
+          <div style="font-size:28px;margin-bottom:6px">📋</div>
+          <div style="font-size:13px;font-weight:500;color:var(--tx2)">Drag & drop file here or click to browse</div>
+          <div style="font-size:12px;color:var(--tx3);margin-top:4px">Columns: Email, Phone (optional), Agent Name</div>
+          <input type="file" id="umFile" accept=".xlsx,.xls,.csv" style="display:none">
+        </div>
+        <div id="umFileName" style="font-size:12px;color:var(--teal);margin-top:6px;font-family:'DM Mono',monospace"></div>
+      </div>
+      <div id="umPreview"></div>
+    </div>
 
-  function processMapping(file){
-    $('umFileName').textContent='Reading '+file.name+'…';
+    <!-- MANUAL ENTRY TAB -->
+    <div id="umPanelManual" style="display:none">
+      <div class="fld">
+        <label class="fld-l">Select Agent</label>
+        <select class="inp" id="umManualAgent">
+          <option value="">Choose agent…</option>
+          ${agents.map(a=>`<option value="${a.id}|${a.name}">${a.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fld">
+        <label class="fld-l">Paste customer emails and/or phone numbers — one per line</label>
+        <textarea class="inp" id="umManualList" style="min-height:120px;font-family:'DM Mono',monospace;font-size:12px"
+          placeholder="customer1@email.com&#10;+966501234567&#10;customer2@email.com&#10;+966509876543"></textarea>
+      </div>
+      <div id="umManualPreview" style="font-size:12px;color:var(--tx3);margin-top:8px"></div>
+      <button class="btn btn-ghost btn-sm" id="umManualAdd" style="margin-top:8px">+ Add to queue</button>
+    </div>
+
+    <!-- CONFLICTS TAB -->
+    <div id="umPanelConflicts" style="display:none">
+      <div class="banner ban-amber">These customers appear in the file assigned to more than one agent. Choose the correct agent for each.</div>
+      <div id="umConflictList"></div>
+    </div>
+
+    <!-- QUEUE SUMMARY (always visible when rows loaded) -->
+    <div id="umQueue" style="display:none;margin-top:16px;border-top:1px solid var(--bdr);padding-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:500">Assignment Queue</div>
+        <div id="umQueueStats" style="font-size:12px;color:var(--tx3)"></div>
+      </div>
+      <div id="umQueueTable"></div>
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="btn btn-ghost" id="umCn">Cancel</button>
+    <button class="btn btn-blue" id="umSv" disabled>Apply Assignments</button>
+  </div>`;
+
+  // ── State ──────────────────────────────────────────────────
+  let allRows=[];      // {email, phone, agent_id, agent_name, source}
+  let conflicts=[];    // emails assigned to 2+ agents
+  let resolved={};     // email → {agent_id, agent_name} chosen by admin
+
+  // ── Tab switching ──────────────────────────────────────────
+  function switchTab(tab){
+    ['Upload','Manual','Conflicts'].forEach(t=>{
+      m.querySelector('#umTab'+t).classList.toggle('on',t===tab);
+      m.querySelector('#umPanel'+t).style.display=t===tab?'block':'none';
+    });
+  }
+  m.querySelector('#umTabUpload').addEventListener('click',()=>switchTab('Upload'));
+  m.querySelector('#umTabManual').addEventListener('click',()=>switchTab('Manual'));
+  m.querySelector('#umTabConflicts').addEventListener('click',()=>switchTab('Conflicts'));
+
+  m.querySelector('#umX').addEventListener('click',()=>ov.remove());
+  m.querySelector('#umCn').addEventListener('click',()=>ov.remove());
+
+  // ── Detect conflicts ───────────────────────────────────────
+  function detectConflicts(){
+    const emailAgents={};
+    allRows.forEach(r=>{
+      if(!emailAgents[r.email]) emailAgents[r.email]=new Set();
+      emailAgents[r.email].add(r.agent_name);
+    });
+    conflicts=Object.entries(emailAgents)
+      .filter(([,agents])=>agents.size>1)
+      .map(([email,agents])=>({email,agents:Array.from(agents)}));
+
+    const badge=m.querySelector('#umConflictBadge');
+    if(conflicts.length){
+      badge.style.display='inline';
+      badge.textContent=conflicts.length;
+      renderConflicts();
+    } else {
+      badge.style.display='none';
+    }
+  }
+
+  // ── Render conflicts ───────────────────────────────────────
+  function renderConflicts(){
+    const list=m.querySelector('#umConflictList');
+    if(!conflicts.length){list.innerHTML='<div class="empty" style="padding:20px">No conflicts — all customers have a single agent.</div>';return;}
+    list.innerHTML='';
+    conflicts.forEach(c=>{
+      const row=document.createElement('div');
+      row.style.cssText='border:1px solid var(--amber-bd);background:var(--amber-bg);border-radius:var(--rs);padding:12px 14px;margin-bottom:10px';
+      row.innerHTML=`<div style="font-size:13px;font-weight:500;margin-bottom:6px">${c.email}</div>
+        <div style="font-size:12px;color:var(--amber);margin-bottom:8px">
+          Assigned to ${c.agents.length} agents: ${c.agents.join(', ')}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--tx3)">Correct agent:</span>
+          <select class="inp" style="width:auto;flex:1" data-conflict-email="${c.email}">
+            <option value="">Choose the correct agent…</option>
+            ${agents.map(a=>`<option value="${a.id}|${a.name}">${a.name}</option>`).join('')}
+            ${c.agents.filter(n=>!agents.find(a=>a.name===n)).map(n=>`<option value="|${n}">${n} (name only)</option>`).join('')}
+          </select>
+          <span id="conflictStatus_${c.email.replace(/[@.]/g,'_')}" style="font-size:11px;color:var(--green)"></span>
+        </div>`;
+      list.appendChild(row);
+      row.querySelector(`[data-conflict-email]`).addEventListener('change',e=>{
+        const val=e.target.value;
+        if(!val)return;
+        const[aid,aname]=val.split('|');
+        resolved[c.email]={agent_id:aid||null,agent_name:aname};
+        const statusEl=m.querySelector(`#conflictStatus_${c.email.replace(/[@.]/g,'_')}`);
+        if(statusEl)statusEl.textContent='✓ Resolved';
+        refreshQueue();
+      });
+    });
+  }
+
+  // ── Render queue ───────────────────────────────────────────
+  function refreshQueue(){
+    if(!allRows.length){m.querySelector('#umQueue').style.display='none';m.querySelector('#umSv').disabled=true;return;}
+
+    // Build final rows: apply conflict resolutions
+    const finalRows=[];
+    const seen=new Set();
+    allRows.forEach(r=>{
+      if(seen.has(r.email))return; // only show each email once
+      seen.add(r.email);
+      const isConflict=conflicts.some(c=>c.email===r.email);
+      const res=resolved[r.email];
+      finalRows.push({...r, isConflict, resolved:!!res,
+        agent_id:res?.agent_id||r.agent_id,
+        agent_name:res?.agent_name||r.agent_name});
+    });
+
+    const unresolvedConflicts=conflicts.filter(c=>!resolved[c.email]).length;
+    const ready=finalRows.filter(r=>!r.isConflict||r.resolved).length;
+    const qStats=m.querySelector('#umQueueStats');
+    qStats.innerHTML=`<span style="color:var(--green)">${ready} ready</span>`+
+      (unresolvedConflicts?` · <span style="color:var(--red)">${unresolvedConflicts} conflict(s) unresolved</span>`:'');
+
+    const tbl=m.querySelector('#umQueueTable');
+    tbl.innerHTML=`<div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+      <table class="preview-table"><thead><tr>
+        <th>Email</th><th>Phone</th><th>Agent</th><th>Status</th>
+      </tr></thead><tbody>
+      ${finalRows.slice(0,50).map(r=>`<tr>
+        <td>${r.email}</td>
+        <td style="font-family:'DM Mono',monospace">${r.phone||'—'}</td>
+        <td style="font-weight:500">${r.agent_name||'—'}</td>
+        <td>${r.isConflict?r.resolved?
+          '<span style="color:var(--green);font-size:11px">✓ Resolved</span>':
+          '<span style="color:var(--red);font-size:11px">⚠ Conflict</span>':
+          '<span style="color:var(--green);font-size:11px">✓ Ready</span>'}
+        </td>
+      </tr>`).join('')}
+      ${finalRows.length>50?`<tr><td colspan="4" style="text-align:center;color:var(--tx3)">…and ${finalRows.length-50} more</td></tr>`:''}
+      </tbody></table></div>`;
+
+    m.querySelector('#umQueue').style.display='block';
+    m.querySelector('#umSv').disabled= unresolvedConflicts > 0 || ready === 0;
+    m.querySelector('#umSv').textContent=`Apply ${ready} Assignment${ready!==1?'s':''}`;
+  }
+
+  // ── Parse and add rows ─────────────────────────────────────
+  function addRows(newRows){
+    // Merge into allRows — deduplicate by email+agent combo
+    newRows.forEach(nr=>{
+      const exists=allRows.some(r=>r.email===nr.email&&r.agent_name===nr.agent_name);
+      if(!exists)allRows.push(nr);
+    });
+    detectConflicts();
+    refreshQueue();
+  }
+
+  // ── FILE UPLOAD processing ─────────────────────────────────
+  function processFile(file){
+    m.querySelector('#umFileName').textContent='Reading '+file.name+'…';
     const reader=new FileReader();
     reader.onload=e=>{
       try{
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
         const ws=wb.Sheets[wb.SheetNames[0]];
         const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-        // Find header row
-        let hdr=0;
-        for(let i=0;i<Math.min(5,raw.length);i++){if(raw[i].some(c=>String(c).toLowerCase().includes('email'))){hdr=i;break;}}
-        // Safe header detection
-        const rawHdr=raw[hdr]||[];
-        const headers=rawHdr.map(h=>String(h===undefined||h===null?'':h).toLowerCase().trim());
-        const iEM=headers.findIndex(h=>h.includes('email'));
-        const iAN=headers.findIndex(h=>h.includes('agent'));
-        const iNM=headers.findIndex(h=>h.includes('name')&&!h.includes('agent'));
-        const iPH=headers.findIndex(h=>h.includes('phone'));
-        const iCT=headers.findIndex(h=>h.includes('city'));
-        const iRG=headers.findIndex(h=>h.includes('region'));
-        mappingRows=[];
-        // Guard: skip if no useful headers found
-        if(iEM<0&&iAN<0){toast('Could not find Email or Agent columns. Check column headers.','error');return;}
-        raw.slice(hdr+1).forEach(row=>{
+        let hdrIdx=0;
+        for(let i=0;i<Math.min(5,raw.length);i++){
+          if((raw[i]||[]).some(c=>String(c||'').toLowerCase().includes('email')||String(c||'').toLowerCase().includes('phone'))){hdrIdx=i;break;}
+        }
+        const hdrs=(raw[hdrIdx]||[]).map(h=>String(h||'').toLowerCase().trim());
+        const iEM=hdrs.findIndex(h=>h.includes('email'));
+        const iPH=hdrs.findIndex(h=>h.includes('phone')||h.includes('mobile'));
+        const iAN=hdrs.findIndex(h=>h.includes('agent'));
+        const iNM=hdrs.findIndex(h=>h.includes('name')&&!h.includes('agent'));
+
+        const defaultAgentVal=m.querySelector('#umDefaultAgent').value;
+        const[defAid,defAname]=defaultAgentVal?defaultAgentVal.split('|'):['',''];
+
+        const parsed=[];
+        raw.slice(hdrIdx+1).forEach((row,i)=>{
           if(!row||row.every(c=>!c))return;
           const email=String(row[iEM]||'').trim().toLowerCase();
-          const agentRaw=String(row[iAN]||'').trim();
-          if(!email||!agentRaw)return;
-          // Match agent by name or email
-          const agL=agentRaw.toLowerCase();const agent=DOCTORS.find(d=>d.role==='agent'&&((d.name||'').toLowerCase()===agL||(d.email||'').toLowerCase()===agL));
-          mappingRows.push({email,agentRaw,agent_id:agent?.id||null,agent_name:agent?.name||agentRaw,matched:!!agent,full_name:iNM>=0?String(row[iNM]||'').trim():null,phone:iPH>=0?String(row[iPH]||'').trim():null,city:iCT>=0?String(row[iCT]||'').trim():null,region:iRG>=0?String(row[iRG]||'').trim():null});
+          const phone=String(row[iPH]>=0?row[iPH]||'':'').trim();
+          const agentRaw=iAN>=0?String(row[iAN]||'').trim():defAname;
+          if(!email&&!phone)return;
+
+          // Match agent
+          const agL=(agentRaw||'').toLowerCase();
+          const agent=agents.find(a=>
+            (a.name||'').toLowerCase()===agL||(a.email||'').toLowerCase()===agL);
+          const aid=agent?.id||defAid||null;
+          const aname=agent?.name||agentRaw||defAname||null;
+          if(!aname)return;
+          parsed.push({email,phone,agent_id:aid,agent_name:aname,
+            full_name:iNM>=0?String(row[iNM]||'').trim():null,source:'file'});
         });
-        $('umFileName').textContent=`✓ ${file.name} — ${mappingRows.length} rows parsed`;
-        const unmatched=mappingRows.filter(r=>!r.matched).length;
-        const pv=$('umPreview');
-        pv.innerHTML='';
-        if(unmatched){pv.innerHTML+=`<div class="banner ban-amber"><strong>${unmatched} agent(s) not found in MedFlow</strong> — they will still be assigned by name but not linked to a user account. Make sure agent names match exactly.</div>`;}
-        pv.innerHTML+=`<div style="font-size:13px;font-weight:500;margin:10px 0 8px">${mappingRows.length} mapping(s) ready — preview:</div>
-        <div style="overflow-x:auto"><table class="preview-table"><thead><tr><th>Customer Email</th><th>Agent Name</th><th>Matched?</th></tr></thead>
-        <tbody>${mappingRows.slice(0,10).map(r=>`<tr><td>${r.email}</td><td>${r.agent_name}</td><td>${r.matched?'<span style="color:var(--green)">✓ Found</span>':'<span style="color:var(--amber)">⚠ By name only</span>'}</td></tr>`).join('')}
-        ${mappingRows.length>10?`<tr><td colspan="3" style="text-align:center;color:var(--tx3)">…and ${mappingRows.length-10} more</td></tr>`:''}</tbody></table></div>`;
-        $('umSv').disabled=false;
-      }catch(err){toast('Error: '+err.message,'error');}
+
+        m.querySelector('#umFileName').textContent=`✓ ${file.name} — ${parsed.length} rows`;
+        const pv=m.querySelector('#umPreview');
+        pv.innerHTML=`<div style="font-size:12px;color:var(--tx3);margin-top:8px">${parsed.length} row(s) parsed from file.</div>`;
+        addRows(parsed);
+      }catch(err){toast('Error reading file: '+err.message,'error');}
     };
     reader.readAsArrayBuffer(file);
   }
 
-  const dz=$('umDrop');
-  dz.addEventListener('click',()=>$('umFile').click());
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--blue)';});
-  dz.addEventListener('dragleave',()=>dz.style.borderColor='var(--bdr2)');
-  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='var(--bdr2)';if(e.dataTransfer.files[0])processMapping(e.dataTransfer.files[0]);});
-  $('umFile').addEventListener('change',e=>{if(e.target.files[0])processMapping(e.target.files[0]);});
+  const dz=m.querySelector('#umDrop');
+  dz.addEventListener('click',()=>m.querySelector('#umFile').click());
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--blue)';dz.style.background='var(--blue-bg)';});
+  dz.addEventListener('dragleave',()=>{dz.style.borderColor='var(--bdr2)';dz.style.background='var(--surf2)';});
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='var(--bdr2)';dz.style.background='var(--surf2)';if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);});
+  m.querySelector('#umFile').addEventListener('change',e=>{if(e.target.files[0])processFile(e.target.files[0]);});
 
-  $('umSv').addEventListener('click',async()=>{
-    if(!mappingRows.length)return;
-    const btn=$('umSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Applying…';
-    let ok=0,fail=0;
-    // First ensure customer rows exist (upsert from orders if needed)
-    // Then apply agent mapping
-    for(const row of mappingRows){
-      // Upsert customer row in case it doesn't exist yet
-      const existingOrder=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
-      if(existingOrder){
-        // Try to call server refresh — create customer row from orders
-        try{await sb.rpc('refresh_customer',{p_email:row.email});}catch(e){}
+  // ── MANUAL ENTRY ───────────────────────────────────────────
+  m.querySelector('#umManualAdd').addEventListener('click',()=>{
+    const agentVal=m.querySelector('#umManualAgent').value;
+    if(!agentVal){toast('Select an agent first','error');return;}
+    const[aid,aname]=agentVal.split('|');
+    const lines=m.querySelector('#umManualList').value.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){toast('Enter at least one email or phone','error');return;}
+    const parsed=lines.map(line=>{
+      const isEmail=line.includes('@');
+      return{email:isEmail?line.toLowerCase():'',phone:isEmail?'':line,agent_id:aid,agent_name:aname,source:'manual'};
+    });
+    m.querySelector('#umManualPreview').textContent=`${parsed.length} entries queued for ${aname}`;
+    m.querySelector('#umManualList').value='';
+    addRows(parsed);
+    toast(`${parsed.length} entries added to queue`,'success');
+  });
+
+  // ── APPLY ──────────────────────────────────────────────────
+  m.querySelector('#umSv').addEventListener('click',async()=>{
+    const btn=m.querySelector('#umSv');
+    btn.disabled=true;btn.innerHTML='<span class="spin"></span> Applying…';
+
+    // Build final deduplicated list
+    const finalMap=new Map();
+    allRows.forEach(r=>{
+      if(!finalMap.has(r.email)||resolved[r.email]){
+        const res=resolved[r.email];
+        finalMap.set(r.email,{
+          email:r.email,phone:r.phone,full_name:r.full_name,
+          agent_id:res?.agent_id||r.agent_id,
+          agent_name:res?.agent_name||r.agent_name,
+        });
       }
+    });
+    const rows=Array.from(finalMap.values()).filter(r=>r.agent_name);
+
+    let ok=0,fail=0;
+    for(const row of rows){
+      // Ensure customer exists
+      try{await sb.rpc('refresh_customer',{p_email:row.email});}catch(e){}
+
       const upd={agent_name:row.agent_name,is_assigned:true};
       if(row.agent_id)upd.agent_id=row.agent_id;
-      if(row.full_name)upd.full_name=row.full_name;
       if(row.phone)upd.phone=row.phone;
-      if(row.city)upd.city=row.city;
-      if(row.region)upd.region=row.region;
-      // Update customers table — try update first, then insert if missing
-      const{data:existing}=await sb.from('customers').select('id').eq('email',row.email).maybeSingle();
-      if(existing){
+      if(row.full_name)upd.full_name=row.full_name;
+
+      const{data:ex}=await sb.from('customers').select('id').eq('email',row.email).maybeSingle();
+      if(ex){
         const{error}=await sb.from('customers').update(upd).eq('email',row.email);
+        if(!error){
+          ok++;
+          if(row.agent_id){
+            await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);
+          }
+        } else fail++;
+      } else {
+        // Create customer row from orders data
+        const ord=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
+        const newC={email:row.email,...upd,
+          phone:row.phone||ord?.phone||null,
+          first_order_date:ord?.order_date||null,
+          first_product:ord?.product||null,
+          last_order_date:ord?.order_date||null,
+          last_product:ord?.product||null,
+          total_orders:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).length,
+          lifetime_value:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).reduce((s,o)=>s+(parseFloat(o.amount)||0),0),
+          onboarded_at:ord?.order_date||null};
+        const{error}=await sb.from('customers').insert(newC);
         if(!error){ok++;if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);}
         else fail++;
-      }else{
-        // Customer row doesn't exist — create it from order data
-        const ord=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
-        if(ord){
-          const newC={email:row.email,phone:row.phone||ord.phone||null,...upd,
-            first_order_date:ord.order_date,first_product:ord.product,
-            last_order_date:ord.order_date,last_product:ord.product,
-            total_orders:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).length,
-            lifetime_value:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).reduce((s,o)=>s+(parseFloat(o.amount)||0),0),
-            onboarded_at:ord.order_date};
-          const{error}=await sb.from('customers').insert(newC);
-          if(!error){ok++;if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);}
-          else fail++;
-        }else ok++;
       }
+      // Update local ORDERS
+      ORDERS.forEach(o=>{if((o.email||'').toLowerCase()===row.email&&row.agent_id){o.agent_id=row.agent_id;o.agent_name=row.agent_name;o.has_agent=true;}});
     }
+
+    buildCustomersFromOrders();
     toast(`${ok} customer(s) assigned${fail?`, ${fail} failed`:''}`,fail>0?'error':'success');
-    ov.remove();await Promise.all([loadCustomers(),loadOrders()]);renderNav();renderView();
+    ov.remove();renderNav();renderView();
   });
 }
 
