@@ -1200,7 +1200,7 @@ function vHighPotential(v){
 }
 
 // ── SHARED CUSTOMER TABLE RENDERER ──────────────────────────
-function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false){
+function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false,allowClaim=false){
   const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
   const isGlp=p=>GLP.test(p||'');
 
@@ -1252,7 +1252,8 @@ function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false){
         <td style="${dStyle};font-size:12px;font-family:'DM Mono',monospace">${isGlp(c.last_product)?dueStr:'—'}</td>
         <td>${badge}</td>
         <td><div style="display:flex;gap:4px">
-          ${showAssign?`<button class="btn btn-ghost btn-sm" data-assign-cust="${c.id}">Assign</button>`:''}
+          ${allowClaim?`<button class="btn btn-sm btn-blue" data-claim-cust="${c.id}" style="font-size:12px">Claim</button>`:''}
+          ${showAssign&&!allowClaim?`<button class="btn btn-ghost btn-sm" data-assign-cust="${c.id}">Assign</button>`:''}
           <button class="btn btn-ghost btn-sm" data-cust-profile="${c.id}">Profile</button>
         </div></td>
       </tr>`;
@@ -1263,6 +1264,20 @@ function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false){
   }));
   tw.querySelectorAll('[data-cust-profile]').forEach(b=>b.addEventListener('click',()=>{
     const c=custs.find(x=>x.id===b.dataset.custProfile);if(c)openCustomerProfile(c);
+  }));
+  tw.querySelectorAll('[data-claim-cust]').forEach(b=>b.addEventListener('click',async()=>{
+    const c=custs.find(x=>x.id===b.dataset.claimCust);if(!c)return;
+    b.disabled=true;b.innerHTML='<span class="spin"></span>';
+    const{error}=await sb.from('customers').update({
+      agent_id:USER.id,agent_name:PROF.name,is_assigned:true
+    }).eq('id',c.id);
+    if(!error){
+      // Also update linked orders and lead
+      await sb.from('orders').update({agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',c.email);
+      if(c.lead_id)await sb.from('leads').update({agent_id:USER.id,agent_name:PROF.name}).eq('id',c.lead_id);
+      toast(`${c.full_name||c.email} claimed!`,'success');
+      await loadCustomers();renderNav();renderView();
+    }else{toast(error.message,'error');b.disabled=false;b.textContent='Claim';}
   }));
   v.appendChild(tw);
 }
@@ -1311,10 +1326,22 @@ function vMyCustomers(v){
 
 // ── AGENT: FLOATING / UNASSIGNED CUSTOMERS ──────────────────
 function vFloatingCustomers(v){
+  const isAgent=PROF.role==='agent';
   const ban=document.createElement('div');ban.className='banner ban-blue';
-  ban.innerHTML=`These customers have orders in the system but are not assigned to any agent. Assign them to yourself or another agent, and create their profile if missing.`;
+  ban.innerHTML=isAgent
+    ?`These customers have placed orders but aren't assigned to any agent yet. Click <strong>Claim</strong> to add them to your customer list. Once claimed, you can manage their reorders and create their profile.`
+    :`These customers have placed orders but aren't assigned to any agent. Use <strong>Assign</strong> to allocate them to an agent.`;
   v.appendChild(ban);
-  renderCustomerTable(v,FLOAT_CUSTS,'Unassigned Customers',true,false);
+
+  if(!FLOAT_CUSTS.length){
+    const e=document.createElement('div');e.className='empty';
+    e.innerHTML='<div class="empty-ico">✅</div>All customers are assigned to agents.';
+    v.appendChild(e);return;
+  }
+
+  // For agents: show Claim button (self-assign)
+  // For admin: show Assign button (pick any agent)
+  renderCustomerTable(v,FLOAT_CUSTS,'Unassigned Customers',!isAgent,false,isAgent);
 }
 
 // ── ASSIGN CUSTOMER TO AGENT ─────────────────────────────────
@@ -1457,7 +1484,9 @@ function openUploadMapping(){
         // Find header row
         let hdr=0;
         for(let i=0;i<Math.min(5,raw.length);i++){if(raw[i].some(c=>String(c).toLowerCase().includes('email'))){hdr=i;break;}}
-        const headers=raw[hdr].map(h=>String(h).toLowerCase());
+        // Safe header detection
+        const rawHdr=raw[hdr]||[];
+        const headers=rawHdr.map(h=>String(h===undefined||h===null?'':h).toLowerCase().trim());
         const iEM=headers.findIndex(h=>h.includes('email'));
         const iAN=headers.findIndex(h=>h.includes('agent'));
         const iNM=headers.findIndex(h=>h.includes('name')&&!h.includes('agent'));
@@ -1465,13 +1494,15 @@ function openUploadMapping(){
         const iCT=headers.findIndex(h=>h.includes('city'));
         const iRG=headers.findIndex(h=>h.includes('region'));
         mappingRows=[];
+        // Guard: skip if no useful headers found
+        if(iEM<0&&iAN<0){toast('Could not find Email or Agent columns. Check column headers.','error');return;}
         raw.slice(hdr+1).forEach(row=>{
           if(!row||row.every(c=>!c))return;
           const email=String(row[iEM]||'').trim().toLowerCase();
           const agentRaw=String(row[iAN]||'').trim();
           if(!email||!agentRaw)return;
           // Match agent by name or email
-          const agent=DOCTORS.find(d=>d.role==='agent'&&(d.name.toLowerCase()===agentRaw.toLowerCase()||d.email.toLowerCase()===agentRaw.toLowerCase()));
+          const agL=agentRaw.toLowerCase();const agent=DOCTORS.find(d=>d.role==='agent'&&((d.name||'').toLowerCase()===agL||(d.email||'').toLowerCase()===agL));
           mappingRows.push({email,agentRaw,agent_id:agent?.id||null,agent_name:agent?.name||agentRaw,matched:!!agent,full_name:iNM>=0?String(row[iNM]||'').trim():null,phone:iPH>=0?String(row[iPH]||'').trim():null,city:iCT>=0?String(row[iCT]||'').trim():null,region:iRG>=0?String(row[iRG]||'').trim():null});
         });
         $('umFileName').textContent=`✓ ${file.name} — ${mappingRows.length} rows parsed`;
@@ -1568,7 +1599,7 @@ function vCustomers(v){
 function vAdmin(v){
   let sel=new Set();
   const filtered=applyDateFilter(LEADS).filter(l=>{
-    const ms=!SRCH||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>x.toLowerCase().includes(SRCH.toLowerCase()));
+    const ms=!SRCH||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>(x||'').toLowerCase().includes(SRCH.toLowerCase()));
     return ms&&(AS==='all'||l.status===AS);
   });
   const cnt={total:LEADS.length,u:LEADS.filter(l=>l.status==='new').length,a:LEADS.filter(l=>['claimed','in_progress'].includes(l.status)).length,d:LEADS.filter(l=>l.status==='with_doctor').length,c:LEADS.filter(l=>l.status==='converted').length};
