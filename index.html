@@ -256,46 +256,47 @@ async function loadLeads(){
 }
 async function loadDoctors(){const{data}=await sb.from('profiles').select('*').eq('is_active',true);DOCTORS=data||[];}
 async function loadOrders(){
-  try{const{data}=await sb.from('orders').select('id,order_number,email,phone,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,city,region').order('order_date',{ascending:false}).limit(200);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
+  try{
+    const role=PROF?.role;
+    let q=sb.from('orders').select('id,order_number,email,phone,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,city,region,notes,quantity,payment_method').order('order_date',{ascending:false});
+    // Agents only see their own orders + unassigned
+    if(role==='agent') q=q.or(`agent_id.eq.${USER.id},has_agent.eq.false`);
+    q=q.limit(500);
+    const{data,error}=await q;
+    if(!error)ORDERS=data||[];
+  }catch(e){console.error('loadOrders',e);}
 }
 
 let CUSTOMERS_LOADED=false;
 
 async function loadCustomers(){
-  // Always derive customers from ORDERS data — no dependency on customers table
-  // This runs after loadOrders() has completed
-  buildCustomersFromOrders();
-  // Also try to get agent assignments from customers table (best effort)
   try{
-    const{data}=await sb.from('customers').select('email,agent_id,agent_name,is_assigned,full_name,city,region,phone,reorder_due_date,reorder_status').order('last_order_date',{ascending:false,nullsFirst:false});
-    if(data&&data.length>0){
-      // Merge customers table agent data into our derived list
-      const agentMap=new Map(data.map(c=>[c.email.toLowerCase(),c]));
-      const all=[...CUSTOMERS,...FLOAT_CUSTS];
-      all.forEach(c=>{
-        const saved=agentMap.get((c.email||'').toLowerCase());
-        if(saved){
-          if(saved.agent_id){c.agent_id=saved.agent_id;c.agent_name=saved.agent_name;c.is_assigned=true;}
-          if(saved.full_name&&!c.full_name)c.full_name=saved.full_name;
-          if(saved.city&&!c.city)c.city=saved.city;
-          if(saved.region&&!c.region)c.region=saved.region;
-          if(saved.reorder_due_date)c.reorder_due_date=saved.reorder_due_date;
-          if(saved.reorder_status)c.reorder_status=saved.reorder_status;
-        }
-      });
-      // Also pick up names from leads
-      all.forEach(c=>{
-        const lead=LEADS.find(l=>(l.email||'').toLowerCase()===(c.email||'').toLowerCase());
-        if(lead){
-          if(!c.agent_id&&lead.agent_id){c.agent_id=lead.agent_id;c.agent_name=lead.agent_name;c.is_assigned=true;}
-          if(!c.full_name&&lead.client_profiles?.full_name)c.full_name=lead.client_profiles.full_name;
-        }
-      });
-      // Re-split assigned vs unassigned after merge
-      CUSTOMERS=all.filter(c=>c.is_assigned);
-      FLOAT_CUSTS=all.filter(c=>!c.is_assigned);
+    const role=PROF?.role;
+    if(role==='agent'){
+      // Agent: fetch their own customers + unassigned from customers table
+      const[{data:mine,error:e1},{data:unassigned,error:e2}]=await Promise.all([
+        sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false}),
+        sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false}),
+      ]);
+      if(!e1&&!e2){
+        CUSTOMERS=mine||[];
+        FLOAT_CUSTS=unassigned||[];
+        CUSTOMERS_LOADED=true;
+        return;
+      }
+    } else {
+      // Admin/doctor: fetch all customers
+      const{data,error}=await sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false});
+      if(!error&&data){
+        CUSTOMERS=data;
+        FLOAT_CUSTS=data.filter(c=>!c.is_assigned);
+        CUSTOMERS_LOADED=true;
+        return;
+      }
     }
-  }catch(e){console.warn('customers table optional:',e.message);}
+  } catch(e){console.warn('loadCustomers DB:',e.message);}
+  // Fallback: build from ORDERS if DB fetch fails
+  buildCustomersFromOrders();
   CUSTOMERS_LOADED=true;
 }
 
@@ -426,18 +427,15 @@ function showAuth(){
 async function startApp(){
   NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':'all_leads';
   document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';
-  // Phase 1: leads + doctors only → render immediately
-  await Promise.all([loadLeads(), loadDoctors()]);
-  buildShell();
-  // Phase 2: orders + rules → then derive customers from orders
-  setTimeout(async()=>{
-    await Promise.all([loadOrders(), loadRules(), loadHPLeads()]);
-    // IMPORTANT: customers are derived from orders — must run after loadOrders
-    await loadCustomers();
-    renderNav(); // update all counts including unassigned
-    // If user is already on a customers tab, refresh the view
-    if(['my_customers','floating_custs','customers'].includes(NAV)) renderView();
-  }, 200);
+  // Phase 1: critical data — leads, doctors, orders all needed for customers
+  await Promise.all([loadLeads(), loadDoctors(), loadOrders()]);
+  // Phase 2: customers depend on orders being loaded
+  await loadCustomers();
+  buildShell(); // page visible now with correct customer counts
+  // Phase 3: secondary data in background
+  setTimeout(()=>{
+    Promise.all([loadRules(), loadHPLeads()]).then(()=>renderNav());
+  }, 300);
 }
 
 function buildShell(){
@@ -1634,13 +1632,18 @@ function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false,all
 // ── AGENT: MY CUSTOMERS ──────────────────────────────────────
 function vMyCustomers(v){
   const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
-  const overdue=CUSTOMERS.filter(c=>c.reorder_status==='overdue').length;
-  const dueSoon=CUSTOMERS.filter(c=>c.reorder_status==='due_soon').length;
-  const ltv=CUSTOMERS.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
+  // For agents, CUSTOMERS is already filtered to their customers from DB
+  // For admin viewing this page, filter by agent
+  const myCusts=PROF.role==='agent'
+    ? CUSTOMERS
+    : CUSTOMERS.filter(c=>c.agent_id===USER.id);
+  const overdue=myCusts.filter(c=>c.reorder_status==='overdue').length;
+  const dueSoon=myCusts.filter(c=>c.reorder_status==='due_soon').length;
+  const ltv=myCusts.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
 
   // Stats
   const stats=document.createElement('div');stats.className='stats';
-  [[CUSTOMERS.length,'My Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[ltv.toLocaleString()+' SAR','My Portfolio Value','var(--green)']].forEach(([n,l,c])=>{
+  [[myCusts.length,'My Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[ltv.toLocaleString()+' SAR','My Portfolio Value','var(--green)']].forEach(([n,l,c])=>{
     const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c};font-size:${String(n).length>8?'16px':'28px'}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
   });
   v.appendChild(stats);
@@ -1648,7 +1651,7 @@ function vMyCustomers(v){
   if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon} customer(s)</strong> have a reorder due within 3 days.`;v.appendChild(b);}
 
   // Filter
-  let filtered=[...CUSTOMERS];
+  let filtered=[...myCusts];
   const fb=document.createElement('div');fb.className='fbar';
   const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, product…';si.style.width='240px';
   let q='';
@@ -1663,7 +1666,7 @@ function vMyCustomers(v){
 
   function renderTable(filter='all'){
     tableArea.innerHTML='';
-    let d=CUSTOMERS.filter(c=>{
+    let d=myCusts.filter(c=>{
       const ms=!q||[c.full_name,c.email,c.phone,c.last_product,c.first_product].some(x=>(x||'').toLowerCase().includes(q));
       const mf=filter==='all'||c.reorder_status===filter;
       return ms&&mf;
