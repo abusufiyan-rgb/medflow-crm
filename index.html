@@ -2105,44 +2105,44 @@ function openUploadMapping(){
     });
     const rows=Array.from(finalMap.values()).filter(r=>r.agent_name);
 
+    if(!rows.length){toast('Nothing to assign','error');btn.disabled=false;btn.textContent='Apply Assignments';return;}
+
+    // Show progress
+    btn.innerHTML=`<span class="spin"></span> Assigning ${rows.length} customer(s)…`;
+
+    // Single RPC call — all rows in one round trip
+    const payload=rows.map(r=>({
+      email:r.email,
+      phone:r.phone||null,
+      full_name:r.full_name||null,
+      agent_id:r.agent_id||null,
+      agent_name:r.agent_name||null,
+    }));
+
+    // Batch into chunks of 200 to stay under payload limits
     let ok=0,fail=0;
-    for(const row of rows){
-      // Ensure customer exists
-      try{await sb.rpc('refresh_customer',{p_email:row.email});}catch(e){}
-
-      const upd={agent_name:row.agent_name,is_assigned:true};
-      if(row.agent_id)upd.agent_id=row.agent_id;
-      if(row.phone)upd.phone=row.phone;
-      if(row.full_name)upd.full_name=row.full_name;
-
-      const{data:ex}=await sb.from('customers').select('id').eq('email',row.email).maybeSingle();
-      if(ex){
-        const{error}=await sb.from('customers').update(upd).eq('email',row.email);
-        if(!error){
-          ok++;
-          if(row.agent_id){
-            await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);
-          }
-        } else fail++;
-      } else {
-        // Create customer row from orders data
-        const ord=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
-        const newC={email:row.email,...upd,
-          phone:row.phone||ord?.phone||null,
-          first_order_date:ord?.order_date||null,
-          first_product:ord?.product||null,
-          last_order_date:ord?.order_date||null,
-          last_product:ord?.product||null,
-          total_orders:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).length,
-          lifetime_value:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).reduce((s,o)=>s+(parseFloat(o.amount)||0),0),
-          onboarded_at:ord?.order_date||null};
-        const{error}=await sb.from('customers').insert(newC);
-        if(!error){ok++;if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);}
-        else fail++;
+    for(let i=0;i<payload.length;i+=200){
+      const chunk=payload.slice(i,i+200);
+      btn.innerHTML=`<span class="spin"></span> ${Math.min(i+200,payload.length)} / ${payload.length}…`;
+      const{data,error}=await sb.rpc('bulk_assign_customers',{p_assignments:chunk});
+      if(!error&&data){ok+=data.ok||0;fail+=data.fail||0;}
+      else if(error){
+        // Fallback: direct upsert if RPC not available yet
+        const{error:e2}=await sb.from('customers').upsert(
+          chunk.map(r=>({email:r.email,agent_id:r.agent_id,agent_name:r.agent_name,
+            is_assigned:true,phone:r.phone,full_name:r.full_name})),
+          {onConflict:'email',ignoreDuplicates:false}
+        );
+        if(!e2)ok+=chunk.length; else fail+=chunk.length;
       }
-      // Update local ORDERS
-      ORDERS.forEach(o=>{if((o.email||'').toLowerCase()===row.email&&row.agent_id){o.agent_id=row.agent_id;o.agent_name=row.agent_name;o.has_agent=true;}});
     }
+
+    // Update local ORDERS state in one pass
+    const emailAgentMap=new Map(rows.map(r=>[(r.email||'').toLowerCase(),r]));
+    ORDERS.forEach(o=>{
+      const r=emailAgentMap.get((o.email||'').toLowerCase());
+      if(r&&r.agent_id){o.agent_id=r.agent_id;o.agent_name=r.agent_name;o.has_agent=true;}
+    });
 
     buildCustomersFromOrders();
     toast(`${ok} customer(s) assigned${fail?`, ${fail} failed`:''}`,fail>0?'error':'success');
