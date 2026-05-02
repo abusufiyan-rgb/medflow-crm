@@ -187,7 +187,7 @@ const SOURCES=['Instagram','Facebook','TikTok','Google Ads','WhatsApp','Referral
 const STAGES=[{k:'claimed',l:'Claimed',c:'#1A5FA6'},{k:'in_progress',l:'In Progress',c:'#D97706'},{k:'with_doctor',l:'With Doctor',c:'#6D28D9'},{k:'prescribed',l:'Prescribed',c:'#0D9488'},{k:'converted',l:'Converted',c:'#16A34A'},{k:'dnd',l:'DND',c:'#DC2626'}];
 const SL={new:'New',claimed:'Claimed',in_progress:'In Progress',with_doctor:'With Doctor',prescribed:'Prescribed',converted:'Converted',unqualified:'Unqualified',supplement:'Supplement Offer',dnd:'DND',closed:'Closed'};
 
-let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[],CUSTOMERS=[],FLOAT_CUSTS=[],HP_LEADS=[];
+let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[],CUSTOMERS=[],FLOAT_CUSTS=[],HP_LEADS=[],RULES=[];
 let NAV='dashboard',DF='all',AS='all',SRCH='',OSRCH='',OTAB='all',CSRCH='',CREORDER='all';
 let DATE_FROM=null,DATE_TO=null,DATE_PRESET='all';
 
@@ -259,21 +259,61 @@ async function loadOrders(){
 async function loadCustomers(){
   try{
     const role=PROF?.role;
-    let q=sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false});
     if(role==='agent'){
-      // Agents see their own + unassigned
-      const{data:mine}=await sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false});
-      const{data:unassigned}=await sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false});
+      const[{data:mine},{data:unassigned}]=await Promise.all([
+        sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false}),
+        sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false}),
+      ]);
       CUSTOMERS=mine||[];
       FLOAT_CUSTS=unassigned||[];
     }else{
-      const{data,error}=await q;
-      if(!error){
-        CUSTOMERS=(data||[]);
-        FLOAT_CUSTS=(data||[]).filter(c=>!c.is_assigned);
-      }else console.warn('loadCustomers:',error.message);
+      const{data,error}=await sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false});
+      if(!error&&data){
+        CUSTOMERS=data;
+        FLOAT_CUSTS=data.filter(c=>!c.is_assigned);
+      }else{
+        // Table might not exist yet or be empty — build from orders as fallback
+        if(error)console.warn('customers table:',error.message);
+        buildCustomersFromOrders();
+      }
     }
-  }catch(e){console.warn('loadCustomers:',e);}
+  }catch(e){console.warn('loadCustomers:',e);buildCustomersFromOrders();}
+}
+
+// Fallback: derive customer records client-side from ORDERS if table is empty
+function buildCustomersFromOrders(){
+  if(!ORDERS.length){CUSTOMERS=[];FLOAT_CUSTS=[];return;}
+  const map=new Map();
+  ORDERS.forEach(o=>{
+    if(!o.email)return;
+    const key=o.email.toLowerCase();
+    if(!map.has(key))map.set(key,{
+      id:'local_'+key,email:key,phone:o.phone||null,
+      full_name:null,city:o.city||null,region:o.region||null,
+      agent_id:o.agent_id||null,agent_name:o.agent_name||null,
+      is_assigned:!!o.agent_id,
+      first_order_date:o.order_date,first_product:o.product,
+      last_order_date:o.order_date,last_product:o.product,
+      last_amount:o.amount,total_orders:0,lifetime_value:0,
+      onboarded_at:o.order_date,reorder_status:'not_glp',reorder_due_date:null,
+    });
+    const c=map.get(key);
+    c.total_orders++;
+    c.lifetime_value=(parseFloat(c.lifetime_value)||0)+(parseFloat(o.amount)||0);
+    if(o.order_date&&(!c.first_order_date||o.order_date<c.first_order_date)){c.first_order_date=o.order_date;c.first_product=o.product;c.onboarded_at=o.order_date;}
+    if(o.order_date&&(!c.last_order_date||o.order_date>c.last_order_date)){c.last_order_date=o.order_date;c.last_product=o.product;c.last_amount=o.amount;}
+    if(o.agent_id&&!c.agent_id){c.agent_id=o.agent_id;c.agent_name=o.agent_name;c.is_assigned=true;}
+  });
+  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+  const all=Array.from(map.values()).map(c=>{
+    if(GLP.test(c.last_product||'')){
+      const due=c.last_order_date?new Date(new Date(c.last_order_date).getTime()+27*86400000):null;
+      if(due){c.reorder_due_date=due.toISOString().slice(0,10);const diff=Math.floor((due-new Date())/86400000);c.reorder_status=diff<0?'overdue':diff<=3?'due_soon':'on_track';}
+    }
+    return c;
+  });
+  CUSTOMERS=all.filter(c=>c.is_assigned);
+  FLOAT_CUSTS=all.filter(c=>!c.is_assigned);
 }
 
 async function loadHPLeads(){
@@ -319,7 +359,7 @@ function showAuth(){
 
 async function startApp(){
   document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading workspace…</span></div>';
-  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers(),loadHPLeads()]);
+  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers(),loadHPLeads(),loadRules()]);
   NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'queue':'all_leads';
   buildShell();
 }
@@ -364,12 +404,14 @@ function getNavItems(){
     {k:'floating_custs',i:'◌',l:'Unassigned',c:FLOAT_CUSTS.length},
   ];
   if(r==='doctor')return[
-    {k:'queue',i:'◉',l:'Consultation Queue',c:LEADS.filter(l=>l.status==='with_doctor').length},
-    {k:'done',i:'◎',l:'My Consultations',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},
+    {k:'agent_consults',i:'👤',l:'Agent Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='agent_driven'&&l.doctor_id===USER.id).length},
+    {k:'direct_consults',i:'⚡',l:'Direct Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='direct'&&l.doctor_id===USER.id).length},
+    {k:'done',i:'◎',l:'Completed',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},
   ];
   return[
     {k:'all_leads',i:'▦',l:'All Leads'},
     {k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},
+    {k:'rules',i:'⚙',l:'Workflow Rules'},
     {k:'customers',i:'👥',l:'Customers',c:0},
     {k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},
     {k:'agents',i:'◈',l:'Agents'},
@@ -402,6 +444,9 @@ function renderView(){
   else if(NAV==='high_potential')vHighPotential(v);
   else if(NAV==='my_customers')vMyCustomers(v);
   else if(NAV==='floating_custs')vFloatingCustomers(v);
+  else if(NAV==='agent_consults')vDoctorSection(v,'agent_driven');
+  else if(NAV==='direct_consults')vDoctorSection(v,'direct');
+  else if(NAV==='rules')vRules(v);
   else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);
   else if(NAV==='done')vGrid(v,LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)),'My Consultations',false);
   else if(NAV==='customers')vCustomers(v);
@@ -588,8 +633,23 @@ async function openStatus(lead){
 }
 
 async function openConvert(lead){
+  // Find auto-matched order for this lead
+  const matchedOrder=ORDERS.find(o=>
+    (o.email||'').toLowerCase()===(lead.email||'').toLowerCase()
+    && o.is_linked && ['COMPLETED','PROCESSING'].includes((o.order_status||'').toUpperCase())
+  );
   const{ov,m}=mkModal(true);
-  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Mark Converted — ${lead.lead_number}</span><button class="btn-x" id="cvX">✕</button></div><div class="modal-body"><div class="banner ban-green">Marking as converted starts a 27-day reorder timer automatically.</div><div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="cvPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">Notes (optional)</label><textarea class="inp" id="cvNotes"></textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="cvCn">Cancel</button><button class="btn btn-green" id="cvSv">Confirm Conversion</button></div>`;
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Mark Converted — ${lead.lead_number}</span><button class="btn-x" id="cvX">✕</button></div>
+  <div class="modal-body">
+    <div class="banner ban-green">Marking as converted starts a 27-day reorder timer automatically.</div>
+    <div class="fld"><label class="fld-l">Order Number</label>
+      <input class="inp" id="cvOrder" placeholder="Enter or auto-fetched below" value="${matchedOrder?matchedOrder.order_number:''}">
+      ${matchedOrder?`<div style="font-size:11px;color:var(--green);margin-top:4px">✓ Auto-matched: ${matchedOrder.product||''} · ${matchedOrder.amount?matchedOrder.amount.toLocaleString()+' SAR':''}</div>`:'<div style="font-size:11px;color:var(--tx3);margin-top:4px">No matching order found — enter manually if available</div>'}
+    </div>
+    <div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="cvPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div>
+    <div class="fld"><label class="fld-l">Notes (optional)</label><textarea class="inp" id="cvNotes"></textarea></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="cvCn">Cancel</button><button class="btn btn-green" id="cvSv">Confirm Conversion</button></div>`;
   $('cvX').addEventListener('click',()=>ov.remove());$('cvCn').addEventListener('click',()=>ov.remove());
   $('cvSv').addEventListener('click',async()=>{const btn=$('cvSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const now=new Date().toISOString(),r=new Date(Date.now()+27*86400000).toISOString();const{error}=await sb.from('leads').update({status:'converted',converted_at:now,reorder_due_at:r,lead_type:'repeat',poc_status:$('cvPOC').value||lead.poc_status}).eq('id',lead.id);if(!error){await sb.from('conversion_history').insert({lead_id:lead.id,agent_id:USER.id,notes:$('cvNotes').value||null,cycle_number:1});await logAct(lead.id,'converted','prescribed','converted',`Reorder due: ${new Date(r).toLocaleDateString()}`);toast('Converted! Reorder timer set.','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Confirm Conversion';}});
 }
@@ -996,7 +1056,7 @@ function openImportOrders(){
     if(dupes)msg+=`, ${dupes} duplicate(s) skipped`;
     if(errored>0)msg+=`, ${errored} failed`;
     toast(msg,errored>0&&imported===0?'error':'success');
-    ov.remove();await loadOrders();renderView();
+    ov.remove();await Promise.all([loadOrders(),loadCustomers(),loadHPLeads()]);renderNav();renderView();
   });
 }
 
@@ -1531,22 +1591,45 @@ function openUploadMapping(){
     if(!mappingRows.length)return;
     const btn=$('umSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Applying…';
     let ok=0,fail=0;
+    // First ensure customer rows exist (upsert from orders if needed)
+    // Then apply agent mapping
     for(const row of mappingRows){
+      // Upsert customer row in case it doesn't exist yet
+      const existingOrder=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
+      if(existingOrder){
+        // Try to call server refresh — create customer row from orders
+        try{await sb.rpc('refresh_customer',{p_email:row.email});}catch(e){}
+      }
       const upd={agent_name:row.agent_name,is_assigned:true};
       if(row.agent_id)upd.agent_id=row.agent_id;
       if(row.full_name)upd.full_name=row.full_name;
       if(row.phone)upd.phone=row.phone;
       if(row.city)upd.city=row.city;
       if(row.region)upd.region=row.region;
-      const{error}=await sb.from('customers').update(upd).eq('email',row.email);
-      if(!error){
-        ok++;
-        // Also update orders
-        if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);
-      }else fail++;
+      // Update customers table — try update first, then insert if missing
+      const{data:existing}=await sb.from('customers').select('id').eq('email',row.email).maybeSingle();
+      if(existing){
+        const{error}=await sb.from('customers').update(upd).eq('email',row.email);
+        if(!error){ok++;if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);}
+        else fail++;
+      }else{
+        // Customer row doesn't exist — create it from order data
+        const ord=ORDERS.find(o=>(o.email||'').toLowerCase()===row.email);
+        if(ord){
+          const newC={email:row.email,phone:row.phone||ord.phone||null,...upd,
+            first_order_date:ord.order_date,first_product:ord.product,
+            last_order_date:ord.order_date,last_product:ord.product,
+            total_orders:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).length,
+            lifetime_value:ORDERS.filter(o=>(o.email||'').toLowerCase()===row.email).reduce((s,o)=>s+(parseFloat(o.amount)||0),0),
+            onboarded_at:ord.order_date};
+          const{error}=await sb.from('customers').insert(newC);
+          if(!error){ok++;if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);}
+          else fail++;
+        }else ok++;
+      }
     }
     toast(`${ok} customer(s) assigned${fail?`, ${fail} failed`:''}`,fail>0?'error':'success');
-    ov.remove();await loadCustomers();renderNav();renderView();
+    ov.remove();await Promise.all([loadCustomers(),loadOrders()]);renderNav();renderView();
   });
 }
 
