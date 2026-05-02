@@ -235,7 +235,7 @@ function deduplicateLeads(leads){
 }
 
 // Slim select for list views — fast
-const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,agent_id,agent_name,doctor_id,doctor_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,client_profiles(full_name,bmi),prescriptions(product,is_current)';
+const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,agent_id,agent_name,doctor_id,doctor_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,followup_date,client_profiles(full_name,bmi),prescriptions(product,is_current)';
 // Full select for profile modal
 const SEL_FULL='*,client_profiles(*),prescriptions(*)';
 async function loadLeads(){
@@ -470,7 +470,12 @@ function getNavItems(){
     {k:'dashboard',i:'▦',l:'Dashboard'},
     {k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},
     {k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},
-    {k:'my_leads',i:'◈',l:'My Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status)).length},
+    {k:'my_leads',i:'◈',l:'My Leads',c:(()=>{
+      const today=new Date().toISOString().slice(0,10);
+      const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status));
+      const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today).length;
+      return mine.length+(followupToday?` 🔔${followupToday}`:'');
+    })()},
     {k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},
     {k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},
     {k:'my_orders',i:'🛒',l:'My Orders',c:ORDERS.filter(o=>o.agent_id===USER.id).length},
@@ -511,7 +516,7 @@ function renderView(){
   const v=$('viewArea');if(!v)return;v.innerHTML='';
   if(NAV==='dashboard')vDashboard(v);
   else if(NAV==='pool')vGrid(v,LEADS.filter(l=>l.status==='new'),'Lead Pool',true);
-  else if(NAV==='my_leads')vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status)),'My Leads',true);
+  else if(NAV==='my_leads')vMyLeads(v);
   else if(NAV==='prescribed'){const b=document.createElement('div');b.className='banner ban-green';b.style.marginBottom='16px';b.textContent='💊 Prescription ready — follow up to confirm the order.';v.appendChild(b);vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed'),'Prescribed Leads',true);}
   else if(NAV==='repeat'){const due=LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'&&l.reorder_due_at&&new Date(l.reorder_due_at)<=new Date(Date.now()+86400000));if(due.length){const b=document.createElement('div');b.className='banner ban-amber';b.style.marginBottom='16px';b.textContent=`🔁 ${due.length} lead(s) due for reorder.`;v.appendChild(b);}vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'),'Repeat / Old Leads',true);}
   else if(NAV==='my_orders')vMyOrders(v);
@@ -585,6 +590,120 @@ function vDashboard(v){
   v.appendChild(tw);
 }
 
+function vMyLeads(v){
+  const today=new Date().toISOString().slice(0,10);
+  const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status));
+
+  // New leads: claimed from pool (lead_type === 'new' or no reorder)
+  const newLeads=mine.filter(l=>l.lead_type==='new'||!l.reorder_due_at);
+
+  // Old leads: repeat/reorder cycle — overdue or due within 3 days
+  const oldLeads=mine.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at);
+
+  // Follow up today or overdue followups
+  const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today);
+
+  // State
+  let activeTab='new'; // 'new' | 'old'
+  const wrap=document.createElement('div');v.appendChild(wrap);
+
+  function render(){
+    wrap.innerHTML='';
+
+    // Followup banner — always visible
+    if(followupToday.length){
+      const ban=document.createElement('div');
+      ban.className='banner ban-amber';
+      ban.style.marginBottom='16px';
+      ban.innerHTML=`📅 <strong>${followupToday.length} lead(s)</strong> need follow-up today or are overdue.`;
+      wrap.appendChild(ban);
+    }
+
+    // Toggle tabs
+    const tabRow=document.createElement('div');
+    tabRow.style.cssText='display:flex;gap:0;border-bottom:2px solid var(--bdr);margin-bottom:20px';
+    [{k:'new',l:'New Leads',c:newLeads.length},{k:'old',l:'Old Leads (Reorder)',c:oldLeads.length}].forEach(tab=>{
+      const btn=document.createElement('button');
+      btn.style.cssText=`padding:10px 20px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:${activeTab===tab.k?'var(--blue)':'var(--tx3)'};border-bottom:${activeTab===tab.k?'2px solid var(--blue)':'2px solid transparent'};margin-bottom:-2px;transition:all .12s`;
+      btn.innerHTML=`${tab.l} <span style="background:${activeTab===tab.k?'var(--blue)':'var(--surf2)'};color:${activeTab===tab.k?'#fff':'var(--tx3)'};padding:1px 7px;border-radius:10px;font-size:11px;margin-left:4px">${tab.c}</span>`;
+      btn.addEventListener('click',()=>{activeTab=tab.k;render();});
+      tabRow.appendChild(btn);
+    });
+    wrap.appendChild(tabRow);
+
+    if(activeTab==='new'){
+      // New leads section
+      if(!newLeads.length){
+        const e=document.createElement('div');e.className='empty';
+        e.innerHTML='<div class="empty-ico">📭</div>No new leads yet. Claim leads from the Lead Pool.';
+        wrap.appendChild(e);return;
+      }
+      // Followup today filter chip
+      const fb=document.createElement('div');fb.className='fbar';
+      let filterFollowup=false;
+      const fchip=document.createElement('span');
+      fchip.className='fc';
+      fchip.style.cssText='display:flex;align-items:center;gap:4px';
+      fchip.innerHTML=`📅 Follow-up Today <span style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px">${followupToday.filter(l=>l.lead_type!=='repeat'||!l.reorder_due_at).length}</span>`;
+      fchip.addEventListener('click',()=>{filterFollowup=!filterFollowup;fchip.classList.toggle('on',filterFollowup);renderLeadGrid();});
+      fb.appendChild(fchip);
+      wrap.appendChild(fb);
+
+      const gridArea=document.createElement('div');wrap.appendChild(gridArea);
+      function renderLeadGrid(){
+        gridArea.innerHTML='';
+        const leads=filterFollowup
+          ?newLeads.filter(l=>l.followup_date&&l.followup_date<=today)
+          :newLeads;
+        if(!leads.length){
+          gridArea.innerHTML='<div class="empty" style="padding:30px"><div class="empty-ico">✅</div>No leads to follow up today.</div>';return;
+        }
+        const g=document.createElement('div');g.className='grid';
+        leads.forEach(l=>g.appendChild(buildCard(l)));
+        gridArea.appendChild(g);
+      }
+      renderLeadGrid();
+
+    } else {
+      // Old leads — repeat/reorder
+      if(!oldLeads.length){
+        const e=document.createElement('div');e.className='empty';
+        e.innerHTML='<div class="empty-ico">🔁</div>No reorder leads yet. Converted leads appear here after 27 days.';
+        wrap.appendChild(e);return;
+      }
+
+      // Reorder status filter chips
+      const fb=document.createElement('div');fb.className='fbar';
+      let reorderFilter='all';
+      const overdueCnt=oldLeads.filter(l=>new Date(l.reorder_due_at)<new Date()).length;
+      const dueSoonCnt=oldLeads.filter(l=>{const d=new Date(l.reorder_due_at);return d>=new Date()&&d<=new Date(Date.now()+3*86400000);}).length;
+      const followupOldCnt=followupToday.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at).length;
+
+      [['all','All',oldLeads.length],['overdue','🔴 Overdue',overdueCnt],['due_soon','🟡 Due in 3 days',dueSoonCnt],['followup','📅 Follow-up Today',followupOldCnt]].forEach(([k,l,c])=>{
+        const chip=document.createElement('span');chip.className='fc'+(reorderFilter===k?' on':'');
+        chip.innerHTML=`${l} <span style="background:${reorderFilter===k?'var(--blue)':'var(--surf2)'};color:${reorderFilter===k?'#fff':'var(--tx3)'};padding:1px 6px;border-radius:10px;font-size:11px;margin-left:3px">${c}</span>`;
+        chip.addEventListener('click',()=>{reorderFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));chip.classList.add('on');renderOldGrid();});
+        fb.appendChild(chip);
+      });
+      wrap.appendChild(fb);
+
+      const gridArea=document.createElement('div');wrap.appendChild(gridArea);
+      function renderOldGrid(){
+        gridArea.innerHTML='';
+        let leads=oldLeads;
+        if(reorderFilter==='overdue') leads=oldLeads.filter(l=>new Date(l.reorder_due_at)<new Date());
+        else if(reorderFilter==='due_soon') leads=oldLeads.filter(l=>{const d=new Date(l.reorder_due_at);return d>=new Date()&&d<=new Date(Date.now()+3*86400000);});
+        else if(reorderFilter==='followup') leads=oldLeads.filter(l=>l.followup_date&&l.followup_date<=today);
+        if(!leads.length){const e=document.createElement('div');e.className='empty';e.style.padding='30px';e.innerHTML='<div class="empty-ico">✅</div>No leads in this filter.';gridArea.appendChild(e);return;}
+        const g=document.createElement('div');g.className='grid';leads.forEach(l=>g.appendChild(buildCard(l)));
+        gridArea.appendChild(g);
+      }
+      renderOldGrid();
+    }
+  }
+  render();
+}
+
 function vGrid(v,leads,title,showDF=false){
   const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=title;v.appendChild(h);
   if(showDF)v.appendChild(mkDateFilter(()=>renderView()));
@@ -618,6 +737,16 @@ function buildCard(lead){
   if(lead.agent_name&&role!=='agent')addRow('Agent',lead.agent_name);
   if(lead.doctor_name)addRow('Doctor',lead.doctor_name);
   if(lead.poc_status){const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">POC</span><span style="font-size:11px;color:var(--tx3)">${lead.poc_status}</span>`;card.appendChild(r);}
+  // Followup date badge
+  if(lead.followup_date){
+    const today=new Date().toISOString().slice(0,10);
+    const isToday=lead.followup_date===today;
+    const isPast=lead.followup_date<today;
+    const fb=document.createElement('div');
+    fb.style.cssText=`font-size:11px;padding:4px 8px;border-radius:4px;margin-top:6px;display:inline-block;border:1px solid ${isPast?'var(--red-bd)':isToday?'var(--amber-bd)':'var(--blue-bd)'};background:${isPast?'var(--red-bg)':isToday?'var(--amber-bg)':'var(--blue-bg)'};color:${isPast?'var(--red)':isToday?'var(--amber)':'var(--blue)'};`;
+    fb.innerHTML=`📅 ${isPast?'Overdue followup':isToday?'Follow up TODAY':'Follow up: '+fmtD(lead.followup_date)}`;
+    card.appendChild(fb);
+  }
   if(lead.doctor_action==='rejected'){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--red);background:var(--red-bg);border:1px solid var(--red-bd);border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.5';w.innerHTML='❌ <strong>Rejected by Dr. '+( lead.doctor_name||'Doctor')+':</strong> '+(lead.doctor_action_note||'');card.appendChild(w);}
   else if(lead.doc_changes){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--amber);margin-top:4px';w.textContent='⚠ Doctor updated profile';card.appendChild(w);}
   if(lead.is_high_potential&&lead.high_potential_reason){const w=document.createElement('div');w.style.cssText='font-size:11px;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.5';w.innerHTML='⭐ <strong>High Potential:</strong> '+lead.high_potential_reason;card.appendChild(w);}
@@ -701,10 +830,60 @@ async function openProfile(lead){
 }
 
 async function openStatus(lead){
+  const isFollowup=lead.poc_status&&lead.poc_status.toLowerCase().includes('followup');
   const{ov,m}=mkModal(true);
-  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Update Status — ${lead.lead_number}</span><button class="btn-x" id="stX">✕</button></div><div class="modal-body"><div class="fld"><label class="fld-l">Status</label><select class="inp" id="stSt">${['claimed','in_progress','unqualified','supplement','dnd','closed'].map(s=>`<option value="${s}"${lead.status===s?' selected':''}>${SL[s]||s}</option>`).join('')}</select></div><div class="fld"><label class="fld-l">POC Status</label><select class="inp" id="stPOC"><option value="">Select…</option>${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}</select></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="stCn">Cancel</button><button class="btn btn-blue" id="stSv">Save</button></div>`;
-  $('stX').addEventListener('click',()=>ov.remove());$('stCn').addEventListener('click',()=>ov.remove());
-  $('stSv').addEventListener('click',async()=>{const btn=$('stSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const ns=$('stSt').value,poc=$('stPOC').value;const{error}=await sb.from('leads').update({status:ns,poc_status:poc||lead.poc_status}).eq('id',lead.id);if(!error){await logAct(lead.id,'status_change',lead.status,ns,poc||null);toast('Updated','success');ov.remove();await loadLeads();renderNav();renderView();}else{toast(error.message,'error');btn.disabled=false;btn.textContent='Save';}});
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Update Status — ${lead.lead_number}</span><button class="btn-x" id="stX">✕</button></div>
+  <div class="modal-body">
+    <div class="fld"><label class="fld-l">Lead Status</label>
+      <select class="inp" id="stSt">
+        ${['claimed','in_progress','unqualified','supplement','dnd','closed'].map(s=>`<option value="${s}"${lead.status===s?' selected':''}>${SL[s]||s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fld"><label class="fld-l">POC Status</label>
+      <select class="inp" id="stPOC">
+        <option value="">Select…</option>
+        ${POC.map(p=>`<option${lead.poc_status===p?' selected':''}>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="fld" id="stFollowupWrap" style="display:${isFollowup?'block':'none'}">
+      <label class="fld-l">📅 Follow-up Date <span style="color:var(--red)">*</span></label>
+      <input type="date" class="inp" id="stFollowupDate" value="${lead.followup_date||''}">
+      <div style="font-size:11px;color:var(--tx3);margin-top:4px">This lead will appear in your "Follow Up Today" list on that date.</div>
+    </div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="stCn">Cancel</button><button class="btn btn-blue" id="stSv">Save</button></div>`;
+
+  $('stX').addEventListener('click',()=>ov.remove());
+  $('stCn').addEventListener('click',()=>ov.remove());
+
+  // Show/hide followup date when POC changes
+  $('stPOC').addEventListener('change',()=>{
+    const val=$('stPOC').value.toLowerCase();
+    const needsDate=val.includes('followup')||val.includes('rescheduled');
+    $('stFollowupWrap').style.display=needsDate?'block':'none';
+    if(needsDate&&!$('stFollowupDate').value){
+      // Default to tomorrow
+      const tom=new Date(Date.now()+86400000);
+      $('stFollowupDate').value=tom.toISOString().slice(0,10);
+    }
+  });
+
+  $('stSv').addEventListener('click',async()=>{
+    const btn=$('stSv');
+    const poc=$('stPOC').value;
+    const needsDate=(poc.toLowerCase().includes('followup')||poc.toLowerCase().includes('rescheduled'));
+    const followupDate=$('stFollowupDate').value;
+    if(needsDate&&!followupDate){toast('Please set a follow-up date','error');return;}
+    btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const upd={status:$('stSt').value,poc_status:poc||lead.poc_status};
+    if(followupDate)upd.followup_date=followupDate;
+    else if(!needsDate)upd.followup_date=null; // clear if not needed
+    const{error}=await sb.from('leads').update(upd).eq('id',lead.id);
+    if(!error){
+      await logAct(lead.id,'status_change',lead.status,upd.status,poc+(followupDate?' — followup: '+followupDate:''));
+      toast('Updated','success');ov.remove();await loadLeads();renderNav();renderView();
+    }else{toast(error.message,'error');btn.disabled=false;btn.textContent='Save';}
+  });
 }
 
 async function openConvert(lead){
