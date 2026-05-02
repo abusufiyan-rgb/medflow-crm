@@ -187,7 +187,7 @@ const SOURCES=['Instagram','Facebook','TikTok','Google Ads','WhatsApp','Referral
 const STAGES=[{k:'claimed',l:'Claimed',c:'#1A5FA6'},{k:'in_progress',l:'In Progress',c:'#D97706'},{k:'with_doctor',l:'With Doctor',c:'#6D28D9'},{k:'prescribed',l:'Prescribed',c:'#0D9488'},{k:'converted',l:'Converted',c:'#16A34A'},{k:'dnd',l:'DND',c:'#DC2626'}];
 const SL={new:'New',claimed:'Claimed',in_progress:'In Progress',with_doctor:'With Doctor',prescribed:'Prescribed',converted:'Converted',unqualified:'Unqualified',supplement:'Supplement Offer',dnd:'DND',closed:'Closed'};
 
-let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[],CUSTOMERS=[];
+let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[],CUSTOMERS=[],FLOAT_CUSTS=[],HP_LEADS=[];
 let NAV='dashboard',DF='all',AS='all',SRCH='',OSRCH='',OTAB='all',CSRCH='',CREORDER='all';
 let DATE_FROM=null,DATE_TO=null,DATE_PRESET='all';
 
@@ -258,10 +258,37 @@ async function loadOrders(){
 
 async function loadCustomers(){
   try{
-    const{data,error}=await sb.from('customer_summary').select('*').order('last_order_date',{ascending:false});
-    if(!error)CUSTOMERS=data||[];
-    else console.warn('customer_summary view not ready yet:',error.message);
+    const role=PROF?.role;
+    let q=sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false});
+    if(role==='agent'){
+      // Agents see their own + unassigned
+      const{data:mine}=await sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false});
+      const{data:unassigned}=await sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false});
+      CUSTOMERS=mine||[];
+      FLOAT_CUSTS=unassigned||[];
+    }else{
+      const{data,error}=await q;
+      if(!error){
+        CUSTOMERS=(data||[]);
+        FLOAT_CUSTS=(data||[]).filter(c=>!c.is_assigned);
+      }else console.warn('loadCustomers:',error.message);
+    }
   }catch(e){console.warn('loadCustomers:',e);}
+}
+
+async function loadHPLeads(){
+  try{
+    const role=PROF?.role;
+    let q=sb.from('leads')
+      .select('*,client_profiles(full_name,agent_notes)')
+      .eq('is_high_potential',true)
+      .not('status','in','(converted,closed,dnd)')
+      .order('created_at',{ascending:false});
+    if(role==='agent') q=q.or(`status.eq.new,agent_id.eq.${USER.id}`);
+    const{data,error}=await q;
+    if(!error)HP_LEADS=data||[];
+    else console.warn('loadHPLeads:',error.message);
+  }catch(e){console.warn('loadHPLeads:',e);}
 }
 
 function showAuth(){
@@ -292,7 +319,7 @@ function showAuth(){
 
 async function startApp(){
   document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading workspace…</span></div>';
-  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers()]);
+  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers(),loadHPLeads()]);
   NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'queue':'all_leads';
   buildShell();
 }
@@ -328,10 +355,13 @@ function getNavItems(){
   if(r==='agent')return[
     {k:'dashboard',i:'▦',l:'Dashboard'},
     {k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},
+    {k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},
     {k:'my_leads',i:'◈',l:'My Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor'].includes(l.status)).length},
     {k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},
     {k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},
     {k:'my_orders',i:'🛒',l:'My Orders',c:ORDERS.filter(o=>o.agent_id===USER.id).length},
+    {k:'my_customers',i:'👥',l:'My Customers',c:CUSTOMERS.length},
+    {k:'floating_custs',i:'◌',l:'Unassigned',c:FLOAT_CUSTS.length},
   ];
   if(r==='doctor')return[
     {k:'queue',i:'◉',l:'Consultation Queue',c:LEADS.filter(l=>l.status==='with_doctor').length},
@@ -339,6 +369,7 @@ function getNavItems(){
   ];
   return[
     {k:'all_leads',i:'▦',l:'All Leads'},
+    {k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},
     {k:'customers',i:'👥',l:'Customers',c:0},
     {k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},
     {k:'agents',i:'◈',l:'Agents'},
@@ -368,6 +399,9 @@ function renderView(){
   else if(NAV==='prescribed'){const b=document.createElement('div');b.className='banner ban-green';b.style.marginBottom='16px';b.textContent='💊 Prescription ready — follow up to confirm the order.';v.appendChild(b);vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed'),'Prescribed Leads',true);}
   else if(NAV==='repeat'){const due=LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'&&l.reorder_due_at&&new Date(l.reorder_due_at)<=new Date(Date.now()+86400000));if(due.length){const b=document.createElement('div');b.className='banner ban-amber';b.style.marginBottom='16px';b.textContent=`🔁 ${due.length} lead(s) due for reorder.`;v.appendChild(b);}vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat'),'Repeat / Old Leads',true);}
   else if(NAV==='my_orders')vMyOrders(v);
+  else if(NAV==='high_potential')vHighPotential(v);
+  else if(NAV==='my_customers')vMyCustomers(v);
+  else if(NAV==='floating_custs')vFloatingCustomers(v);
   else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);
   else if(NAV==='done')vGrid(v,LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)),'My Consultations',false);
   else if(NAV==='customers')vCustomers(v);
@@ -450,7 +484,8 @@ function buildCard(lead){
 
   const hdr=document.createElement('div');hdr.className='card-hdr';
   const idSpan=document.createElement('span');idSpan.className='card-id';idSpan.textContent=lead.lead_number;
-  if(lead.lead_type_tag==='recurring'){const t=document.createElement('span');t.className='bdg t-recurring';t.style.marginLeft='6px';t.textContent='Recurring';idSpan.appendChild(t);}
+  if(lead.is_high_potential){const t=document.createElement('span');t.className='bdg';t.style.cssText='margin-left:6px;background:#FFF7ED;color:#C2410C;border-color:#FED7AA';t.textContent='⭐ High Potential';idSpan.appendChild(t);}
+  else if(lead.lead_type_tag==='recurring'){const t=document.createElement('span');t.className='bdg t-recurring';t.style.marginLeft='6px';t.textContent='Recurring';idSpan.appendChild(t);}
   else if(lead.lead_type==='repeat'){const t=document.createElement('span');t.className='bdg t-repeat';t.style.marginLeft='6px';t.textContent='Repeat';idSpan.appendChild(t);}
   const st=document.createElement('span');st.className=`bdg s-${lead.status}`;st.textContent=SL[lead.status]||lead.status;
   hdr.appendChild(idSpan);hdr.appendChild(st);card.appendChild(hdr);
@@ -465,6 +500,7 @@ function buildCard(lead){
   if(lead.doctor_name)addRow('Doctor',lead.doctor_name);
   if(lead.poc_status){const r=document.createElement('div');r.className='card-row';r.innerHTML=`<span class="card-lbl">POC</span><span style="font-size:11px;color:var(--tx3)">${lead.poc_status}</span>`;card.appendChild(r);}
   if(lead.doc_changes){const w=document.createElement('div');w.style.cssText='font-size:11px;color:var(--amber);margin-top:4px';w.textContent='⚠ Doctor updated profile';card.appendChild(w);}
+  if(lead.is_high_potential&&lead.high_potential_reason){const w=document.createElement('div');w.style.cssText='font-size:11px;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:4px;padding:5px 8px;margin-top:6px;line-height:1.5';w.innerHTML='⭐ <strong>High Potential:</strong> '+lead.high_potential_reason;card.appendChild(w);}
   if(rx){const b=document.createElement('div');b.className='rx-box';b.innerHTML=`<div class="rx-box-lbl">Prescription</div><div class="rx-box-val">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${rx.dosage_notes}</div>`:''}`;card.appendChild(b);}
   if(due){const d=document.createElement('div');d.className='reorder-tag';d.textContent=`🔁 Reorder: ${fmtD(lead.reorder_due_at)}`;card.appendChild(d);}
   const hasTs=lead.claimed_at||lead.consultation_at||lead.converted_at;
@@ -704,38 +740,96 @@ function excelDateToISO(val){
 }
 
 function parseExcelRows(data){
-  // data is array of row arrays from SheetJS
-  // Find header row (row with 'order' or 'Order' in first cell)
+  // Find header row — look for any row containing 'email' or 'order'
   let headerRowIdx=0;
   for(let i=0;i<Math.min(10,data.length);i++){
-    if(data[i].some(c=>String(c||'').toLowerCase().includes('order'))){headerRowIdx=i;break;}
+    const row=data[i].map(c=>String(c||'').toLowerCase());
+    if(row.some(c=>c.includes('email')||c.includes('order uuid')||c.includes('order number'))){
+      headerRowIdx=i;break;
+    }
   }
   const headers=data[headerRowIdx].map(h=>String(h||'').toLowerCase().trim());
   const rows=[];const errors=[];
-  const idx=(names)=>{for(const n of names){const i=headers.findIndex(h=>h.includes(n));if(i>=0)return i;}return -1;};
-  const iON=idx(['order number','order_number','order no','orderno','order#','order id','orderid','invoice']);
-  const iEM=idx(['email','e-mail','customer email','email address']);
-  const iPH=idx(['phone','mobile','contact','customer phone','phonenumber','phone number']);
-  const iPR=idx(['product','item','product name','sku','description','medication']);
-  const iOD=idx(['order date','date','orderdate','purchase date']);
-  const iAM=idx(['amount','total','price','value','cost','amount (sar)','total (sar)']);
-  const iQT=idx(['quantity','qty','units']);
-  const iPM=idx(['payment','payment method','pay method']);
-  const iOS=idx(['status','order status']);
-  const iSA=idx(['address','shipping','delivery']);
-  const iCT=idx(['city','town','district']);
-  const iRG=idx(['region','province','area','governorate']);
-  const iNT=idx(['notes','note','remarks','comment']);
+
+  // Flexible column finder — checks multiple possible names
+  const idx=(names)=>{
+    for(const n of names){
+      const i=headers.findIndex(h=>h===n||h.includes(n));
+      if(i>=0)return i;
+    }
+    return -1;
+  };
+
+  // Map your portal's exact column names + common alternatives
+  const iON = idx(['order uuid','order_uuid','order number','order_number','order no',
+                    'orderno','order#','order id','orderid','invoice no','invoice']);
+  const iUID= idx(['user id','user_id','userid','customer id','customer_id']);
+  const iEM = idx(['email','e-mail','customer email','email address']);
+  const iLG = idx(['language','lang']);
+  const iPH = idx(['phone number','phone_number','phone','mobile','contact number',
+                    'customer phone','phonenumber','telephone']);
+  const iPR = idx(['package name','package_name','product name','product','item',
+                    'sku','description','medication','package','plan']);
+  const iOD = idx(['order date','order_date','date','orderdate','purchase date',
+                    'created at','created_at','order time']);
+  const iPM = idx(['payment method','payment_method','payment','pay method','pay_method']);
+  const iOS = idx(['order status','order_status','status','state']);
+  const iB2B= idx(['b2b partner name','b2b partner','partner name','partner','b2b',
+                    'referral','referred by']);
+  const iQT = idx(['sum of quantity','sum_of_quantity','quantity','qty','units','count']);
+  const iAM = idx(['total amount','total_amount','amount','total','price','value',
+                    'sum of total','sum_of_total','cost','amount (sar)','grand total']);
+  const iSA = idx(['address','shipping address','shipping','delivery address','delivery']);
+  const iCT = idx(['city','town','district']);
+  const iRG = idx(['region','province','area','governorate']);
+  const iNT = idx(['notes','note','remarks','comment','description']);
 
   for(let i=headerRowIdx+1;i<data.length;i++){
     const row=data[i];
-    if(!row||row.every(c=>!c))continue;
+    if(!row||row.every(c=>c===''||c===null||c===undefined))continue;
     const get=(j)=>j>=0?String(row[j]||'').trim():'';
-    const on=get(iON),em=get(iEM),pr=get(iPR),od=excelDateToISO(iOD>=0?row[iOD]:null),am=iAM>=0?parseFloat(row[iAM])||null:null;
-    if(!on){errors.push(`Row ${i+1}: missing Order Number — skipped`);continue;}
-    if(!em&&!get(iPH)){errors.push(`Row ${i+1} (${on}): no email or phone — skipped`);continue;}
-    if(!pr){errors.push(`Row ${i+1} (${on}): missing Product — skipped`);continue;}
-    rows.push({order_number:on,email:em?em.toLowerCase():null,phone:get(iPH)||null,product:pr,order_date:od,amount:am,quantity:iQT>=0?(parseInt(row[iQT])||1):1,payment_method:get(iPM)||null,order_status:get(iOS)||null,shipping_address:get(iSA)||null,city:get(iCT)||null,region:get(iRG)||null,notes:get(iNT)||null});
+
+    const on  = get(iON);
+    const em  = get(iEM);
+    const ph  = get(iPH);
+    const pr  = get(iPR);
+    const od  = excelDateToISO(iOD>=0?row[iOD]:null);
+    const am  = iAM>=0?(parseFloat(String(row[iAM]||'').replace(/[^0-9.]/g,''))||null):null;
+    const st  = get(iOS).toUpperCase();
+    const b2b = get(iB2B);
+    const uid = get(iUID);
+    const lang= get(iLG);
+
+    // Skip if missing required fields
+    if(!on){errors.push(`Row ${i+1}: missing Order UUID/Number — skipped`);continue;}
+    if(!em&&!ph){errors.push(`Row ${i+1} (${on}): no email or phone — skipped`);continue;}
+    if(!pr){errors.push(`Row ${i+1} (${on}): missing Package/Product — skipped`);continue;}
+
+    // CANCELLED orders: store but mark so lead is NOT converted
+    const isCancelled = st==='CANCELLED'||st==='CANCELED';
+
+    rows.push({
+      order_number   : on,
+      email          : em?em.toLowerCase():null,
+      phone          : ph||null,
+      product        : pr,
+      order_date     : od,
+      amount         : am,
+      quantity       : iQT>=0?(parseInt(row[iQT])||1):1,
+      payment_method : get(iPM)||null,
+      order_status   : st||'COMPLETED',
+      shipping_address: get(iSA)||null,
+      city           : get(iCT)||null,
+      region         : get(iRG)||null,
+      notes          : [
+                        b2b?'B2B Partner: '+b2b:null,
+                        uid?'User ID: '+uid:null,
+                        lang?'Language: '+lang:null,
+                        get(iNT)||null
+                       ].filter(Boolean).join(' | ')||null,
+      // Flag cancelled so the auto-convert trigger can skip them
+      is_cancelled   : isCancelled,
+    });
   }
   return{rows,errors};
 }
@@ -866,11 +960,13 @@ function openImportOrders(){
         if(r.amount!=null&&!isNaN(r.amount))o.amount=r.amount;
         if(r.quantity)o.quantity=r.quantity;
         if(r.payment_method)o.payment_method=r.payment_method;
-        if(r.order_status)o.order_status=r.order_status;
+        // Store CANCELLED status — trigger will not convert these leads
+        o.order_status=r.order_status||'COMPLETED';
         if(r.shipping_address)o.shipping_address=r.shipping_address;
         if(r.city)o.city=r.city;
         if(r.region)o.region=r.region;
         if(r.notes)o.notes=r.notes;
+        // Pass cancelled flag via order_status — trigger checks this
         return o;
       });
       const{error:insErr}=await sb.from('orders').insert(clean);
@@ -1001,116 +1097,473 @@ async function openTagOrder(order,onDone){
   renderResults(''); // show all initially
 }
 
-function vCustomers(v){
-  const GLP_KEYWORDS=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
-  const isGlp=p=>GLP_KEYWORDS.test(p||'');
-
-  // Filter
-  let data=[...CUSTOMERS];
-  if(CSRCH){
-    const q=CSRCH.toLowerCase();
-    data=data.filter(c=>[c.customer_name,c.email,c.phone,c.city,c.region,c.last_product,c.first_product].some(x=>(x||'').toLowerCase().includes(q)));
-  }
-  if(CREORDER==='overdue')  data=data.filter(c=>c.reorder_status==='overdue');
-  if(CREORDER==='due_soon') data=data.filter(c=>c.reorder_status==='due_soon');
-  if(CREORDER==='glp')      data=data.filter(c=>isGlp(c.last_product));
+// ── HIGH POTENTIAL LEADS VIEW ────────────────────────────────
+function vHighPotential(v){
+  const role=PROF.role;
+  const isAgent=role==='agent';
 
   // Stats
-  const totalSpent=data.reduce((s,c)=>s+(parseFloat(c.total_spent)||0),0);
-  const overdue=data.filter(c=>c.reorder_status==='overdue').length;
-  const dueSoon=data.filter(c=>c.reorder_status==='due_soon').length;
+  const unclaimed=HP_LEADS.filter(l=>l.status==='new').length;
+  const claimed=HP_LEADS.filter(l=>l.agent_id===USER.id||role!=='agent').length;
   const stats=document.createElement('div');stats.className='stats';
-  [[data.length,'Total Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[totalSpent.toLocaleString()+' SAR','Total Revenue','var(--green)']].forEach(([n,l,c])=>{
-    const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c};font-size:${String(n).length>8?'18px':'28px'}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
+  [[HP_LEADS.length,'High Potential','#C2410C'],[unclaimed,'Unclaimed','var(--tx3)'],[HP_LEADS.filter(l=>l.status!=='new').length,'In Progress','var(--amber)']].forEach(([n,l,c])=>{
+    const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
   });
   v.appendChild(stats);
 
-  // Overdue banner
-  if(overdue>0){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue} customer(s)</strong> with GLP injections are past their 27-day reorder date. Check the "Reorder Overdue" filter.`;v.appendChild(b);}
-  if(dueSoon>0){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon} customer(s)</strong> have a reorder due within 3 days.`;v.appendChild(b);}
+  const ban=document.createElement('div');ban.className='banner';
+  ban.style.cssText='background:#FFF7ED;border:1px solid #FED7AA;color:#92400E;border-radius:var(--rs);padding:10px 14px;font-size:12px;margin-bottom:16px;line-height:1.6';
+  ban.innerHTML='<strong>⭐ High Potential leads</strong> are customers who cancelled 2 or more orders on the same day without completing a purchase. They showed strong intent — reach out immediately. Profile details are pre-filled from their order attempts.';
+  v.appendChild(ban);
 
-  // Filter bar
-  const fb=document.createElement('div');fb.className='fbar';
-  const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, city, product…';si.value=CSRCH;si.style.width='260px';
-  si.addEventListener('input',e=>{CSRCH=e.target.value;renderView();});fb.appendChild(si);
-  [['all','All'],['overdue','Reorder Overdue'],['due_soon','Due Soon'],['glp','GLP Customers']].forEach(([k,l])=>{
-    const c=document.createElement('span');c.className='fc'+(CREORDER===k?' on':'');c.textContent=l;
-    c.addEventListener('click',()=>{CREORDER=k;renderView();});fb.appendChild(c);
-  });
-  const refreshBtn=document.createElement('button');refreshBtn.className='btn btn-ghost btn-sm';refreshBtn.style.marginLeft='auto';refreshBtn.textContent='↻ Refresh';
-  refreshBtn.addEventListener('click',async()=>{refreshBtn.innerHTML='<span class="spin spin-d"></span>';await loadCustomers();renderView();});
-  fb.appendChild(refreshBtn);
-  v.appendChild(fb);
-
-  if(!data.length){
+  if(!HP_LEADS.length){
     const e=document.createElement('div');e.className='empty';
-    e.innerHTML=CUSTOMERS.length===0
-      ?'<div class="empty-ico">📦</div>No customer data yet.<br><span style="font-size:12px">Import orders first — customers are built automatically from order data.</span>'
-      :'<div class="empty-ico">🔍</div>No customers match this filter.';
+    e.innerHTML='<div class="empty-ico">⭐</div>No high potential leads detected yet.<br><span style="font-size:12px;color:var(--tx3)">They appear automatically when a customer cancels 2+ orders on the same day.</span>';
     v.appendChild(e);return;
   }
 
-  // Table
+  // Filter bar
+  let q='';
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search email, phone, product…';si.style.width='240px';
+  si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderHPTable();});
+  fb.appendChild(si);
+  v.appendChild(fb);
+
+  const tableArea=document.createElement('div');v.appendChild(tableArea);
+
+  function renderHPTable(){
+    tableArea.innerHTML='';
+    let data=HP_LEADS.filter(l=>{
+      if(!q)return true;
+      return [l.email,l.phone,l.high_potential_reason,(l.client_profiles?.full_name||'')].some(x=>(x||'').toLowerCase().includes(q));
+    });
+
+    if(!data.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">🔍</div>No results.';tableArea.appendChild(e);return;}
+
+    const tw=document.createElement('div');tw.className='tbl-wrap';
+    tw.innerHTML=`<table>
+      <thead><tr>
+        <th>Lead</th><th>Email</th><th>Phone</th><th>City</th>
+        <th>Product Attempted</th><th>Order Value</th><th>Last Cancelled</th>
+        <th>Cancellations</th><th>Agent</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${data.map(l=>{
+        const cp=l.client_profiles;
+        // Parse pre-filled info from agent_notes
+        const notes=cp?.agent_notes||'';
+        const getNote=(key)=>{const lines=notes.split('\n');const line=lines.find(l=>l.startsWith(key));return line?line.slice(key.length).trim():'—';};
+        const product=getNote('Product attempted: ')||(l.high_potential_reason||'').split('Products: ')[1]?.split('—')[0]?.trim()||'—';
+        const amount=getNote('Order value attempted: ')||getNote('Order value: ');
+        const cancelDate=getNote('Cancelled ').split(' orders on ')[1]||'—';
+        const cancelCount=getNote('Cancelled ').split(' ')[0]||'—';
+        return`<tr>
+          <td><span style="font-family:'DM Mono',monospace;font-size:12px">${l.lead_number}</span></td>
+          <td style="font-size:12px;color:var(--tx3)">${l.email}</td>
+          <td style="font-size:12px">${l.phone||'—'}</td>
+          <td style="font-size:12px">${[l.city,l.region].filter(Boolean).join(', ')||'—'}</td>
+          <td style="font-weight:500;max-width:160px">${product}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${amount}</td>
+          <td style="font-size:12px;font-family:'DM Mono',monospace">${cancelDate}</td>
+          <td style="text-align:center"><span style="background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;font-size:12px;padding:2px 8px;border-radius:12px;font-family:'DM Mono',monospace">${cancelCount}x</span></td>
+          <td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td>
+          <td><span class="bdg s-${l.status}">${SL[l.status]||l.status}</span></td>
+          <td><div style="display:flex;gap:4px">
+            ${l.status==='new'&&isAgent?`<button class="btn btn-sm" style="background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA" data-hp-claim="${l.id}">⭐ Claim</button>`:''}
+            ${l.status!=='new'?`<button class="btn btn-ghost btn-sm" data-hp-open="${l.id}">View</button>`:''}
+            ${role==='admin'&&l.status==='new'?`<button class="btn btn-ghost btn-sm" data-hp-assign="${l.id}">Assign</button>`:''}
+          </div></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+
+    // Bind buttons
+    tw.querySelectorAll('[data-hp-claim]').forEach(b=>b.addEventListener('click',async()=>{
+      const lead=HP_LEADS.find(x=>x.id===b.dataset.hpClaim);
+      if(!lead)return;
+      b.disabled=true;b.innerHTML='<span class="spin"></span>';
+      const{error}=await sb.from('leads').update({status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString()}).eq('id',lead.id);
+      if(!error){await logAct(lead.id,'lead_claimed','new','claimed','High potential lead claimed');toast('High potential lead claimed!','success');await Promise.all([loadLeads(),loadHPLeads()]);renderNav();renderView();}
+      else{toast(error.message,'error');b.disabled=false;b.innerHTML='⭐ Claim';}
+    }));
+    tw.querySelectorAll('[data-hp-open]').forEach(b=>b.addEventListener('click',()=>{
+      const lead=HP_LEADS.find(x=>x.id===b.dataset.hpOpen);
+      if(lead)openProfile(lead);
+    }));
+    tw.querySelectorAll('[data-hp-assign]').forEach(b=>b.addEventListener('click',async()=>{
+      const lead=HP_LEADS.find(x=>x.id===b.dataset.hpAssign);
+      if(lead)openReassignAgent(lead);
+    }));
+    tableArea.appendChild(tw);
+  }
+  renderHPTable();
+}
+
+// ── SHARED CUSTOMER TABLE RENDERER ──────────────────────────
+function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false){
+  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+  const isGlp=p=>GLP.test(p||'');
+
+  const hdr=document.createElement('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  const ttl=document.createElement('div');ttl.innerHTML=`<div style="font-size:16px;font-weight:600">${title}</div><div style="font-size:13px;color:var(--tx3);margin-top:2px">${custs.length} customer${custs.length!==1?'s':''}</div>`;
+  hdr.appendChild(ttl);
+  const acts=document.createElement('div');acts.style.cssText='display:flex;gap:8px';
+  if(showUpload){
+    const ub=document.createElement('button');ub.className='btn btn-teal btn-sm';ub.textContent='⬆ Upload Agent Mapping';
+    ub.addEventListener('click',openUploadMapping);acts.appendChild(ub);
+  }
+  hdr.appendChild(acts);v.appendChild(hdr);
+
+  if(!custs.length){
+    const e=document.createElement('div');e.className='empty';
+    e.innerHTML='<div class="empty-ico">👥</div>No customers here yet.';v.appendChild(e);return;
+  }
+
   const tw=document.createElement('div');tw.className='tbl-wrap';
   tw.innerHTML=`<table>
     <thead><tr>
-      <th>Customer</th>
-      <th>Email</th>
-      <th>Phone</th>
-      <th>City</th>
-      <th>Region</th>
-      <th>Agent</th>
-      <th>Orders</th>
-      <th>Total Spent</th>
-      <th>First Order</th>
-      <th>First Month</th>
-      <th>First Product</th>
-      <th>Last Order Date</th>
-      <th>Last Product</th>
-      <th>Last Amount</th>
-      <th>Reorder Due</th>
-      <th>Status</th>
+      <th>Customer</th><th>Email</th><th>Phone</th><th>City</th>
+      <th>Agent</th><th>Onboarded</th><th>First Purchase</th>
+      <th>First Product</th><th>Last Purchase</th><th>Last Product</th>
+      <th>Lifetime Value</th><th>Orders</th>
+      <th>Reorder Due</th><th>Status</th><th>Actions</th>
     </tr></thead>
-    <tbody>
-      ${data.map(c=>{
-        const glp=isGlp(c.last_product);
-        const due=c.reorder_due_date?new Date(c.reorder_due_date):null;
-        const daysLeft=c.days_until_reorder!=null?parseInt(c.days_until_reorder):null;
-        const dueStr=due?fmtD(c.reorder_due_date):'—';
-        let dueStyle='',dueBadge='';
-        if(glp){
-          if(c.reorder_status==='overdue'){dueStyle='color:var(--red);font-weight:600';dueBadge='<span class="bdg" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">'+Math.abs(daysLeft)+'d overdue</span>';}
-          else if(c.reorder_status==='due_soon'){dueStyle='color:var(--amber);font-weight:600';dueBadge='<span class="bdg" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">Due in '+daysLeft+'d</span>';}
-          else if(c.reorder_status==='on_track'){dueStyle='color:var(--green)';dueBadge='<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">'+daysLeft+'d left</span>';}
-        }
-        return`<tr>
-          <td style="font-weight:500;min-width:120px">${c.customer_name||'—'}</td>
-          <td style="font-size:12px;color:var(--tx3)">${c.email||'—'}</td>
-          <td style="font-size:12px">${c.phone||'—'}</td>
-          <td style="font-size:12px">${c.city||'—'}</td>
-          <td style="font-size:12px">${c.region||'—'}</td>
-          <td style="font-size:12px">${c.agent_name||'—'}</td>
-          <td style="text-align:center;font-family:'DM Mono',monospace">${c.total_orders||0}</td>
-          <td style="font-family:'DM Mono',monospace;font-size:12px">${c.total_spent?parseFloat(c.total_spent).toLocaleString()+' SAR':'—'}</td>
-          <td style="font-size:12px;font-family:'DM Mono',monospace">${c.first_order_date?fmtD(c.first_order_date):'—'}</td>
-          <td style="font-size:12px">${c.first_order_month||'—'}</td>
-          <td style="font-size:12px;max-width:140px">${c.first_product||'—'}</td>
-          <td style="font-size:12px;font-family:'DM Mono',monospace">${c.last_order_date?fmtD(c.last_order_date):'—'}</td>
-          <td style="font-size:12px;font-weight:${glp?'600':'400'}">${c.last_product||'—'}</td>
-          <td style="font-family:'DM Mono',monospace;font-size:12px">${c.last_order_amount?parseFloat(c.last_order_amount).toLocaleString()+' SAR':'—'}</td>
-          <td style="${dueStyle};font-size:12px;font-family:'DM Mono',monospace">${glp?dueStr:'—'}</td>
-          <td>${glp?dueBadge:'<span style="color:var(--tx3);font-size:11px">Not GLP</span>'}</td>
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>`;
-  v.appendChild(tw);
+    <tbody>${custs.map(c=>{
+      const due=c.reorder_due_date;
+      const dl=c.days_until_reorder!=null?parseInt(c.days_until_reorder):null;
+      let dueStr=due?fmtD(due):'—',dStyle='',badge='';
+      if(c.reorder_status==='overdue'){dStyle='color:var(--red);font-weight:600';badge=`<span class="bdg" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">Overdue</span>`;}
+      else if(c.reorder_status==='due_soon'){dStyle='color:var(--amber);font-weight:600';badge=`<span class="bdg" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">Due soon</span>`;}
+      else if(c.reorder_status==='on_track'){dStyle='color:var(--green)';badge=`<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">On track</span>`;}
+      else badge=`<span style="color:var(--tx3);font-size:11px">—</span>`;
+      return`<tr data-cid="${c.id}">
+        <td style="font-weight:500;min-width:120px">${c.full_name||c.email.split('@')[0]}</td>
+        <td style="font-size:12px;color:var(--tx3)">${c.email}</td>
+        <td style="font-size:12px">${c.phone||'—'}</td>
+        <td style="font-size:12px">${[c.city,c.region].filter(Boolean).join(', ')||'—'}</td>
+        <td style="font-size:12px">${c.agent_name||'<span style="color:var(--red);font-size:11px;font-weight:500">Unassigned</span>'}</td>
+        <td style="font-size:12px;font-family:'DM Mono',monospace">${c.onboarded_at?fmtD(c.onboarded_at):'—'}</td>
+        <td style="font-size:12px;font-family:'DM Mono',monospace">${c.first_order_date?fmtD(c.first_order_date):'—'}</td>
+        <td style="font-size:12px;max-width:130px">${c.first_product||'—'}</td>
+        <td style="font-size:12px;font-family:'DM Mono',monospace">${c.last_order_date?fmtD(c.last_order_date):'—'}</td>
+        <td style="font-size:12px;font-weight:${isGlp(c.last_product)?'600':'400'};max-width:130px">${c.last_product||'—'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500">${c.lifetime_value?parseFloat(c.lifetime_value).toLocaleString()+' SAR':'—'}</td>
+        <td style="text-align:center;font-family:'DM Mono',monospace">${c.total_orders||0}</td>
+        <td style="${dStyle};font-size:12px;font-family:'DM Mono',monospace">${isGlp(c.last_product)?dueStr:'—'}</td>
+        <td>${badge}</td>
+        <td><div style="display:flex;gap:4px">
+          ${showAssign?`<button class="btn btn-ghost btn-sm" data-assign-cust="${c.id}">Assign</button>`:''}
+          <button class="btn btn-ghost btn-sm" data-cust-profile="${c.id}">Profile</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
 
-  // Footer count
-  const foot=document.createElement('div');foot.style.cssText='font-size:12px;color:var(--tx3);margin-top:10px;text-align:right';
-  foot.textContent=`${data.length} customer${data.length!==1?'s':''} · Auto-updates when orders are imported`;
-  v.appendChild(foot);
+  tw.querySelectorAll('[data-assign-cust]').forEach(b=>b.addEventListener('click',()=>{
+    const c=custs.find(x=>x.id===b.dataset.assignCust);if(c)openAssignCustomer(c);
+  }));
+  tw.querySelectorAll('[data-cust-profile]').forEach(b=>b.addEventListener('click',()=>{
+    const c=custs.find(x=>x.id===b.dataset.custProfile);if(c)openCustomerProfile(c);
+  }));
+  v.appendChild(tw);
 }
+
+// ── AGENT: MY CUSTOMERS ──────────────────────────────────────
+function vMyCustomers(v){
+  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+  const overdue=CUSTOMERS.filter(c=>c.reorder_status==='overdue').length;
+  const dueSoon=CUSTOMERS.filter(c=>c.reorder_status==='due_soon').length;
+  const ltv=CUSTOMERS.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
+
+  // Stats
+  const stats=document.createElement('div');stats.className='stats';
+  [[CUSTOMERS.length,'My Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[ltv.toLocaleString()+' SAR','My Portfolio Value','var(--green)']].forEach(([n,l,c])=>{
+    const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c};font-size:${String(n).length>8?'16px':'28px'}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
+  });
+  v.appendChild(stats);
+  if(overdue){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue} customer(s)</strong> are overdue for reorder.`;v.appendChild(b);}
+  if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon} customer(s)</strong> have a reorder due within 3 days.`;v.appendChild(b);}
+
+  // Filter
+  let filtered=[...CUSTOMERS];
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, product…';si.style.width='240px';
+  let q='';
+  si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderTable();});fb.appendChild(si);
+  [['all','All'],['overdue','Overdue'],['due_soon','Due Soon'],['on_track','On Track']].forEach(([k,l])=>{
+    const c=document.createElement('span');c.className='fc'+(k==='all'?' on':'');c.textContent=l;
+    c.addEventListener('click',()=>{fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');renderTable(k);});fb.appendChild(c);
+  });
+  v.appendChild(fb);
+
+  const tableArea=document.createElement('div');v.appendChild(tableArea);
+
+  function renderTable(filter='all'){
+    tableArea.innerHTML='';
+    let d=CUSTOMERS.filter(c=>{
+      const ms=!q||[c.full_name,c.email,c.phone,c.last_product,c.first_product].some(x=>(x||'').toLowerCase().includes(q));
+      const mf=filter==='all'||c.reorder_status===filter;
+      return ms&&mf;
+    });
+    renderCustomerTable(tableArea,d,'My Customers',false,false);
+  }
+  renderTable();
+}
+
+// ── AGENT: FLOATING / UNASSIGNED CUSTOMERS ──────────────────
+function vFloatingCustomers(v){
+  const ban=document.createElement('div');ban.className='banner ban-blue';
+  ban.innerHTML=`These customers have orders in the system but are not assigned to any agent. Assign them to yourself or another agent, and create their profile if missing.`;
+  v.appendChild(ban);
+  renderCustomerTable(v,FLOAT_CUSTS,'Unassigned Customers',true,false);
+}
+
+// ── ASSIGN CUSTOMER TO AGENT ─────────────────────────────────
+async function openAssignCustomer(cust){
+  const agents=DOCTORS.filter(d=>d.role==='agent');
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Assign Customer</span><button class="btn-x" id="acX">✕</button></div>
+  <div class="modal-body">
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px;font-size:13px">
+      <div style="font-weight:500">${cust.full_name||cust.email}</div>
+      <div style="color:var(--tx3);font-size:12px;margin-top:2px">${cust.email} · ${cust.phone||''}</div>
+      <div style="color:var(--tx3);font-size:12px;margin-top:2px">Last product: ${cust.last_product||'—'} · ${cust.last_order_date?fmtD(cust.last_order_date):'—'}</div>
+    </div>
+    <div class="fld"><label class="fld-l">Assign to Agent</label>
+      <select class="inp" id="acAgent"><option value="">Select agent…</option>
+        ${agents.map(a=>`<option value="${a.id}|${a.name}"${cust.agent_id===a.id?' selected':''}>${a.name}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="acCn">Cancel</button><button class="btn btn-blue" id="acSv">Assign</button></div>`;
+  $('acX').addEventListener('click',()=>ov.remove());
+  $('acCn').addEventListener('click',()=>ov.remove());
+  $('acSv').addEventListener('click',async()=>{
+    const val=$('acAgent').value;if(!val){toast('Select an agent','error');return;}
+    const[aid,aname]=val.split('|');
+    const btn=$('acSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const{error}=await sb.from('customers').update({agent_id:aid,agent_name:aname,is_assigned:true}).eq('id',cust.id);
+    if(!error){
+      // also update the linked lead if any
+      if(cust.lead_id)await sb.from('leads').update({agent_id:aid,agent_name:aname}).eq('id',cust.lead_id);
+      // update all orders for this customer
+      await sb.from('orders').update({agent_id:aid,agent_name:aname,has_agent:true}).ilike('email',cust.email);
+      toast(`Assigned to ${aname}`,'success');ov.remove();await loadCustomers();renderNav();renderView();
+    }else{toast(error.message,'error');btn.disabled=false;btn.textContent='Assign';}
+  });
+}
+
+// ── CUSTOMER PROFILE MODAL ───────────────────────────────────
+async function openCustomerProfile(cust){
+  // If customer has a lead, open the regular lead profile
+  if(cust.lead_id){
+    const lead=LEADS.find(l=>l.id===cust.lead_id);
+    if(lead){openProfile(lead);return;}
+    // fetch the lead fresh
+    const{data:l}=await sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',cust.lead_id).single();
+    if(l){openProfile(l);return;}
+  }
+
+  // No lead — show create profile modal for this customer
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Customer — ${cust.full_name||cust.email}</span><button class="btn-x" id="cpX">✕</button></div>
+  <div class="modal-body">
+    <div class="banner ban-blue">This customer has orders but no lead profile yet. Create one so agents can manage them through the full pipeline.</div>
+    <div class="sec">Customer Info (from orders)</div>
+    <div class="r2" style="margin-bottom:12px">
+      <div class="fld"><label class="fld-l">Email</label><input class="inp" value="${cust.email}" readonly></div>
+      <div class="fld"><label class="fld-l">Phone</label><input class="inp" id="cpPhone" value="${cust.phone||''}"></div>
+    </div>
+    <div class="r2" style="margin-bottom:12px">
+      <div class="fld"><label class="fld-l">Full Name</label><input class="inp" id="cpName" value="${cust.full_name||''}"></div>
+      <div class="fld"><label class="fld-l">City</label><input class="inp" id="cpCity" value="${cust.city||''}"></div>
+    </div>
+    <div class="sec">Order History (read only)</div>
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:12px;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><span style="color:var(--tx3)">First purchase:</span> ${cust.first_order_date?fmtD(cust.first_order_date):'—'}</div>
+      <div><span style="color:var(--tx3)">First product:</span> ${cust.first_product||'—'}</div>
+      <div><span style="color:var(--tx3)">Last purchase:</span> ${cust.last_order_date?fmtD(cust.last_order_date):'—'}</div>
+      <div><span style="color:var(--tx3)">Last product:</span> ${cust.last_product||'—'}</div>
+      <div><span style="color:var(--tx3)">Total orders:</span> ${cust.total_orders||0}</div>
+      <div><span style="color:var(--tx3)">Lifetime value:</span> ${cust.lifetime_value?parseFloat(cust.lifetime_value).toLocaleString()+' SAR':'—'}</div>
+      ${cust.reorder_due_date?`<div style="grid-column:1/-1"><span style="color:var(--tx3)">Reorder due:</span> <strong style="color:${cust.reorder_status==='overdue'?'var(--red)':'var(--amber)'}">${fmtD(cust.reorder_due_date)}</strong></div>`:''}
+    </div>
+  </div>
+  <div class="modal-ftr">
+    <button class="btn btn-ghost" id="cpCn">Cancel</button>
+    <button class="btn btn-blue" id="cpCreate">Create Lead Profile</button>
+  </div>`;
+  $('cpX').addEventListener('click',()=>ov.remove());
+  $('cpCn').addEventListener('click',()=>ov.remove());
+  $('cpCreate').addEventListener('click',async()=>{
+    const btn=$('cpCreate');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    const name=$('cpName').value.trim(),phone=$('cpPhone').value.trim(),city=$('cpCity').value.trim();
+    // Create lead
+    const agentId=cust.agent_id||(PROF.role==='agent'?USER.id:null);
+    const agentName=cust.agent_name||(PROF.role==='agent'?PROF.name:null);
+    const{data:lead,error:le}=await sb.from('leads').insert({
+      email:cust.email,phone:phone||cust.phone||'',
+      lead_type:'repeat',status:agentId?'claimed':'new',
+      agent_id:agentId,agent_name:agentName,
+      claimed_at:agentId?new Date().toISOString():null,
+      city:city||cust.city||null,region:cust.region||null,
+      source:'Existing Customer'
+    }).select().single();
+    if(le){toast(le.message,'error');btn.disabled=false;btn.textContent='Create Lead Profile';return;}
+    // Create basic client profile
+    if(name){
+      await sb.from('client_profiles').insert({lead_id:lead.id,full_name:name,agent_notes:'Customer imported from orders. Total orders: '+cust.total_orders});
+    }
+    // Link customer record to lead
+    await sb.from('customers').update({lead_id:lead.id,is_assigned:!!agentId}).eq('id',cust.id);
+    // Link all orders for this email to the new lead
+    await sb.from('orders').update({lead_id:lead.id,agent_id:agentId,agent_name:agentName,is_linked:true,has_agent:!!agentId}).ilike('email',cust.email);
+    toast('Lead profile created!','success');
+    ov.remove();await Promise.all([loadLeads(),loadCustomers()]);renderNav();renderView();
+  });
+}
+
+// ── UPLOAD AGENT MAPPING (Admin) ──────────────────────────────
+function openUploadMapping(){
+  const{ov,m}=mkModal(false,true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Upload Customer-Agent Mapping</span><button class="btn-x" id="umX">✕</button></div>
+  <div class="modal-body">
+    <div class="banner ban-blue">Upload an Excel file mapping customer emails to agent names. Matched customers will be assigned to their agents automatically.</div>
+    <div class="fld">
+      <label class="fld-l">Upload .xlsx / .csv file</label>
+      <div id="umDrop" style="border:2px dashed var(--bdr2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;background:var(--surf2)">
+        <div style="font-size:28px;margin-bottom:6px">📋</div>
+        <div style="font-size:13px;font-weight:500;color:var(--tx2)">Drag & drop mapping file here</div>
+        <div style="font-size:12px;color:var(--tx3);margin-top:4px">Format: Customer Email, Agent Name (or Agent Email)</div>
+        <input type="file" id="umFile" accept=".xlsx,.xls,.csv" style="display:none">
+      </div>
+      <div id="umFileName" style="font-size:12px;color:var(--teal);margin-top:6px;font-family:'DM Mono',monospace"></div>
+    </div>
+    <div id="umPreview"></div>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="umCn">Cancel</button><button class="btn btn-blue" id="umSv" disabled>Apply Mapping</button></div>`;
+  $('umX').addEventListener('click',()=>ov.remove());
+  $('umCn').addEventListener('click',()=>ov.remove());
+
+  let mappingRows=[];
+
+  function processMapping(file){
+    $('umFileName').textContent='Reading '+file.name+'…';
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        // Find header row
+        let hdr=0;
+        for(let i=0;i<Math.min(5,raw.length);i++){if(raw[i].some(c=>String(c).toLowerCase().includes('email'))){hdr=i;break;}}
+        const headers=raw[hdr].map(h=>String(h).toLowerCase());
+        const iEM=headers.findIndex(h=>h.includes('email'));
+        const iAN=headers.findIndex(h=>h.includes('agent'));
+        const iNM=headers.findIndex(h=>h.includes('name')&&!h.includes('agent'));
+        const iPH=headers.findIndex(h=>h.includes('phone'));
+        const iCT=headers.findIndex(h=>h.includes('city'));
+        const iRG=headers.findIndex(h=>h.includes('region'));
+        mappingRows=[];
+        raw.slice(hdr+1).forEach(row=>{
+          if(!row||row.every(c=>!c))return;
+          const email=String(row[iEM]||'').trim().toLowerCase();
+          const agentRaw=String(row[iAN]||'').trim();
+          if(!email||!agentRaw)return;
+          // Match agent by name or email
+          const agent=DOCTORS.find(d=>d.role==='agent'&&(d.name.toLowerCase()===agentRaw.toLowerCase()||d.email.toLowerCase()===agentRaw.toLowerCase()));
+          mappingRows.push({email,agentRaw,agent_id:agent?.id||null,agent_name:agent?.name||agentRaw,matched:!!agent,full_name:iNM>=0?String(row[iNM]||'').trim():null,phone:iPH>=0?String(row[iPH]||'').trim():null,city:iCT>=0?String(row[iCT]||'').trim():null,region:iRG>=0?String(row[iRG]||'').trim():null});
+        });
+        $('umFileName').textContent=`✓ ${file.name} — ${mappingRows.length} rows parsed`;
+        const unmatched=mappingRows.filter(r=>!r.matched).length;
+        const pv=$('umPreview');
+        pv.innerHTML='';
+        if(unmatched){pv.innerHTML+=`<div class="banner ban-amber"><strong>${unmatched} agent(s) not found in MedFlow</strong> — they will still be assigned by name but not linked to a user account. Make sure agent names match exactly.</div>`;}
+        pv.innerHTML+=`<div style="font-size:13px;font-weight:500;margin:10px 0 8px">${mappingRows.length} mapping(s) ready — preview:</div>
+        <div style="overflow-x:auto"><table class="preview-table"><thead><tr><th>Customer Email</th><th>Agent Name</th><th>Matched?</th></tr></thead>
+        <tbody>${mappingRows.slice(0,10).map(r=>`<tr><td>${r.email}</td><td>${r.agent_name}</td><td>${r.matched?'<span style="color:var(--green)">✓ Found</span>':'<span style="color:var(--amber)">⚠ By name only</span>'}</td></tr>`).join('')}
+        ${mappingRows.length>10?`<tr><td colspan="3" style="text-align:center;color:var(--tx3)">…and ${mappingRows.length-10} more</td></tr>`:''}</tbody></table></div>`;
+        $('umSv').disabled=false;
+      }catch(err){toast('Error: '+err.message,'error');}
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  const dz=$('umDrop');
+  dz.addEventListener('click',()=>$('umFile').click());
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--blue)';});
+  dz.addEventListener('dragleave',()=>dz.style.borderColor='var(--bdr2)');
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='var(--bdr2)';if(e.dataTransfer.files[0])processMapping(e.dataTransfer.files[0]);});
+  $('umFile').addEventListener('change',e=>{if(e.target.files[0])processMapping(e.target.files[0]);});
+
+  $('umSv').addEventListener('click',async()=>{
+    if(!mappingRows.length)return;
+    const btn=$('umSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Applying…';
+    let ok=0,fail=0;
+    for(const row of mappingRows){
+      const upd={agent_name:row.agent_name,is_assigned:true};
+      if(row.agent_id)upd.agent_id=row.agent_id;
+      if(row.full_name)upd.full_name=row.full_name;
+      if(row.phone)upd.phone=row.phone;
+      if(row.city)upd.city=row.city;
+      if(row.region)upd.region=row.region;
+      const{error}=await sb.from('customers').update(upd).eq('email',row.email);
+      if(!error){
+        ok++;
+        // Also update orders
+        if(row.agent_id)await sb.from('orders').update({agent_id:row.agent_id,agent_name:row.agent_name,has_agent:true}).ilike('email',row.email);
+      }else fail++;
+    }
+    toast(`${ok} customer(s) assigned${fail?`, ${fail} failed`:''}`,fail>0?'error':'success');
+    ov.remove();await loadCustomers();renderNav();renderView();
+  });
+}
+
+function vCustomers(v){
+  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+  const isGlp=p=>GLP.test(p||'');
+
+  // Stats
+  const all=CUSTOMERS;
+  const overdue=all.filter(c=>c.reorder_status==='overdue').length;
+  const dueSoon=all.filter(c=>c.reorder_status==='due_soon').length;
+  const unassigned=all.filter(c=>!c.is_assigned).length;
+  const totalSpent=all.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
+  const stats=document.createElement('div');stats.className='stats';
+  [[all.length,'Total Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[unassigned,'Unassigned','var(--purple)'],[totalSpent.toLocaleString()+' SAR','Total Revenue','var(--green)']].forEach(([n,l,c])=>{
+    const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c};font-size:${String(n).length>8?'16px':'28px'}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
+  });
+  v.appendChild(stats);
+  if(overdue){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue}</strong> customer(s) are past their 27-day reorder date.`;v.appendChild(b);}
+  if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon}</strong> customer(s) have a reorder due within 3 days.`;v.appendChild(b);}
+  if(unassigned){const b=document.createElement('div');b.className='banner ban-purple';b.innerHTML=`◌ <strong>${unassigned}</strong> customer(s) are not assigned to any agent. Use "Upload Agent Mapping" to assign them.`;v.appendChild(b);}
+
+  // Filter bar
+  let filtered=[...all], activeFilter='all', q='';
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, city, product…';si.style.width='240px';
+  si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderTable();});fb.appendChild(si);
+  [['all','All'],['overdue','Overdue'],['due_soon','Due Soon'],['not_glp','Non-GLP'],['unassigned','Unassigned']].forEach(([k,l])=>{
+    const c=document.createElement('span');c.className='fc'+(k==='all'?' on':'');c.textContent=l;
+    c.addEventListener('click',()=>{activeFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');renderTable();});fb.appendChild(c);
+  });
+  const uploadBtn=document.createElement('button');uploadBtn.className='btn btn-teal btn-sm';uploadBtn.style.marginLeft='auto';uploadBtn.textContent='⬆ Upload Agent Mapping';uploadBtn.addEventListener('click',openUploadMapping);fb.appendChild(uploadBtn);
+  const refreshBtn=document.createElement('button');refreshBtn.className='btn btn-ghost btn-sm';refreshBtn.textContent='↻ Refresh';refreshBtn.addEventListener('click',async()=>{refreshBtn.innerHTML='<span class="spin spin-d"></span>';await loadCustomers();renderView();});fb.appendChild(refreshBtn);
+  v.appendChild(fb);
+
+  const tableArea=document.createElement('div');v.appendChild(tableArea);
+  function renderTable(){
+    tableArea.innerHTML='';
+    let d=all.filter(c=>{
+      const ms=!q||[c.full_name,c.email,c.phone,c.city,c.region,c.last_product,c.first_product,c.agent_name].some(x=>(x||'').toLowerCase().includes(q));
+      const mf=activeFilter==='all'?true:activeFilter==='unassigned'?!c.is_assigned:c.reorder_status===activeFilter;
+      return ms&&mf;
+    });
+    renderCustomerTable(tableArea,d,'All Customers',true,false);
+  }
+  renderTable();
+}
+
 
 function vAdmin(v){
   let sel=new Set();
