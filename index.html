@@ -187,8 +187,8 @@ const SOURCES=['Instagram','Facebook','TikTok','Google Ads','WhatsApp','Referral
 const STAGES=[{k:'claimed',l:'Claimed',c:'#1A5FA6'},{k:'in_progress',l:'In Progress',c:'#D97706'},{k:'with_doctor',l:'With Doctor',c:'#6D28D9'},{k:'prescribed',l:'Prescribed',c:'#0D9488'},{k:'converted',l:'Converted',c:'#16A34A'},{k:'dnd',l:'DND',c:'#DC2626'}];
 const SL={new:'New',claimed:'Claimed',in_progress:'In Progress',with_doctor:'With Doctor',prescribed:'Prescribed',converted:'Converted',unqualified:'Unqualified',supplement:'Supplement Offer',dnd:'DND',closed:'Closed'};
 
-let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[];
-let NAV='dashboard',DF='all',AS='all',SRCH='',OSRCH='',OTAB='all';
+let USER=null,PROF=null,LEADS=[],DOCTORS=[],ORDERS=[],CUSTOMERS=[];
+let NAV='dashboard',DF='all',AS='all',SRCH='',OSRCH='',OTAB='all',CSRCH='',CREORDER='all';
 let DATE_FROM=null,DATE_TO=null,DATE_PRESET='all';
 
 const $=id=>document.getElementById(id);
@@ -256,6 +256,14 @@ async function loadOrders(){
   try{const{data}=await sb.from('orders').select('*').order('order_date',{ascending:false}).limit(500);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
 }
 
+async function loadCustomers(){
+  try{
+    const{data,error}=await sb.from('customer_summary').select('*').order('last_order_date',{ascending:false});
+    if(!error)CUSTOMERS=data||[];
+    else console.warn('customer_summary view not ready yet:',error.message);
+  }catch(e){console.warn('loadCustomers:',e);}
+}
+
 function showAuth(){
   document.getElementById('app').innerHTML=`<div class="auth-wrap"><div class="auth-box">
     <div style="font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px">MedFlow CRM</div>
@@ -284,7 +292,7 @@ function showAuth(){
 
 async function startApp(){
   document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading workspace…</span></div>';
-  await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);
+  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers()]);
   NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'queue':'all_leads';
   buildShell();
 }
@@ -331,6 +339,7 @@ function getNavItems(){
   ];
   return[
     {k:'all_leads',i:'▦',l:'All Leads'},
+    {k:'customers',i:'👥',l:'Customers',c:0},
     {k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},
     {k:'agents',i:'◈',l:'Agents'},
   ];
@@ -361,6 +370,7 @@ function renderView(){
   else if(NAV==='my_orders')vMyOrders(v);
   else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);
   else if(NAV==='done')vGrid(v,LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)),'My Consultations',false);
+  else if(NAV==='customers')vCustomers(v);
   else if(NAV==='all_leads')vAdmin(v);
   else if(NAV==='orders')vOrders(v);
   else if(NAV==='agents')vAgents(v);
@@ -713,6 +723,8 @@ function parseExcelRows(data){
   const iPM=idx(['payment','payment method','pay method']);
   const iOS=idx(['status','order status']);
   const iSA=idx(['address','shipping','delivery']);
+  const iCT=idx(['city','town','district']);
+  const iRG=idx(['region','province','area','governorate']);
   const iNT=idx(['notes','note','remarks','comment']);
 
   for(let i=headerRowIdx+1;i<data.length;i++){
@@ -723,7 +735,7 @@ function parseExcelRows(data){
     if(!on){errors.push(`Row ${i+1}: missing Order Number — skipped`);continue;}
     if(!em&&!get(iPH)){errors.push(`Row ${i+1} (${on}): no email or phone — skipped`);continue;}
     if(!pr){errors.push(`Row ${i+1} (${on}): missing Product — skipped`);continue;}
-    rows.push({order_number:on,email:em?em.toLowerCase():null,phone:get(iPH)||null,product:pr,order_date:od,amount:am,quantity:iQT>=0?(parseInt(row[iQT])||1):1,payment_method:get(iPM)||null,order_status:get(iOS)||null,shipping_address:get(iSA)||null,notes:get(iNT)||null});
+    rows.push({order_number:on,email:em?em.toLowerCase():null,phone:get(iPH)||null,product:pr,order_date:od,amount:am,quantity:iQT>=0?(parseInt(row[iQT])||1):1,payment_method:get(iPM)||null,order_status:get(iOS)||null,shipping_address:get(iSA)||null,city:get(iCT)||null,region:get(iRG)||null,notes:get(iNT)||null});
   }
   return{rows,errors};
 }
@@ -811,25 +823,83 @@ function openImportOrders(){
   $('ioSv').addEventListener('click',async()=>{
     if(!parsedRows.length){toast('Upload a file first','error');return;}
     const btn=$('ioSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Importing…';
-    // Insert in batches of 50 to avoid payload limits
-    let imported=0,dupes=0,errored=0;
-    const batches=[];for(let i=0;i<parsedRows.length;i+=50)batches.push(parsedRows.slice(i,i+50));
-    for(const batch of batches){
-      // Check for existing order numbers to skip dupes
-      const nums=batch.map(r=>r.order_number);
-      const{data:existing}=await sb.from('orders').select('order_number').in('order_number',nums);
-      const existSet=new Set((existing||[]).map(o=>o.order_number));
-      const fresh=batch.filter(r=>!existSet.has(r.order_number));
-      dupes+=batch.length-fresh.length;
-      if(fresh.length){
-        const{error}=await sb.from('orders').insert(fresh);
-        if(!error)imported+=fresh.length;else errored+=fresh.length;
+
+    // Show live progress
+    const pv=$('ioPreview');
+    pv.innerHTML='<div style="font-size:13px;color:var(--tx2);padding:8px 0">Checking for duplicates…</div>';
+
+    let imported=0,dupes=0,errored=0,firstErr=null;
+
+    // Step 1: get all existing order numbers in one shot
+    let existSet=new Set();
+    try{
+      const allNums=parsedRows.map(r=>r.order_number);
+      // Query in chunks of 100
+      for(let i=0;i<allNums.length;i+=100){
+        const chunk=allNums.slice(i,i+100);
+        const{data:ex,error:exErr}=await sb.from('orders').select('order_number').in('order_number',chunk);
+        if(!exErr)(ex||[]).forEach(o=>existSet.add(o.order_number));
       }
+    }catch(e){}
+
+    const fresh=parsedRows.filter(r=>!existSet.has(r.order_number));
+    dupes=parsedRows.length-fresh.length;
+
+    pv.innerHTML=`<div style="font-size:13px;color:var(--tx2);padding:8px 0">Inserting ${fresh.length} new order(s)…</div>`;
+
+    if(fresh.length===0){
+      toast(`All ${dupes} order(s) already exist — nothing to import`,'error');
+      btn.disabled=false;btn.textContent='Import Orders';
+      pv.innerHTML='';return;
     }
+
+    // Step 2: insert in batches of 25 (smaller = safer with RLS)
+    for(let i=0;i<fresh.length;i+=25){
+      const batch=fresh.slice(i,i+25);
+      // Strip any undefined/null keys to avoid schema mismatch
+      const clean=batch.map(r=>{
+        const o={order_number:r.order_number};
+        if(r.email)o.email=r.email;
+        if(r.phone)o.phone=r.phone;
+        if(r.product)o.product=r.product;
+        if(r.order_date)o.order_date=r.order_date;
+        if(r.amount!=null&&!isNaN(r.amount))o.amount=r.amount;
+        if(r.quantity)o.quantity=r.quantity;
+        if(r.payment_method)o.payment_method=r.payment_method;
+        if(r.order_status)o.order_status=r.order_status;
+        if(r.shipping_address)o.shipping_address=r.shipping_address;
+        if(r.city)o.city=r.city;
+        if(r.region)o.region=r.region;
+        if(r.notes)o.notes=r.notes;
+        return o;
+      });
+      const{error:insErr}=await sb.from('orders').insert(clean);
+      if(!insErr){imported+=clean.length;}
+      else{
+        errored+=clean.length;
+        if(!firstErr)firstErr=insErr;
+        console.error('Import batch error:',insErr);
+      }
+      pv.innerHTML=`<div style="font-size:13px;color:var(--tx2);padding:8px 0">Imported ${imported} of ${fresh.length}…</div>`;
+    }
+
+    if(firstErr&&imported===0){
+      // Show the actual error so we know what's wrong
+      const errBox=document.createElement('div');errBox.className='banner ban-red';
+      errBox.style.marginTop='10px';
+      errBox.innerHTML=`<strong>Import failed.</strong> Supabase error:<br><code style="font-family:'DM Mono',monospace;font-size:11px">${firstErr.message||firstErr.code||JSON.stringify(firstErr)}</code><br><br>
+      <strong>Common fixes:</strong><br>
+      1. Run the <code>fix_schema_v3.sql</code> in Supabase SQL Editor<br>
+      2. Check RLS policies allow insert on the orders table<br>
+      3. Make sure the orders table exists`;
+      pv.innerHTML='';pv.appendChild(errBox);
+      btn.disabled=false;btn.textContent='Import Orders';return;
+    }
+
     let msg=`${imported} order(s) imported`;
     if(dupes)msg+=`, ${dupes} duplicate(s) skipped`;
-    if(errored)msg+=`, ${errored} failed`;
-    toast(msg,errored>0?'error':'success');
+    if(errored>0)msg+=`, ${errored} failed`;
+    toast(msg,errored>0&&imported===0?'error':'success');
     ov.remove();await loadOrders();renderView();
   });
 }
@@ -929,6 +999,117 @@ async function openTagOrder(order,onDone){
 
   $('tgSearch').addEventListener('input',e=>renderResults(e.target.value));
   renderResults(''); // show all initially
+}
+
+function vCustomers(v){
+  const GLP_KEYWORDS=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+  const isGlp=p=>GLP_KEYWORDS.test(p||'');
+
+  // Filter
+  let data=[...CUSTOMERS];
+  if(CSRCH){
+    const q=CSRCH.toLowerCase();
+    data=data.filter(c=>[c.customer_name,c.email,c.phone,c.city,c.region,c.last_product,c.first_product].some(x=>(x||'').toLowerCase().includes(q)));
+  }
+  if(CREORDER==='overdue')  data=data.filter(c=>c.reorder_status==='overdue');
+  if(CREORDER==='due_soon') data=data.filter(c=>c.reorder_status==='due_soon');
+  if(CREORDER==='glp')      data=data.filter(c=>isGlp(c.last_product));
+
+  // Stats
+  const totalSpent=data.reduce((s,c)=>s+(parseFloat(c.total_spent)||0),0);
+  const overdue=data.filter(c=>c.reorder_status==='overdue').length;
+  const dueSoon=data.filter(c=>c.reorder_status==='due_soon').length;
+  const stats=document.createElement('div');stats.className='stats';
+  [[data.length,'Total Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[totalSpent.toLocaleString()+' SAR','Total Revenue','var(--green)']].forEach(([n,l,c])=>{
+    const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c};font-size:${String(n).length>8?'18px':'28px'}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);
+  });
+  v.appendChild(stats);
+
+  // Overdue banner
+  if(overdue>0){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue} customer(s)</strong> with GLP injections are past their 27-day reorder date. Check the "Reorder Overdue" filter.`;v.appendChild(b);}
+  if(dueSoon>0){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon} customer(s)</strong> have a reorder due within 3 days.`;v.appendChild(b);}
+
+  // Filter bar
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, city, product…';si.value=CSRCH;si.style.width='260px';
+  si.addEventListener('input',e=>{CSRCH=e.target.value;renderView();});fb.appendChild(si);
+  [['all','All'],['overdue','Reorder Overdue'],['due_soon','Due Soon'],['glp','GLP Customers']].forEach(([k,l])=>{
+    const c=document.createElement('span');c.className='fc'+(CREORDER===k?' on':'');c.textContent=l;
+    c.addEventListener('click',()=>{CREORDER=k;renderView();});fb.appendChild(c);
+  });
+  const refreshBtn=document.createElement('button');refreshBtn.className='btn btn-ghost btn-sm';refreshBtn.style.marginLeft='auto';refreshBtn.textContent='↻ Refresh';
+  refreshBtn.addEventListener('click',async()=>{refreshBtn.innerHTML='<span class="spin spin-d"></span>';await loadCustomers();renderView();});
+  fb.appendChild(refreshBtn);
+  v.appendChild(fb);
+
+  if(!data.length){
+    const e=document.createElement('div');e.className='empty';
+    e.innerHTML=CUSTOMERS.length===0
+      ?'<div class="empty-ico">📦</div>No customer data yet.<br><span style="font-size:12px">Import orders first — customers are built automatically from order data.</span>'
+      :'<div class="empty-ico">🔍</div>No customers match this filter.';
+    v.appendChild(e);return;
+  }
+
+  // Table
+  const tw=document.createElement('div');tw.className='tbl-wrap';
+  tw.innerHTML=`<table>
+    <thead><tr>
+      <th>Customer</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>City</th>
+      <th>Region</th>
+      <th>Agent</th>
+      <th>Orders</th>
+      <th>Total Spent</th>
+      <th>First Order</th>
+      <th>First Month</th>
+      <th>First Product</th>
+      <th>Last Order Date</th>
+      <th>Last Product</th>
+      <th>Last Amount</th>
+      <th>Reorder Due</th>
+      <th>Status</th>
+    </tr></thead>
+    <tbody>
+      ${data.map(c=>{
+        const glp=isGlp(c.last_product);
+        const due=c.reorder_due_date?new Date(c.reorder_due_date):null;
+        const daysLeft=c.days_until_reorder!=null?parseInt(c.days_until_reorder):null;
+        const dueStr=due?fmtD(c.reorder_due_date):'—';
+        let dueStyle='',dueBadge='';
+        if(glp){
+          if(c.reorder_status==='overdue'){dueStyle='color:var(--red);font-weight:600';dueBadge='<span class="bdg" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">'+Math.abs(daysLeft)+'d overdue</span>';}
+          else if(c.reorder_status==='due_soon'){dueStyle='color:var(--amber);font-weight:600';dueBadge='<span class="bdg" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)">Due in '+daysLeft+'d</span>';}
+          else if(c.reorder_status==='on_track'){dueStyle='color:var(--green)';dueBadge='<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">'+daysLeft+'d left</span>';}
+        }
+        return`<tr>
+          <td style="font-weight:500;min-width:120px">${c.customer_name||'—'}</td>
+          <td style="font-size:12px;color:var(--tx3)">${c.email||'—'}</td>
+          <td style="font-size:12px">${c.phone||'—'}</td>
+          <td style="font-size:12px">${c.city||'—'}</td>
+          <td style="font-size:12px">${c.region||'—'}</td>
+          <td style="font-size:12px">${c.agent_name||'—'}</td>
+          <td style="text-align:center;font-family:'DM Mono',monospace">${c.total_orders||0}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${c.total_spent?parseFloat(c.total_spent).toLocaleString()+' SAR':'—'}</td>
+          <td style="font-size:12px;font-family:'DM Mono',monospace">${c.first_order_date?fmtD(c.first_order_date):'—'}</td>
+          <td style="font-size:12px">${c.first_order_month||'—'}</td>
+          <td style="font-size:12px;max-width:140px">${c.first_product||'—'}</td>
+          <td style="font-size:12px;font-family:'DM Mono',monospace">${c.last_order_date?fmtD(c.last_order_date):'—'}</td>
+          <td style="font-size:12px;font-weight:${glp?'600':'400'}">${c.last_product||'—'}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${c.last_order_amount?parseFloat(c.last_order_amount).toLocaleString()+' SAR':'—'}</td>
+          <td style="${dueStyle};font-size:12px;font-family:'DM Mono',monospace">${glp?dueStr:'—'}</td>
+          <td>${glp?dueBadge:'<span style="color:var(--tx3);font-size:11px">Not GLP</span>'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+  v.appendChild(tw);
+
+  // Footer count
+  const foot=document.createElement('div');foot.style.cssText='font-size:12px;color:var(--tx3);margin-top:10px;text-align:right';
+  foot.textContent=`${data.length} customer${data.length!==1?'s':''} · Auto-updates when orders are imported`;
+  v.appendChild(foot);
 }
 
 function vAdmin(v){
