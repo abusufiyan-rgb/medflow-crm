@@ -597,8 +597,17 @@ function vMyLeads(v){
   // New leads: claimed from pool (lead_type === 'new' or no reorder)
   const newLeads=mine.filter(l=>l.lead_type==='new'||!l.reorder_due_at);
 
-  // Old leads: repeat/reorder cycle — overdue or due within 3 days
-  const oldLeads=mine.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at);
+  // Old leads:
+  // 1. Repeat leads with a reorder date
+  // 2. Converted leads where converted_at is 25+ days ago (approaching 27-day reorder window)
+  const D25=new Date(Date.now()-25*86400000);
+  const oldLeads=mine.filter(l=>{
+    // Already in repeat cycle with a reorder date
+    if(l.lead_type==='repeat'&&l.reorder_due_at) return true;
+    // Converted 25+ days ago — approaching reorder window
+    if(l.status==='converted'&&l.converted_at&&new Date(l.converted_at)<=D25) return true;
+    return false;
+  });
 
   // Follow up today or overdue followups
   const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today);
@@ -675,11 +684,13 @@ function vMyLeads(v){
       // Reorder status filter chips
       const fb=document.createElement('div');fb.className='fbar';
       let reorderFilter='all';
-      const overdueCnt=oldLeads.filter(l=>new Date(l.reorder_due_at)<new Date()).length;
-      const dueSoonCnt=oldLeads.filter(l=>{const d=new Date(l.reorder_due_at);return d>=new Date()&&d<=new Date(Date.now()+3*86400000);}).length;
+      const now=new Date();
+      const overdueCnt=oldLeads.filter(l=>l.reorder_due_at&&new Date(l.reorder_due_at)<now).length;
+      const dueSoonCnt=oldLeads.filter(l=>{if(!l.reorder_due_at)return false;const d=new Date(l.reorder_due_at);return d>=now&&d<=new Date(Date.now()+3*86400000);}).length;
       const followupOldCnt=followupToday.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at).length;
 
-      [['all','All',oldLeads.length],['overdue','🔴 Overdue',overdueCnt],['due_soon','🟡 Due in 3 days',dueSoonCnt],['followup','📅 Follow-up Today',followupOldCnt]].forEach(([k,l,c])=>{
+      const approachingCnt=oldLeads.filter(l=>l.status==='converted'&&l.converted_at&&new Date(l.converted_at)<=D25&&!l.reorder_due_at).length;
+      [['all','All',oldLeads.length],['approaching','🔔 Approaching (25d+)',approachingCnt],['overdue','🔴 Overdue',overdueCnt],['due_soon','🟡 Due in 3 days',dueSoonCnt],['followup','📅 Follow-up Today',followupOldCnt]].forEach(([k,l,c])=>{
         const chip=document.createElement('span');chip.className='fc'+(reorderFilter===k?' on':'');
         chip.innerHTML=`${l} <span style="background:${reorderFilter===k?'var(--blue)':'var(--surf2)'};color:${reorderFilter===k?'#fff':'var(--tx3)'};padding:1px 6px;border-radius:10px;font-size:11px;margin-left:3px">${c}</span>`;
         chip.addEventListener('click',()=>{reorderFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));chip.classList.add('on');renderOldGrid();});
@@ -691,8 +702,10 @@ function vMyLeads(v){
       function renderOldGrid(){
         gridArea.innerHTML='';
         let leads=oldLeads;
-        if(reorderFilter==='overdue') leads=oldLeads.filter(l=>new Date(l.reorder_due_at)<new Date());
-        else if(reorderFilter==='due_soon') leads=oldLeads.filter(l=>{const d=new Date(l.reorder_due_at);return d>=new Date()&&d<=new Date(Date.now()+3*86400000);});
+        const nowR=new Date();
+        if(reorderFilter==='approaching') leads=oldLeads.filter(l=>l.status==='converted'&&l.converted_at&&new Date(l.converted_at)<=D25&&!l.reorder_due_at);
+        else if(reorderFilter==='overdue') leads=oldLeads.filter(l=>l.reorder_due_at&&new Date(l.reorder_due_at)<nowR);
+        else if(reorderFilter==='due_soon') leads=oldLeads.filter(l=>{if(!l.reorder_due_at)return false;const d=new Date(l.reorder_due_at);return d>=nowR&&d<=new Date(Date.now()+3*86400000);});
         else if(reorderFilter==='followup') leads=oldLeads.filter(l=>l.followup_date&&l.followup_date<=today);
         if(!leads.length){const e=document.createElement('div');e.className='empty';e.style.padding='30px';e.innerHTML='<div class="empty-ico">✅</div>No leads in this filter.';gridArea.appendChild(e);return;}
         const g=document.createElement('div');g.className='grid';leads.forEach(l=>g.appendChild(buildCard(l)));
