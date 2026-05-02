@@ -241,7 +241,7 @@ const SEL_FULL='*,client_profiles(*),prescriptions(*)';
 async function loadLeads(){
   try{
     if(PROF.role==='agent'){
-      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false}).limit(300)]);
+      const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false}).limit(150).limit(300)]);
       const seen=new Set();
       LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));
     }else if(PROF.role==='doctor'){
@@ -249,17 +249,19 @@ async function loadLeads(){
       const seen=new Set();
       LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});
     }else{
-      const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false}).limit(500);
+      const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false}).limit(300);
       LEADS=deduplicateLeads(data||[]);
     }
   }catch(e){console.error('loadLeads',e);}
 }
 async function loadDoctors(){const{data}=await sb.from('profiles').select('*').eq('is_active',true);DOCTORS=data||[];}
 async function loadOrders(){
-  try{const{data}=await sb.from('orders').select('id,order_number,email,phone,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,consultation_status,city,region,quantity,payment_method,notes').order('order_date',{ascending:false}).limit(300);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
+  try{const{data}=await sb.from('orders').select('id,order_number,email,phone,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,city,region').order('order_date',{ascending:false}).limit(200);ORDERS=data||[];}catch(e){console.error('loadOrders',e);}
 }
 
+let CUSTOMERS_LOADED=false;
 async function loadCustomers(){
+
   try{
     const role=PROF?.role;
     if(role==='agent'){
@@ -323,10 +325,10 @@ async function loadHPLeads(){
   try{
     const role=PROF?.role;
     let q=sb.from('leads')
-      .select('*,client_profiles(full_name,agent_notes)')
+      .select('id,lead_number,email,phone,status,agent_id,agent_name,city,region,high_potential_reason,claimed_at,created_at,client_profiles(full_name,agent_notes)')
       .eq('is_high_potential',true)
       .not('status','in','(converted,closed,dnd)')
-      .order('created_at',{ascending:false});
+      .order('created_at',{ascending:false}).limit(50);
     if(role==='agent') q=q.or(`status.eq.new,agent_id.eq.${USER.id}`);
     q=q.limit(100);const{data,error}=await q;
     if(!error)HP_LEADS=data||[];
@@ -361,10 +363,19 @@ function showAuth(){
 }
 
 async function startApp(){
-  document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading workspace…</span></div>';
-  await Promise.all([loadLeads(),loadDoctors(),loadOrders(),loadCustomers(),loadHPLeads(),loadRules()]);
-  NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'queue':'all_leads';
-  buildShell();
+  // Show shell instantly — don't wait for data
+  NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':'all_leads';
+  document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';
+  // Phase 1: only leads + doctors — minimum to render first view
+  await Promise.all([loadLeads(), loadDoctors()]);
+  buildShell(); // page visible NOW
+  // Phase 2 + 3: everything else silently in background
+  setTimeout(()=>{
+    Promise.all([loadOrders(), loadRules()]).then(()=>{ renderNav(); });
+    setTimeout(()=>{
+      Promise.all([loadCustomers(), loadHPLeads()]).then(()=>{ renderNav(); });
+    }, 800);
+  }, 100);
 }
 
 function buildShell(){
