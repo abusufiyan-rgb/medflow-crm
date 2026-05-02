@@ -260,63 +260,124 @@ async function loadOrders(){
 }
 
 let CUSTOMERS_LOADED=false;
-async function loadCustomers(){
 
+async function loadCustomers(){
+  // Always derive customers from ORDERS data — no dependency on customers table
+  // This runs after loadOrders() has completed
+  buildCustomersFromOrders();
+  // Also try to get agent assignments from customers table (best effort)
   try{
-    const role=PROF?.role;
-    if(role==='agent'){
-      const[{data:mine},{data:unassigned}]=await Promise.all([
-        sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false}),
-        sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false}),
-      ]);
-      CUSTOMERS=mine||[];
-      FLOAT_CUSTS=unassigned||[];
-    }else{
-      const{data,error}=await sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false});
-      if(!error&&data){
-        CUSTOMERS=data;
-        FLOAT_CUSTS=data.filter(c=>!c.is_assigned);
-      }else{
-        // Table might not exist yet or be empty — build from orders as fallback
-        if(error)console.warn('customers table:',error.message);
-        buildCustomersFromOrders();
-      }
+    const{data}=await sb.from('customers').select('email,agent_id,agent_name,is_assigned,full_name,city,region,phone,reorder_due_date,reorder_status').order('last_order_date',{ascending:false,nullsFirst:false});
+    if(data&&data.length>0){
+      // Merge customers table agent data into our derived list
+      const agentMap=new Map(data.map(c=>[c.email.toLowerCase(),c]));
+      const all=[...CUSTOMERS,...FLOAT_CUSTS];
+      all.forEach(c=>{
+        const saved=agentMap.get((c.email||'').toLowerCase());
+        if(saved){
+          if(saved.agent_id){c.agent_id=saved.agent_id;c.agent_name=saved.agent_name;c.is_assigned=true;}
+          if(saved.full_name&&!c.full_name)c.full_name=saved.full_name;
+          if(saved.city&&!c.city)c.city=saved.city;
+          if(saved.region&&!c.region)c.region=saved.region;
+          if(saved.reorder_due_date)c.reorder_due_date=saved.reorder_due_date;
+          if(saved.reorder_status)c.reorder_status=saved.reorder_status;
+        }
+      });
+      // Also pick up names from leads
+      all.forEach(c=>{
+        const lead=LEADS.find(l=>(l.email||'').toLowerCase()===(c.email||'').toLowerCase());
+        if(lead){
+          if(!c.agent_id&&lead.agent_id){c.agent_id=lead.agent_id;c.agent_name=lead.agent_name;c.is_assigned=true;}
+          if(!c.full_name&&lead.client_profiles?.full_name)c.full_name=lead.client_profiles.full_name;
+        }
+      });
+      // Re-split assigned vs unassigned after merge
+      CUSTOMERS=all.filter(c=>c.is_assigned);
+      FLOAT_CUSTS=all.filter(c=>!c.is_assigned);
     }
-  }catch(e){console.warn('loadCustomers:',e);buildCustomersFromOrders();}
+  }catch(e){console.warn('customers table optional:',e.message);}
+  CUSTOMERS_LOADED=true;
 }
 
-// Fallback: derive customer records client-side from ORDERS if table is empty
 function buildCustomersFromOrders(){
   if(!ORDERS.length){CUSTOMERS=[];FLOAT_CUSTS=[];return;}
+  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
   const map=new Map();
+
+  // Build from orders — one entry per unique email
   ORDERS.forEach(o=>{
     if(!o.email)return;
-    const key=o.email.toLowerCase();
-    if(!map.has(key))map.set(key,{
-      id:'local_'+key,email:key,phone:o.phone||null,
-      full_name:null,city:o.city||null,region:o.region||null,
-      agent_id:o.agent_id||null,agent_name:o.agent_name||null,
-      is_assigned:!!o.agent_id,
-      first_order_date:o.order_date,first_product:o.product,
-      last_order_date:o.order_date,last_product:o.product,
-      last_amount:o.amount,total_orders:0,lifetime_value:0,
-      onboarded_at:o.order_date,reorder_status:'not_glp',reorder_due_date:null,
-    });
+    const key=(o.email||'').toLowerCase().trim();
+    if(!key)return;
+    if(!map.has(key)){
+      // Find matching lead for this email
+      const lead=LEADS.find(l=>(l.email||'').toLowerCase()===key);
+      map.set(key,{
+        id:'cust_'+key,
+        email:key,
+        phone:o.phone||null,
+        full_name:lead?.client_profiles?.full_name||null,
+        city:o.city||null,
+        region:o.region||null,
+        agent_id:o.agent_id||lead?.agent_id||null,
+        agent_name:o.agent_name||lead?.agent_name||null,
+        lead_id:lead?.id||null,
+        is_assigned:!!(o.agent_id||lead?.agent_id),
+        first_order_date:o.order_date,
+        first_product:o.product,
+        first_order_number:o.order_number,
+        last_order_date:o.order_date,
+        last_product:o.product,
+        last_order_number:o.order_number,
+        last_amount:o.amount,
+        total_orders:0,
+        lifetime_value:0,
+        onboarded_at:o.order_date,
+        reorder_status:'not_glp',
+        reorder_due_date:null,
+      });
+    }
     const c=map.get(key);
     c.total_orders++;
     c.lifetime_value=(parseFloat(c.lifetime_value)||0)+(parseFloat(o.amount)||0);
-    if(o.order_date&&(!c.first_order_date||o.order_date<c.first_order_date)){c.first_order_date=o.order_date;c.first_product=o.product;c.onboarded_at=o.order_date;}
-    if(o.order_date&&(!c.last_order_date||o.order_date>c.last_order_date)){c.last_order_date=o.order_date;c.last_product=o.product;c.last_amount=o.amount;}
+    // Track first order
+    if(o.order_date&&(!c.first_order_date||o.order_date<c.first_order_date)){
+      c.first_order_date=o.order_date;
+      c.first_product=o.product;
+      c.first_order_number=o.order_number;
+      c.onboarded_at=o.order_date;
+    }
+    // Track last order
+    if(o.order_date&&(!c.last_order_date||o.order_date>c.last_order_date)){
+      c.last_order_date=o.order_date;
+      c.last_product=o.product;
+      c.last_order_number=o.order_number;
+      c.last_amount=o.amount;
+    }
+    // Assign agent if found in any order
     if(o.agent_id&&!c.agent_id){c.agent_id=o.agent_id;c.agent_name=o.agent_name;c.is_assigned=true;}
+    // Update location if blank
+    if(o.city&&!c.city)c.city=o.city;
+    if(o.region&&!c.region)c.region=o.region;
+    if(o.phone&&!c.phone)c.phone=o.phone;
   });
-  const GLP=/mounjaro|wegovy|ozempic|saxenda|semaglutide|tirzepatide|liraglutide|glp|injection/i;
+
+  // Compute GLP reorder for each customer
   const all=Array.from(map.values()).map(c=>{
     if(GLP.test(c.last_product||'')){
-      const due=c.last_order_date?new Date(new Date(c.last_order_date).getTime()+27*86400000):null;
-      if(due){c.reorder_due_date=due.toISOString().slice(0,10);const diff=Math.floor((due-new Date())/86400000);c.reorder_status=diff<0?'overdue':diff<=3?'due_soon':'on_track';}
+      const due=c.last_order_date
+        ?new Date(new Date(c.last_order_date).getTime()+27*86400000)
+        :null;
+      if(due){
+        c.reorder_due_date=due.toISOString().slice(0,10);
+        const diff=Math.floor((due-new Date())/86400000);
+        c.reorder_status=diff<0?'overdue':diff<=3?'due_soon':'on_track';
+      }
     }
     return c;
   });
+
+  // Split: assigned = has agent, unassigned = no agent
   CUSTOMERS=all.filter(c=>c.is_assigned);
   FLOAT_CUSTS=all.filter(c=>!c.is_assigned);
 }
@@ -363,19 +424,20 @@ function showAuth(){
 }
 
 async function startApp(){
-  // Show shell instantly — don't wait for data
   NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':'all_leads';
   document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';
-  // Phase 1: only leads + doctors — minimum to render first view
+  // Phase 1: leads + doctors only → render immediately
   await Promise.all([loadLeads(), loadDoctors()]);
-  buildShell(); // page visible NOW
-  // Phase 2 + 3: everything else silently in background
-  setTimeout(()=>{
-    Promise.all([loadOrders(), loadRules()]).then(()=>{ renderNav(); });
-    setTimeout(()=>{
-      Promise.all([loadCustomers(), loadHPLeads()]).then(()=>{ renderNav(); });
-    }, 800);
-  }, 100);
+  buildShell();
+  // Phase 2: orders + rules → then derive customers from orders
+  setTimeout(async()=>{
+    await Promise.all([loadOrders(), loadRules(), loadHPLeads()]);
+    // IMPORTANT: customers are derived from orders — must run after loadOrders
+    await loadCustomers();
+    renderNav(); // update all counts including unassigned
+    // If user is already on a customers tab, refresh the view
+    if(['my_customers','floating_custs','customers'].includes(NAV)) renderView();
+  }, 200);
 }
 
 function buildShell(){
@@ -1342,15 +1404,19 @@ function renderCustomerTable(v,custs,title,showAssign=false,showUpload=false,all
   tw.querySelectorAll('[data-claim-cust]').forEach(b=>b.addEventListener('click',async()=>{
     const c=custs.find(x=>x.id===b.dataset.claimCust);if(!c)return;
     b.disabled=true;b.innerHTML='<span class="spin"></span>';
-    const{error}=await sb.from('customers').update({
-      agent_id:USER.id,agent_name:PROF.name,is_assigned:true
-    }).eq('id',c.id);
+    // Update orders in Supabase (source of truth)
+    const{error}=await sb.from('orders').update({agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',c.email);
     if(!error){
-      // Also update linked orders and lead
-      await sb.from('orders').update({agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',c.email);
+      // Update customers table if it exists
+      await sb.from('customers').update({agent_id:USER.id,agent_name:PROF.name,is_assigned:true}).eq('email',c.email).maybeSingle();
+      // Update linked lead if any
       if(c.lead_id)await sb.from('leads').update({agent_id:USER.id,agent_name:PROF.name}).eq('id',c.lead_id);
+      // Update local ORDERS state immediately — no full reload needed
+      ORDERS.forEach(o=>{if((o.email||'').toLowerCase()===(c.email||'').toLowerCase()){o.agent_id=USER.id;o.agent_name=PROF.name;o.has_agent=true;}});
+      // Rebuild customer lists from updated ORDERS
+      buildCustomersFromOrders();
       toast(`${c.full_name||c.email} claimed!`,'success');
-      await loadCustomers();renderNav();renderView();
+      renderNav();renderView();
     }else{toast(error.message,'error');b.disabled=false;b.textContent='Claim';}
   }));
   v.appendChild(tw);
@@ -1442,13 +1508,15 @@ async function openAssignCustomer(cust){
     const val=$('acAgent').value;if(!val){toast('Select an agent','error');return;}
     const[aid,aname]=val.split('|');
     const btn=$('acSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
-    const{error}=await sb.from('customers').update({agent_id:aid,agent_name:aname,is_assigned:true}).eq('id',cust.id);
+    // Update orders (source of truth)
+    const{error}=await sb.from('orders').update({agent_id:aid,agent_name:aname,has_agent:true}).ilike('email',cust.email);
     if(!error){
-      // also update the linked lead if any
+      await sb.from('customers').update({agent_id:aid,agent_name:aname,is_assigned:true}).eq('email',cust.email).maybeSingle();
       if(cust.lead_id)await sb.from('leads').update({agent_id:aid,agent_name:aname}).eq('id',cust.lead_id);
-      // update all orders for this customer
-      await sb.from('orders').update({agent_id:aid,agent_name:aname,has_agent:true}).ilike('email',cust.email);
-      toast(`Assigned to ${aname}`,'success');ov.remove();await loadCustomers();renderNav();renderView();
+      // Update local state
+      ORDERS.forEach(o=>{if((o.email||'').toLowerCase()===(cust.email||'').toLowerCase()){o.agent_id=aid;o.agent_name=aname;o.has_agent=true;}});
+      buildCustomersFromOrders();
+      toast(`Assigned to ${aname}`,'success');ov.remove();renderNav();renderView();
     }else{toast(error.message,'error');btn.disabled=false;btn.textContent='Assign';}
   });
 }
