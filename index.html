@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778330027">
+<meta name="version" content="1778451650">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -339,8 +339,8 @@ const tabBar=document.createElement('div');tabBar.className='tab-bar';let agentO
 const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<table><thead><tr><th>Order #</th><th>Product</th><th>Order Date</th><th>Amount</th><th>Customer Email</th><th>Customer Phone</th><th>Linked Lead</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>${orders.map(o=>{
       const linkedLead=LEADS.find(l=>l.id===o.lead_id);
-      return`<tr><td class="mono">${o.order_number}</td><td style="font-weight:500">${o.product||'—'}</td><td style="font-size:12px;font-family:'DM Mono',monospace">${o.order_date?fmtD(o.order_date):'—'}</td><td style="font-family:'DM Mono',monospace">${o.amount?o.amount.toLocaleString()+' SAR':'—'}</td><td style="font-size:12px;color:var(--tx3)">${o.email||'—'}</td><td style="font-size:12px">${o.phone||'—'}</td><td style="font-size:12px">${linkedLead?`<span class="bdg s-${linkedLead.status}">${linkedLead.lead_number}</span> ${linkedLead.client_profiles?.full_name||''}`:agentOTab==='mine'?'<span style="color:var(--tx3)">—</span>':'<span class="bdg ord-unlinked">Unmatched</span>'}</td><td>${o.is_linked&&o.has_agent?'<span class="bdg ord-linked">Linked</span>':'<span class="bdg ord-unlinked">Unmatched</span>'}</td><td><button class="btn btn-ghost btn-sm"data-tag="${o.id}">🔗 Tag Lead</button></td></tr>`;
-    }).join('')}</tbody></table>`;tw.querySelectorAll('[data-tag]').forEach(b=>b.addEventListener('click',()=>{const o=ORDERS.find(x=>x.id===b.dataset.tag);if(o)openTagOrder(o,()=>renderAgentOrderTab());}));tableWrap.appendChild(tw);}
+      return`<tr><td class="mono">${o.order_number}</td><td style="font-weight:500">${o.product||'—'}</td><td style="font-size:12px;font-family:'DM Mono',monospace">${o.order_date?fmtD(o.order_date):'—'}</td><td style="font-family:'DM Mono',monospace">${o.amount?o.amount.toLocaleString()+' SAR':'—'}</td><td style="font-size:12px"><span style="color:var(--blue);cursor:pointer;text-decoration:underline" data-order-email="${o.email}">${o.email||'—'}</span></td><td style="font-size:12px">${o.phone||'—'}</td><td style="font-size:12px">${linkedLead?`<span class="bdg s-${linkedLead.status}">${linkedLead.lead_number}</span> ${linkedLead.client_profiles?.full_name||''}`:agentOTab==='mine'?'<span style="color:var(--tx3)">—</span>':'<span class="bdg ord-unlinked">Unmatched</span>'}</td><td>${o.is_linked&&o.has_agent?'<span class="bdg ord-linked">Linked</span>':'<span class="bdg ord-unlinked">Unmatched</span>'}</td><td><button class="btn btn-ghost btn-sm"data-tag="${o.id}">🔗 Tag Lead</button></td></tr>`;
+    }).join('')}</tbody></table>`;tw.querySelectorAll('[data-order-email]').forEach(span=>span.addEventListener('click',e=>{e.stopPropagation();const em=span.dataset.orderEmail;if(!em)return;const cust=CUSTOMERS.find(c=>(c.email||'').toLowerCase()===(em||'').toLowerCase())||{id:'order_'+em,email:em,phone:null,full_name:null,lead_id:null,agent_id:USER.id,last_product:null,last_order_date:null,last_amount:null,total_orders:null,lifetime_value:null,reorder_due_date:null,cust_status:null,agent_notes:null};openCustomerDetailProfile(cust,()=>renderAgentOrderTab());}));tw.querySelectorAll('[data-tag]').forEach(b=>b.addEventListener('click',()=>{const o=ORDERS.find(x=>x.id===b.dataset.tag);if(o)openTagOrder(o,()=>renderAgentOrderTab());}));tableWrap.appendChild(tw);}
 renderAgentOrderTab();}
 async function openTagOrder(order,onDone){const myLeads=LEADS.filter(l=>l.agent_id===USER.id);const{ov,m}=mkModal(true);m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Tag Lead to Order ${order.order_number}</span><button class="btn-x" id="tgX">✕</button></div>
   <div class="modal-body">
@@ -408,7 +408,6 @@ function vMyCustomers(v){
   const dueSoon=myCusts.filter(c=>c.reorder_status==='due_soon').length;
   const ltv=myCusts.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
 
-  // Stats
   const stats=document.createElement('div');stats.className='stats';
   [[myCusts.length,'My Customers','var(--tx)'],[overdue,'Reorder Overdue','var(--red)'],[dueSoon,'Due in 3 Days','var(--amber)'],[ltv.toLocaleString()+' SAR','Portfolio Value','var(--green)']].forEach(([n,l,c])=>{
     const s=document.createElement('div');s.className='stat';
@@ -417,17 +416,17 @@ function vMyCustomers(v){
   });
   v.appendChild(stats);
 
-  if(overdue){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue} customer(s)</strong> overdue for reorder.`;v.appendChild(b);}
-  if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon} customer(s)</strong> due within 3 days.`;v.appendChild(b);}
+  if(overdue){const b=document.createElement('div');b.className='banner ban-red';b.innerHTML=`⚠ <strong>${overdue}</strong> customer(s) overdue for reorder.`;v.appendChild(b);}
+  if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber';b.innerHTML=`🔔 <strong>${dueSoon}</strong> customer(s) due within 3 days.`;v.appendChild(b);}
 
-  // Search bar
   const fb=document.createElement('div');fb.className='fbar';
   const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, phone, email, product…';si.style.width='260px';
-  let q='';si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderTable();});
+  let q='',activeFilter='all';
+  si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderTable(activeFilter);});
   fb.appendChild(si);
   [['all','All'],['overdue','Overdue'],['due_soon','Due Soon'],['on_track','On Track']].forEach(([k,l])=>{
     const c=document.createElement('span');c.className='fc'+(k==='all'?' on':'');c.textContent=l;
-    c.addEventListener('click',()=>{fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');renderTable(k);});
+    c.addEventListener('click',()=>{activeFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');renderTable(k);});
     fb.appendChild(c);
   });
   v.appendChild(fb);
@@ -457,9 +456,9 @@ function vMyCustomers(v){
         const isPast=dueDate&&dueDate<now;
         const isSoon=dueDate&&!isPast&&dueDate<=new Date(Date.now()+3*86400000);
         const dueStyle=isPast?'color:var(--red);font-weight:600':isSoon?'color:var(--amber);font-weight:600':'color:var(--green)';
-        const lastActivity=c.poc_updated_at||c.last_order_date;
+        const lastActivity=c.poc_updated_at||c.cust_status_updated_at||c.last_order_date;
         const custStatus=c.cust_status||'';
-        const statusColors={'Needs Consultation':'var(--amber)','Converted - Injection':'var(--green)','Converted - Supplements':'var(--teal)','Dropped Off':'var(--red)'};
+        const statusColors={'Needs Consultation':'var(--amber)','Contacting':'var(--blue)','Engaged':'var(--amber)','Converted - Injection':'var(--green)','Converted - Supplements':'var(--teal)','Dropped Off':'var(--red)'};
         const statusColor=statusColors[custStatus]||'var(--tx3)';
         return`<tr style="cursor:pointer" data-cid="${c.id}">
           <td style="font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${c.full_name||c.email.split('@')[0]}</td>
@@ -473,13 +472,12 @@ function vMyCustomers(v){
         </tr>`;
       }).join('')}</tbody></table>`;
 
-    // Row click → open profile drawer
     tw.querySelectorAll('tbody tr').forEach(row=>{
       row.addEventListener('mouseenter',()=>row.style.background='var(--blue-bg)');
       row.addEventListener('mouseleave',()=>row.style.background='');
       row.addEventListener('click',()=>{
         const c=d.find(x=>x.id===row.dataset.cid);
-        if(c)openCustomerDetailProfile(c,()=>renderTable(filter));
+        if(c)openCustomerDetailProfile(c,()=>renderTable(activeFilter));
       });
     });
     tableArea.appendChild(tw);
@@ -488,7 +486,6 @@ function vMyCustomers(v){
 }
 
 async function openCustomerDetailProfile(cust,onRefresh){
-  // Remove existing drawer
   document.querySelectorAll('.cust-drawer-ov').forEach(e=>e.remove());
 
   const ov=document.createElement('div');
@@ -496,15 +493,26 @@ async function openCustomerDetailProfile(cust,onRefresh){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;justify-content:flex-end;backdrop-filter:blur(2px)';
 
   const drawer=document.createElement('div');
-  drawer.style.cssText='width:480px;max-width:100%;height:100%;background:var(--surf);display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.15);overflow:hidden';
+  drawer.style.cssText='width:520px;max-width:100%;height:100%;background:var(--surf);display:flex;flex-direction:column;box-shadow:-4px 0 24px rgba(0,0,0,.15);overflow:hidden';
 
-  // Fetch purchase history and activity log
-  const [ordersRes, activityRes] = await Promise.all([
-    sb.from('orders').select('order_number,product,order_date,amount,order_status').ilike('email', cust.email).order('order_date',{ascending:false}).limit(50),
-    sb.from('activity_logs').select('action,from_value,to_value,note,actor_name,created_at').or('lead_id.eq.'+(cust.lead_id||'00000000-0000-0000-0000-000000000000')+',customer_id.eq.'+cust.id).order('created_at',{ascending:false}).limit(50)
+  // ── TAB STATE ──────────────────────────────────────────────────
+  let activeTab='summary';
+
+  // ── FETCH DATA ─────────────────────────────────────────────────
+  const [ordersRes, activityRes, profileRes] = await Promise.all([
+    sb.from('orders').select('order_number,product,order_date,amount,order_status')
+      .ilike('email',cust.email).order('order_date',{ascending:false}).limit(50),
+    sb.from('activity_logs').select('action,from_value,to_value,note,actor_name,created_at')
+      .or(`lead_id.eq.${cust.lead_id||'00000000-0000-0000-0000-000000000000'},customer_id.eq.${cust.id}`)
+      .order('created_at',{ascending:false}).limit(50),
+    cust.lead_id
+      ? sb.from('client_profiles').select('*').eq('lead_id',cust.lead_id).maybeSingle()
+      : Promise.resolve({data:null})
   ]);
-  const orders = (ordersRes.data||[]).filter(o=>o.order_status&&!['CANCELLED','CANCELED'].includes(o.order_status.toUpperCase()));
-  const activityLogs = activityRes.data||[];const activityLog = activityLogs.length?'HAS_LOGS':'';
+
+  const orders=(ordersRes.data||[]).filter(o=>o.order_status&&!['CANCELLED','CANCELED'].includes(o.order_status.toUpperCase()));
+  const activityLogs=activityRes.data||[];
+  let medProfile=profileRes.data||null;
 
   const due=cust.reorder_due_date;
   const dueDate=due?new Date(due):null;
@@ -513,179 +521,344 @@ async function openCustomerDetailProfile(cust,onRefresh){
   const isSoon=dueDate&&!isPast&&dueDate<=new Date(Date.now()+3*86400000);
   const dueColor=isPast?'var(--red)':isSoon?'var(--amber)':'var(--green)';
 
-  const CUST_STATUSES=['Needs Consultation','Converted - Injection','Converted - Supplements','Dropped Off'];
-  const currentStatus=cust.cust_status||'';
+  const CUST_STATUSES=['Contacting','Engaged','Needs Consultation','Converted - Injection','Converted - Supplements','Dropped Off'];
+  let selectedStatus=cust.cust_status||'';
 
-  // Parse activity log lines
-  const logLines=activityLogs;
+  // ── BUILD DRAWER ───────────────────────────────────────────────
+  function buildDrawer(){
+    drawer.innerHTML='';
 
-  drawer.innerHTML=`
-    <div style="padding:18px 20px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--surf)">
-      <div>
-        <div style="font-size:16px;font-weight:700;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${cust.full_name||cust.email.split('@')[0]}</div>
-        <div style="font-size:11px;color:var(--tx3);margin-top:2px">${cust.email}</div>
-      </div>
-      <button class="btn-x" id="drawerClose" style="font-size:22px">✕</button>
+    // Header
+    const hdr=document.createElement('div');
+    hdr.style.cssText='padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-shrink:0';
+    hdr.innerHTML=`<div>
+      <div style="font-size:16px;font-weight:700;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${cust.full_name||cust.email.split('@')[0]}</div>
+      <div style="font-size:11px;color:var(--tx3);margin-top:2px;font-family:'DM Mono',monospace">${cust.email}</div>
     </div>
+    <button class="btn-x" id="drawerClose" style="font-size:22px">✕</button>`;
+    drawer.appendChild(hdr);
 
-    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px">
+    // Tab bar
+    const tabs=[{k:'summary',l:'Summary'},{k:'purchases',l:'Purchases'},{k:'medical',l:'Medical'},{k:'status',l:'Status'},{k:'log',l:'Activity'}];
+    const tabBar=document.createElement('div');
+    tabBar.className='tab-bar';
+    tabBar.style.cssText='flex-shrink:0;padding:0 20px';
+    tabs.forEach(tab=>{
+      const btn=document.createElement('button');
+      btn.className='tab-btn'+(activeTab===tab.k?' on':'');
+      btn.textContent=tab.l;
+      if(tab.k==='medical'&&!medProfile)btn.textContent='Medical ✦';
+      btn.addEventListener('click',()=>{activeTab=tab.k;buildDrawer();});
+      tabBar.appendChild(btn);
+    });
+    drawer.appendChild(tabBar);
 
-      <!-- Contact -->
-      <div style="background:var(--surf2);border-radius:var(--r);padding:14px 16px">
-        <div style="font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Contact</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="fld" style="margin:0"><label class="fld-l">Phone</label><input class="inp" id="dpPhone" value="${cust.phone||''}" style="font-size:13px"></div>
-          <div class="fld" style="margin:0"><label class="fld-l">Email</label><input class="inp" id="dpEmail" value="${cust.email||''}" style="font-size:13px"></div>
+    // Body
+    const body=document.createElement('div');
+    body.style.cssText='flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px';
+
+    // ── TAB: SUMMARY ──────────────────────────────────────────────
+    if(activeTab==='summary'){
+      // Contact (editable)
+      const contact=document.createElement('div');
+      contact.style.cssText='background:var(--surf2);border-radius:var(--r);padding:14px 16px';
+      contact.innerHTML=`<div style="font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Contact</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fld" style="margin:0"><label class="fld-l">Phone</label><input class="inp" id="dpPhone" value="${cust.phone||''}" style="font-size:13px"></div>
+        <div class="fld" style="margin:0"><label class="fld-l">Email</label><input class="inp" id="dpEmail" value="${cust.email||''}" style="font-size:13px"></div>
+      </div>`;
+      body.appendChild(contact);
+
+      // Summary boxes
+      const summ=document.createElement('div');
+      summ.style.cssText='border-radius:var(--r);overflow:hidden;border:1px solid var(--blue-bd)';
+      summ.innerHTML=`<div style="background:var(--blue-bg);padding:8px 14px;font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">
+        <div style="padding:10px 14px;border-right:1px solid var(--bdr)">
+          <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">Last Purchase</div>
+          <div style="font-size:13px;font-weight:600">${cust.last_product||'—'}</div>
+          <div style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace">${cust.last_order_date?fmtD(cust.last_order_date):'—'}</div>
         </div>
-      </div>
-
-      <!-- Summary -->
-      <div style="border-radius:var(--r);overflow:hidden;border:1px solid var(--blue-bd)">
-        <div style="background:var(--blue-bg);padding:8px 14px;font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">Summary</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">
-          <div style="padding:10px 14px;border-right:1px solid var(--bdr)">
-            <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">Last Purchase</div>
-            <div style="font-size:13px;font-weight:600">${cust.last_product||'—'}</div>
-            <div style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace">${cust.last_order_date?fmtD(cust.last_order_date):'—'}</div>
-          </div>
-          <div style="padding:10px 14px;border-right:1px solid var(--bdr)">
-            <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">Next Due</div>
-            <div style="font-size:13px;font-weight:700;color:${dueColor}">${due?fmtD(due):'—'}</div>
-            <div style="font-size:11px;color:${dueColor}">${isPast?'OVERDUE':isSoon?'Due soon':due?'On track':'—'}</div>
-          </div>
-          <div style="padding:10px 14px">
-            <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">Orders / LTV</div>
-            <div style="font-size:13px;font-weight:600">${cust.total_orders||0} orders</div>
-            <div style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace">${cust.lifetime_value?parseFloat(cust.lifetime_value).toLocaleString()+' SAR':'—'}</div>
-          </div>
+        <div style="padding:10px 14px;border-right:1px solid var(--bdr)">
+          <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">Next Due</div>
+          <div style="font-size:13px;font-weight:700;color:${dueColor}">${due?fmtD(due):'—'}</div>
+          <div style="font-size:11px;color:${dueColor}">${isPast?'OVERDUE':isSoon?'Due soon':due?'On track':'—'}</div>
         </div>
-      </div>
-
-      <!-- Purchase History -->
-      <div>
-        <div style="font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Purchase History</div>
-        ${orders.length?`<div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Product</th><th>Amount</th></tr></thead>
-          <tbody>${orders.map(o=>`<tr>
-            <td style="font-family:'DM Mono',monospace;font-size:12px">${o.order_date?fmtD(o.order_date):'—'}</td>
-            <td style="font-weight:500;font-size:12px">${o.product||'—'}</td>
-            <td style="font-family:'DM Mono',monospace;font-size:12px">${o.amount?parseFloat(o.amount).toLocaleString()+' SAR':'—'}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>`:'<div style="color:var(--tx3);font-size:13px;padding:12px 0">No purchase history found.</div>'}
-      </div>
-
-      <!-- Status Update -->
-      <div>
-        <div style="font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Status</div>
-        <div style="display:flex;flex-direction:column;gap:6px" id="dpStatusBtns">
-          ${CUST_STATUSES.map(s=>{
-            const isActive=currentStatus===s;
-            const colors={'Needs Consultation':'var(--amber-bg),var(--amber-bd),var(--amber)','Converted - Injection':'var(--green-bg),var(--green-bd),var(--green)','Converted - Supplements':'var(--teal-bg),var(--teal-bd),var(--teal)','Dropped Off':'var(--red-bg),var(--red-bd),var(--red)'};
-            const [bg,bd,tx]=colors[s].split(',');
-            return`<button data-status="${s}" style="padding:10px 14px;border-radius:var(--rs);border:2px solid ${isActive?bd:'var(--bdr)'};background:${isActive?bg:'var(--surf)'};color:${isActive?tx:'var(--tx2)'};font-weight:${isActive?'600':'400'};font-size:13px;cursor:pointer;text-align:left;transition:all .12s">${isActive?'✓ ':''} ${s}</button>`;
-          }).join('')}
+        <div style="padding:10px 14px">
+          <div style="font-size:10px;color:var(--tx3);margin-bottom:3px">LTV</div>
+          <div style="font-size:13px;font-weight:600">${cust.total_orders||0} orders</div>
+          <div style="font-size:11px;color:var(--tx3);font-family:'DM Mono',monospace">${cust.lifetime_value?parseFloat(cust.lifetime_value).toLocaleString()+' SAR':'—'}</div>
         </div>
-        ${cust.cust_status_updated_at?`<div style="font-size:11px;color:var(--tx3);margin-top:6px;font-family:'DM Mono',monospace">Last updated: ${fmtDT(cust.cust_status_updated_at)}</div>`:''}
-      </div>
+      </div>`;
+      body.appendChild(summ);
 
-      <!-- Notes -->
-      <div class="fld" style="margin:0">
-        <label class="fld-l">Notes</label>
-        <textarea class="inp" id="dpNotes" style="min-height:70px" placeholder="Add notes about this customer…">${cust.agent_notes&&!cust.agent_notes.includes('[')?(cust.agent_notes||''):''}</textarea>
-      </div>
+      // Notes
+      const noteWrap=document.createElement('div');
+      noteWrap.className='fld';noteWrap.style.margin='0';
+      noteWrap.innerHTML=`<label class="fld-l">Notes</label>
+      <textarea class="inp" id="dpNotes" style="min-height:70px" placeholder="Add notes…">${(cust.agent_notes&&!cust.agent_notes.startsWith('['))?cust.agent_notes:''}</textarea>`;
+      body.appendChild(noteWrap);
+    }
 
-      <!-- Activity Log -->
-      ${logLines.length?`<div>
-        <div style="font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Activity Log</div>
-        <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden">
-          ${logLines.slice(0,30).map((log,i)=>`<div style="padding:8px 12px;font-size:12px;${i>0?'border-top:1px solid var(--bdr)':''};background:${i%2===0?'var(--surf)':'var(--surf2)'}">
-            <span style="color:var(--tx3);font-family:'DM Mono',monospace;font-size:10px;display:block;margin-bottom:2px">${fmtDT(log.created_at)} · ${log.actor_name||'System'}</span>
-            <span style="color:var(--tx2);font-weight:500">${log.action.replace(/_/g,' ')}${log.from_value&&log.to_value?" — "+log.from_value+" → "+log.to_value:log.to_value?" → "+log.to_value:""}</span>${log.note?`<span style="color:var(--tx3);font-size:11px;display:block">${log.note}</span>`:""}
-          </div>`).join('')}
-        </div>
-      </div>`:''}
+    // ── TAB: PURCHASES ────────────────────────────────────────────
+    else if(activeTab==='purchases'){
+      if(!orders.length){
+        const e=document.createElement('div');e.className='empty';
+        e.innerHTML='<div class="empty-ico">📦</div>No purchase history found.';
+        body.appendChild(e);
+      } else {
+        const ph=document.createElement('div');
+        ph.innerHTML=`<div style="font-size:11px;color:var(--tx3);margin-bottom:8px">${orders.length} order(s) found</div>`;
+        const tw=document.createElement('div');tw.className='tbl-wrap';
+        tw.innerHTML=`<table><thead><tr><th>Date</th><th>Product</th><th>Amount</th><th>Order #</th></tr></thead>
+        <tbody>${orders.map(o=>`<tr>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${o.order_date?fmtD(o.order_date):'—'}</td>
+          <td style="font-weight:500;font-size:12px">${o.product||'—'}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:12px">${o.amount?parseFloat(o.amount).toLocaleString()+' SAR':'—'}</td>
+          <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tx3)">${o.order_number||'—'}</td>
+        </tr>`).join('')}</tbody></table>`;
+        ph.appendChild(tw);
+        body.appendChild(ph);
+      }
+    }
 
-    </div>
+    // ── TAB: MEDICAL ──────────────────────────────────────────────
+    else if(activeTab==='medical'){
+      if(!medProfile){
+        // No profile yet — show Create Profile button (Option B)
+        const noprof=document.createElement('div');
+        noprof.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:16px;text-align:center';
+        noprof.innerHTML=`<div style="font-size:36px">📋</div>
+        <div style="font-size:15px;font-weight:600">No medical profile yet</div>
+        <div style="font-size:13px;color:var(--tx3);max-width:280px">Creating a profile will also create a lead record so this customer enters the full pipeline.</div>
+        <button class="btn btn-blue" id="createMedProfile">Create Profile</button>`;
+        body.appendChild(noprof);
+      } else {
+        // Show questionnaire read-only with edit button
+        const bmi=medProfile.bmi;
+        const bi=bmiInfo(bmi);
+        const med=document.createElement('div');
+        med.style.cssText='display:flex;flex-direction:column;gap:12px';
 
-    <div style="padding:14px 20px;border-top:1px solid var(--bdr);display:flex;gap:8px;flex-shrink:0;background:var(--surf)">
-      <button class="btn btn-ghost" id="drawerCancel" style="flex:1">Cancel</button>
-      <button class="btn btn-blue" id="drawerSave" style="flex:2">Save Changes</button>
-    </div>
-  `;
+        // BMI box
+        if(bmi){
+          med.innerHTML+=`<div class="bmi-box">
+            <div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi}</div></div>
+            <span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>
+            <span style="font-size:12px;color:var(--tx3)">${medProfile.height_cm?medProfile.height_cm+'cm':''}${medProfile.weight_kg?' · '+medProfile.weight_kg+'kg':''}</span>
+          </div>`;
+        }
 
+        // Key fields grid
+        const fields=[
+          ['Full Name',medProfile.full_name],['Age',medProfile.age],
+          ['Gender',medProfile.gender],['Goal',medProfile.primary_goal],
+          ['Budget',medProfile.monthly_budget],['Motivation',medProfile.motivation_score?medProfile.motivation_score+'/5':null],
+        ].filter(([,v])=>v);
+
+        if(fields.length){
+          const grid=document.createElement('div');
+          grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
+          fields.forEach(([l,v])=>{
+            const cell=document.createElement('div');
+            cell.style.cssText='background:var(--surf2);border-radius:var(--rs);padding:8px 12px';
+            cell.innerHTML=`<div style="font-size:10px;color:var(--tx3);margin-bottom:2px">${l}</div>
+            <div style="font-size:13px;font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${v}</div>`;
+            grid.appendChild(cell);
+          });
+          med.appendChild(grid);
+        }
+
+        // Conditions / medications chips
+        if(medProfile.conditions?.length){
+          const sec=document.createElement('div');
+          sec.innerHTML=`<div class="sec">Medical Conditions</div>
+          <div class="chips">${medProfile.conditions.map(c=>`<span class="chip on ro">${c}</span>`).join('')}</div>`;
+          med.appendChild(sec);
+        }
+        if(medProfile.medications?.length){
+          const sec=document.createElement('div');
+          sec.innerHTML=`<div class="sec">Medications</div>
+          <div class="chips">${medProfile.medications.map(c=>`<span class="chip on ro">${c}</span>`).join('')}</div>`;
+          med.appendChild(sec);
+        }
+
+        // Agent notes
+        if(medProfile.agent_notes){
+          const noteSec=document.createElement('div');
+          noteSec.innerHTML=`<div class="sec">Notes</div>
+          <div style="font-size:12px;color:var(--tx2);white-space:pre-wrap;background:var(--surf2);border-radius:var(--rs);padding:10px 12px">${medProfile.agent_notes}</div>`;
+          med.appendChild(noteSec);
+        }
+
+        // Edit profile button
+        const editBtn=document.createElement('button');
+        editBtn.className='btn btn-ghost btn-sm';
+        editBtn.textContent='Edit Full Profile';
+        editBtn.addEventListener('click',()=>{
+          // Find matching lead and open full openProfile modal
+          const lead=LEADS.find(l=>l.id===cust.lead_id);
+          if(lead){lead._customerData={last_product:cust.last_product,last_order_date:cust.last_order_date,last_amount:cust.last_amount,total_orders:cust.total_orders,lifetime_value:cust.lifetime_value,reorder_due_date:cust.reorder_due_date};openProfile(lead);}
+          else{sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',cust.lead_id).single().then(({data:l})=>{if(l){l._customerData={last_product:cust.last_product,last_order_date:cust.last_order_date,last_amount:cust.last_amount,total_orders:cust.total_orders,lifetime_value:cust.lifetime_value,reorder_due_date:cust.reorder_due_date};openProfile(l);}});}
+        });
+        med.appendChild(editBtn);
+        body.appendChild(med);
+      }
+    }
+
+    // ── TAB: STATUS ───────────────────────────────────────────────
+    else if(activeTab==='status'){
+      const statusWrap=document.createElement('div');
+      statusWrap.style.cssText='display:flex;flex-direction:column;gap:8px';
+      const CUST_COLORS={'Contacting':'var(--blue-bg),var(--blue-bd),var(--blue)','Engaged':'var(--amber-bg),var(--amber-bd),var(--amber)','Needs Consultation':'var(--amber-bg),var(--amber-bd),var(--amber)','Converted - Injection':'var(--green-bg),var(--green-bd),var(--green)','Converted - Supplements':'var(--teal-bg),var(--teal-bd),var(--teal)','Dropped Off':'var(--red-bg),var(--red-bd),var(--red)'};
+      CUST_STATUSES.forEach(s=>{
+        const isActive=selectedStatus===s;
+        const [bg,bd,tx]=(CUST_COLORS[s]||'var(--surf2),var(--bdr),var(--tx2)').split(',');
+        const btn=document.createElement('button');
+        btn.dataset.status=s;
+        btn.style.cssText=`padding:12px 14px;border-radius:var(--rs);border:2px solid ${isActive?bd:'var(--bdr)'};background:${isActive?bg:'var(--surf)'};color:${isActive?tx:'var(--tx2)'};font-weight:${isActive?'600':'400'};font-size:13px;cursor:pointer;text-align:left;transition:all .12s`;
+        btn.textContent=(isActive?'✓ ':'')+s;
+        btn.addEventListener('click',()=>{
+          selectedStatus=btn.dataset.status===selectedStatus?'':btn.dataset.status;
+          statusWrap.querySelectorAll('[data-status]').forEach(b=>{
+            const ia=b.dataset.status===selectedStatus;
+            const [bg2,bd2,tx2]=(CUST_COLORS[b.dataset.status]||'var(--surf2),var(--bdr),var(--tx2)').split(',');
+            b.style.border=`2px solid ${ia?bd2:'var(--bdr)'}`;
+            b.style.background=ia?bg2:'var(--surf)';
+            b.style.color=ia?tx2:'var(--tx2)';
+            b.style.fontWeight=ia?'600':'400';
+            b.textContent=(ia?'✓ ':'')+b.dataset.status;
+          });
+        });
+        statusWrap.appendChild(btn);
+      });
+      if(cust.cust_status_updated_at){
+        const ts=document.createElement('div');
+        ts.style.cssText='font-size:11px;color:var(--tx3);margin-top:4px;font-family:"DM Mono",monospace';
+        ts.textContent='Last updated: '+fmtDT(cust.cust_status_updated_at);
+        statusWrap.appendChild(ts);
+      }
+      body.appendChild(statusWrap);
+    }
+
+    // ── TAB: ACTIVITY LOG ─────────────────────────────────────────
+    else if(activeTab==='log'){
+      if(!activityLogs.length){
+        const e=document.createElement('div');e.className='empty';
+        e.innerHTML='<div class="empty-ico">📋</div>No activity recorded yet.';
+        body.appendChild(e);
+      } else {
+        const logWrap=document.createElement('div');
+        logWrap.style.cssText='border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden';
+        activityLogs.slice(0,40).forEach((log,i)=>{
+          const row=document.createElement('div');
+          row.style.cssText=`padding:10px 14px;font-size:12px;${i>0?'border-top:1px solid var(--bdr)':''};background:${i%2===0?'var(--surf)':'var(--surf2)'}`;
+          const action=log.action.replace(/_/g,' ');
+          const change=(log.from_value&&log.to_value)?` — ${log.from_value} → ${log.to_value}`:(log.to_value?` → ${log.to_value}`:'');
+          row.innerHTML=`<div style="color:var(--tx3);font-family:'DM Mono',monospace;font-size:10px;margin-bottom:3px">${fmtDT(log.created_at)} · ${log.actor_name||'System'}</div>
+          <div style="color:var(--tx2);font-weight:500">${action}${change}</div>
+          ${log.note?`<div style="color:var(--tx3);font-size:11px;margin-top:2px">${log.note}</div>`:''}`;
+          logWrap.appendChild(row);
+        });
+        body.appendChild(logWrap);
+      }
+    }
+
+    drawer.appendChild(body);
+
+    // Footer (only on summary + status tabs)
+    if(activeTab==='summary'||activeTab==='status'){
+      const footer=document.createElement('div');
+      footer.style.cssText='padding:14px 20px;border-top:1px solid var(--bdr);display:flex;gap:8px;flex-shrink:0;background:var(--surf)';
+      footer.innerHTML=`<button class="btn btn-ghost" id="drawerCancel" style="flex:1">Cancel</button>
+      <button class="btn btn-blue" id="drawerSave" style="flex:2">Save Changes</button>`;
+      drawer.appendChild(footer);
+    }
+
+    // ── EVENT LISTENERS ───────────────────────────────────────────
+    drawer.querySelector('#drawerClose').addEventListener('click',()=>ov.remove());
+    drawer.querySelector('#drawerCancel')?.addEventListener('click',()=>ov.remove());
+
+    // Create Profile
+    drawer.querySelector('#createMedProfile')?.addEventListener('click',async()=>{
+      const btn=drawer.querySelector('#createMedProfile');
+      btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+      const agentId=cust.agent_id||(PROF.role==='agent'?USER.id:null);
+      const agentName=cust.agent_name||(PROF.role==='agent'?PROF.name:null);
+      const{data:lead,error:le}=await sb.from('leads').insert({
+        email:cust.email,phone:cust.phone||'',lead_type:'repeat',
+        status:'contacting',agent_id:agentId,agent_name:agentName,
+        claimed_at:new Date().toISOString(),source:'Existing Customer',
+        city:cust.city||null,region:cust.region||null,
+      }).select().single();
+      if(le){toast(le.message,'error');btn.disabled=false;btn.textContent='Create Profile';return;}
+      await sb.from('client_profiles').insert({lead_id:lead.id,full_name:cust.full_name||null,
+        agent_notes:`[Profile created from customer record]\nLast: ${cust.last_product||'—'} · ${cust.last_order_date?fmtD(cust.last_order_date):'—'}`});
+      await sb.from('customers').update({lead_id:lead.id}).eq('id',cust.id);
+      cust.lead_id=lead.id;
+      const{data:cp}=await sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle();
+      medProfile=cp;
+      await Promise.all([loadLeads(),loadCustomers()]);
+      toast('Profile created!','success');
+      activeTab='medical';buildDrawer();
+    });
+
+    // Save (summary + status)
+    drawer.querySelector('#drawerSave')?.addEventListener('click',async()=>{
+      const btn=drawer.querySelector('#drawerSave');
+      btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+      const nowTs=new Date();
+      const newPhone=drawer.querySelector('#dpPhone')?.value.trim()||cust.phone;
+      const newEmail=drawer.querySelector('#dpEmail')?.value.trim()||cust.email;
+      const newNotes=drawer.querySelector('#dpNotes')?.value.trim()||'';
+
+      const changes=[];
+      if(newPhone!==(cust.phone||''))changes.push('Phone updated');
+      if(newEmail!==cust.email)changes.push('Email updated');
+      if(selectedStatus&&selectedStatus!==cust.cust_status)changes.push('Status → '+selectedStatus);
+      if(newNotes&&newNotes!==(cust.agent_notes||''))changes.push('Note added');
+
+      const logEntry=changes.length
+        ?'['+nowTs.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'] '+changes.join(' | ')
+        :null;
+
+      const custUpd={phone:newPhone||null,email:newEmail||cust.email};
+      if(selectedStatus&&selectedStatus!==cust.cust_status){
+        custUpd.cust_status=selectedStatus;
+        custUpd.cust_status_updated_at=nowTs.toISOString();
+        // Sync to lead
+        const lsMap={'Contacting':'contacting','Engaged':'engaged','Needs Consultation':'engaged','Converted - Injection':'converted','Converted - Supplements':'converted','Dropped Off':'lost'};
+        const ctMap={'Converted - Injection':'INJECTION','Converted - Supplements':'SUPPLEMENTS'};
+        const lsNew=lsMap[selectedStatus];
+        if(lsNew)updateLeadStatus(cust.email,lsNew,ctMap[selectedStatus]||null,null,null);
+      }
+      if(logEntry){
+        const existing=cust.agent_notes||'';
+        custUpd.agent_notes=existing?(existing+'\n'+logEntry):logEntry;
+      } else if(newNotes&&newNotes!==(cust.agent_notes||'')){
+        custUpd.agent_notes=newNotes;
+      }
+
+      const{error}=await sb.from('customers').update(custUpd).eq('id',cust.id);
+      if(!error){
+        if(newEmail&&newEmail!==cust.email){
+          await sb.from('orders').update({email:newEmail}).ilike('email',cust.email);
+        }
+        Object.assign(cust,custUpd);
+        toast('Saved','success');
+        ov.remove();
+        if(onRefresh)onRefresh();
+      } else {
+        toast(error.message,'error');
+        btn.disabled=false;btn.textContent='Save Changes';
+      }
+    });
+  }
+
+  buildDrawer();
   ov.appendChild(drawer);
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
   document.body.appendChild(ov);
-
-  drawer.querySelector('#drawerClose').addEventListener('click',()=>ov.remove());
-  drawer.querySelector('#drawerCancel').addEventListener('click',()=>ov.remove());
-
-  // Status button selection
-  let selectedStatus=currentStatus;
-  drawer.querySelectorAll('[data-status]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      selectedStatus=btn.dataset.status===selectedStatus?'':btn.dataset.status;
-      const CUST_STATUSES_COLORS={'Needs Consultation':'var(--amber-bg),var(--amber-bd),var(--amber)','Converted - Injection':'var(--green-bg),var(--green-bd),var(--green)','Converted - Supplements':'var(--teal-bg),var(--teal-bd),var(--teal)','Dropped Off':'var(--red-bg),var(--red-bd),var(--red)'};
-      drawer.querySelectorAll('[data-status]').forEach(b=>{
-        const isActive=b.dataset.status===selectedStatus;
-        const [bg,bd,tx]=(CUST_STATUSES_COLORS[b.dataset.status]||'var(--surf2),var(--bdr),var(--tx3)').split(',');
-        b.style.border=`2px solid ${isActive?bd:'var(--bdr)'}`;
-        b.style.background=isActive?bg:'var(--surf)';
-        b.style.color=isActive?tx:'var(--tx2)';
-        b.style.fontWeight=isActive?'600':'400';
-        b.textContent=(isActive?'✓ ':'')+b.dataset.status;
-      });
-    });
-  });
-
-  // Save
-  drawer.querySelector('#drawerSave').addEventListener('click',async()=>{
-    const btn=drawer.querySelector('#drawerSave');
-    btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
-
-    const newPhone=drawer.querySelector('#dpPhone').value.trim();
-    const newEmail=drawer.querySelector('#dpEmail').value.trim();
-    const newNotes=drawer.querySelector('#dpNotes').value.trim();
-    const now=new Date();
-
-    // Build activity log entry
-    const changes=[];
-    if(newPhone!=(cust.phone||''))changes.push('Phone updated');
-    if(newEmail!=cust.email)changes.push('Email updated');
-    if(selectedStatus&&selectedStatus!==currentStatus)changes.push('Status → '+selectedStatus);
-    if(newNotes&&newNotes!==(cust.agent_notes||''))changes.push('Note added');
-
-    const logEntry=changes.length
-      ?'['+now.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'] '+changes.join(' | ')
-      :null;
-
-    // Update customer record
-    const custUpd={phone:newPhone||null,email:newEmail||cust.email};
-    if(selectedStatus!==currentStatus){custUpd.cust_status=selectedStatus||null;custUpd.cust_status_updated_at=now.toISOString();const _lsMap={'Contacting':'contacting','Engaged':'engaged','Qualified':'qualified','Converted - Injection':'converted','Converted - Supplements':'converted','Dropped Off':'lost','Invalid':'invalid'};const _lsNew=_lsMap[selectedStatus]||null;const _ctNew=selectedStatus==='Converted - Injection'?'INJECTION':selectedStatus==='Converted - Supplements'?'SUPPLEMENTS':null;if(_lsNew)updateLeadStatus(cust.email,_lsNew,_ctNew,null,null);}
-
-    // Append log to agent_notes
-    if(logEntry){
-      const existing=cust.agent_notes||'';
-      custUpd.agent_notes=existing?(existing+'\n'+logEntry):logEntry;
-    } else if(newNotes&&newNotes!==(cust.agent_notes||'')){
-      custUpd.agent_notes=newNotes;
-    }
-
-    const{error}=await sb.from('customers').update(custUpd).eq('id',cust.id);
-    if(!error){
-      // Also update orders/leads if email changed
-      if(newEmail&&newEmail!==cust.email){
-        await sb.from('orders').update({email:newEmail}).ilike('email',cust.email);
-      }
-      Object.assign(cust,custUpd);
-      toast('Customer updated','success');
-      ov.remove();
-      if(onRefresh)onRefresh();
-    }else{
-      toast(error.message,'error');
-      btn.disabled=false;btn.textContent='Save Changes';
-    }
-  });
 }
 
 
@@ -936,7 +1109,7 @@ function buildOldCustomerCard(item,nowR,D3,onRefresh){
 }
 
 function openOldLeadStatus(item,onRefresh){const isLead=!item._isCustomer;const{ov,m}=mkModal(true);m.innerHTML='<div class="modal-hdr"><span class="modal-t">Update Status</span><button class="btn-x" id="olsX">X</button></div><div class="modal-body"><div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px;font-size:12px"><div style="font-weight:500">'+(item.full_name||item.client_profiles?.full_name||item.email)+'</div><div style="color:var(--tx3);margin-top:2px">Last: '+(item.last_product||'-')+' - '+(item.last_order_date?fmtD(item.last_order_date):'-')+'</div>'+(item.reorder_due_date?'<div style="color:var(--amber);margin-top:2px">Reorder due: '+fmtD(item.reorder_due_date)+'</div>':'')+'</div>'+(isLead?'<div class="fld"><label class="fld-l">Lead Status</label><select class="inp" id="olsSt">'+['contacting','engaged','qualified','converted','lost','invalid'].map(s=>'<option value="'+s+'"'+((item.status===s||(s==='contacting'&&item.status==='claimed')||(s==='engaged'&&item.status==='in_progress')||(s==='lost'&&['unqualified','dnd','closed','supplement'].includes(item.status)))?' selected':'')+'>'+SL[s]+'</option>').join('')+'</select></div>':'')+'<div class="fld"><label class="fld-l">Call Outcome / POC</label><select class="inp" id="olsPOC"><option value="">Select outcome...</option>'+POC.map(p=>'<option'+(item.poc_status===p?' selected':'')+'>'+p+'</option>').join('')+'</select></div><div class="fld" id="olsDW" style="display:'+(item.followup_date?'block':'none')+'"><label class="fld-l">Follow-up Date <span style="color:var(--red)">*</span></label><input type="date" class="inp" id="olsDate" value="'+(item.followup_date||'')+'"><div style="font-size:11px;color:var(--tx3);margin-top:4px">Will appear in Follow-up Today on this date.</div></div><div class="fld"><label class="fld-l">Notes</label><textarea class="inp" id="olsNotes" style="min-height:60px">'+(item.agent_notes||'')+'</textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="olsCn">Cancel</button><button class="btn btn-blue" id="olsSv">Save</button></div>';m.querySelector('#olsX').addEventListener('click',()=>ov.remove());m.querySelector('#olsCn').addEventListener('click',()=>ov.remove());m.querySelector('#olsPOC').addEventListener('change',()=>{const val=m.querySelector('#olsPOC').value.toLowerCase();const needs=val.includes('followup')||val.includes('rescheduled');m.querySelector('#olsDW').style.display=needs?'block':'none';if(needs&&!m.querySelector('#olsDate').value){m.querySelector('#olsDate').value=new Date(Date.now()+86400000).toISOString().slice(0,10);}});m.querySelector('#olsSv').addEventListener('click',async()=>{const poc=m.querySelector('#olsPOC').value;const notes=m.querySelector('#olsNotes').value;const needsDate=poc.toLowerCase().includes('followup')||poc.toLowerCase().includes('rescheduled');const fd=m.querySelector('#olsDate').value;if(needsDate&&!fd){toast('Please set a follow-up date','error');return;}const btn=m.querySelector('#olsSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';let err=null;const _logEntry='['+new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+']';if(isLead){const ns=m.querySelector('#olsSt')?.value||item.status;const _logLine=_logEntry+' Status: '+SL[ns]+(poc?' | POC: '+poc:'')+(fd?' | Followup: '+fd:'');sb.from('client_profiles').select('id,agent_notes').eq('lead_id',item.id).maybeSingle().then(({data:cp})=>{if(cp){const _newNotes=(cp.agent_notes?cp.agent_notes+'\n':'')+_logLine;sb.from('client_profiles').update({agent_notes:_newNotes}).eq('id',cp.id);}});await updateLeadStatus(item.email,ns,null,poc+(fd?' | followup:'+fd:''));if(poc||fd){await sb.from('leads').update({poc_status:poc,followup_date:fd||null}).eq('id',item.id);}item.poc_status=poc;item.followup_date=fd||null;err=null;}else{const _logLine2=_logEntry+' POC: '+poc+(notes?' | '+notes:'');const _existingNotes=item.agent_notes||'';const _newNotes=(_existingNotes?_existingNotes+'\n':'')+_logLine2;await updateLeadStatus(item.email,'contacting',null,poc);const{error}=await sb.from('customers').update({poc_status:poc,agent_notes:_newNotes,followup_date:fd||null,poc_updated_at:new Date().toISOString()}).eq('id',item.id);if(!error){item.poc_status=poc;item.agent_notes=_newNotes;item.followup_date=fd||null;}err=error;}if(!err){if(isLead)logAct(item.id,'status_change',item.status||'',ns||'',poc+(fd?' | followup:'+fd:''));else logAct(null,'poc_update','',poc,notes,item.id);toast('Updated!','success');ov.remove();if(onRefresh)onRefresh();setTimeout(()=>{const cards=[...document.querySelectorAll('.card')];const target=cards.find(c=>c.textContent.includes(item.email||'__none__'));if(target){target.style.transition='box-shadow .3s';target.style.boxShadow='0 0 0 3px var(--blue)';target.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>{target.style.boxShadow='';},2000);}},100);}else{toast(err.message,'error');btn.disabled=false;btn.textContent='Save';}});}
-async function openOldLeadProfile(item,onRefresh){if(item._isCustomer){const{data:el}=await sb.from('leads').select('id').ilike('email',item.email).order('created_at',{ascending:false}).limit(1).maybeSingle();if(el){const{data:lead}=await sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',el.id).single();if(lead){lead._customerData={last_product:item.last_product,last_order_date:item.last_order_date,last_amount:item.last_amount,total_orders:item.total_orders,lifetime_value:item.lifetime_value,reorder_due_date:item.reorder_due_date};openProfile(lead);return;}}const{ov,m}=mkModal(true);m.innerHTML='<div class="modal-hdr"><span class="modal-t">Create Profile</span><button class="btn-x" id="olfX">X</button></div><div class="modal-body"><div class="banner ban-blue">Creates a trackable lead from this customer record.</div><div class="r2"><div class="fld"><label class="fld-l">Full Name</label><input class="inp" id="olfName" value="'+(item.full_name||'')+'"></div><div class="fld"><label class="fld-l">Phone</label><input class="inp" id="olfPhone" value="'+(item.phone||'')+'"></div></div><div style="background:var(--surf2);border-radius:var(--rs);padding:10px;font-size:12px;margin-bottom:12px">'+item.email+' - Last: '+(item.last_product||'-')+' - LTV: '+(item.lifetime_value?parseFloat(item.lifetime_value).toLocaleString()+' SAR':'-')+'</div><div class="fld"><label class="fld-l">Notes</label><textarea class="inp" id="olfNotes" style="min-height:60px">'+(item.agent_notes||'')+'</textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="olfCn">Cancel</button><button class="btn btn-blue" id="olfSv">Create Profile</button></div>';m.querySelector('#olfX').addEventListener('click',()=>ov.remove());m.querySelector('#olfCn').addEventListener('click',()=>ov.remove());m.querySelector('#olfSv').addEventListener('click',async()=>{const btn=m.querySelector('#olfSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const{data:lead,error:le}=await sb.from('leads').insert({email:item.email,phone:m.querySelector('#olfPhone').value||item.phone||'',lead_type:'repeat',status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString(),converted_at:item.last_order_date?new Date(item.last_order_date).toISOString():null,reorder_due_at:item.reorder_due_date?new Date(item.reorder_due_date).toISOString():null,source:'Existing Customer',city:item.city||null,region:item.region||null,}).select().single();if(le){toast(le.message,'error');btn.disabled=false;btn.textContent='Create Profile';return;}await sb.from('client_profiles').insert({lead_id:lead.id,full_name:m.querySelector('#olfName').value||null,agent_notes:(m.querySelector('#olfNotes').value||'')+(item.last_product?'\nLast Product: '+item.last_product:'')+(item.last_order_date?'\nOrder Date: '+fmtD(item.last_order_date):'')+(item.last_amount?'\nAmount: '+parseFloat(item.last_amount).toLocaleString()+' SAR':'')+(item.reorder_due_date?'\nNext Reorder Due: '+fmtD(item.reorder_due_date):'')+(item.lifetime_value?'\nLifetime Value: '+parseFloat(item.lifetime_value).toLocaleString()+' SAR':'')||null});await sb.from('customers').update({lead_id:lead.id}).eq('id',item.id);await sb.from('orders').update({lead_id:lead.id,agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',item.email);toast('Profile created!','success');ov.remove();window['my_leads_activetab']='old';await Promise.all([loadLeads(),loadCustomers()]);renderNav();renderView();});}else{openProfile(item);}}
+async function openOldLeadProfile(item,onRefresh){if(item._isCustomer){const{data:el}=await sb.from('leads').select('id').ilike('email',item.email).order('created_at',{ascending:false}).limit(1).maybeSingle();if(el){const{data:lead}=await sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',el.id).single();if(lead){const _custObj={id:item.id||lead.id,email:item.email,phone:item.phone||lead.phone,full_name:item.full_name||lead.client_profiles?.full_name||null,lead_id:lead.id,agent_id:item.agent_id||lead.agent_id,agent_name:item.agent_name||lead.agent_name,last_product:item.last_product,last_order_date:item.last_order_date,last_amount:item.last_amount,total_orders:item.total_orders,lifetime_value:item.lifetime_value,reorder_due_date:item.reorder_due_date,reorder_due_at:item.reorder_due_at,cust_status:item.cust_status||null,cust_status_updated_at:item.cust_status_updated_at||null,agent_notes:item.agent_notes||null,poc_status:item.poc_status||null,city:item.city||null,region:item.region||null};openCustomerDetailProfile(_custObj,onRefresh);return;}}const{ov,m}=mkModal(true);m.innerHTML='<div class="modal-hdr"><span class="modal-t">Create Profile</span><button class="btn-x" id="olfX">X</button></div><div class="modal-body"><div class="banner ban-blue">Creates a trackable lead from this customer record.</div><div class="r2"><div class="fld"><label class="fld-l">Full Name</label><input class="inp" id="olfName" value="'+(item.full_name||'')+'"></div><div class="fld"><label class="fld-l">Phone</label><input class="inp" id="olfPhone" value="'+(item.phone||'')+'"></div></div><div style="background:var(--surf2);border-radius:var(--rs);padding:10px;font-size:12px;margin-bottom:12px">'+item.email+' - Last: '+(item.last_product||'-')+' - LTV: '+(item.lifetime_value?parseFloat(item.lifetime_value).toLocaleString()+' SAR':'-')+'</div><div class="fld"><label class="fld-l">Notes</label><textarea class="inp" id="olfNotes" style="min-height:60px">'+(item.agent_notes||'')+'</textarea></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="olfCn">Cancel</button><button class="btn btn-blue" id="olfSv">Create Profile</button></div>';m.querySelector('#olfX').addEventListener('click',()=>ov.remove());m.querySelector('#olfCn').addEventListener('click',()=>ov.remove());m.querySelector('#olfSv').addEventListener('click',async()=>{const btn=m.querySelector('#olfSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';const{data:lead,error:le}=await sb.from('leads').insert({email:item.email,phone:m.querySelector('#olfPhone').value||item.phone||'',lead_type:'repeat',status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString(),converted_at:item.last_order_date?new Date(item.last_order_date).toISOString():null,reorder_due_at:item.reorder_due_date?new Date(item.reorder_due_date).toISOString():null,source:'Existing Customer',city:item.city||null,region:item.region||null,}).select().single();if(le){toast(le.message,'error');btn.disabled=false;btn.textContent='Create Profile';return;}await sb.from('client_profiles').insert({lead_id:lead.id,full_name:m.querySelector('#olfName').value||null,agent_notes:(m.querySelector('#olfNotes').value||'')+(item.last_product?'\nLast Product: '+item.last_product:'')+(item.last_order_date?'\nOrder Date: '+fmtD(item.last_order_date):'')+(item.last_amount?'\nAmount: '+parseFloat(item.last_amount).toLocaleString()+' SAR':'')+(item.reorder_due_date?'\nNext Reorder Due: '+fmtD(item.reorder_due_date):'')+(item.lifetime_value?'\nLifetime Value: '+parseFloat(item.lifetime_value).toLocaleString()+' SAR':'')||null});await sb.from('customers').update({lead_id:lead.id}).eq('id',item.id);await sb.from('orders').update({lead_id:lead.id,agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',item.email);toast('Profile created!','success');ov.remove();window['my_leads_activetab']='old';await Promise.all([loadLeads(),loadCustomers()]);renderNav();renderView();});}else{openProfile(item);}}
 
 
 // ── SHARED STATUS UPDATE ─────────────────────────────────────────────────────
