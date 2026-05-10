@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778452665">
+<meta name="version" content="1778453685">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1211,7 +1211,7 @@ async function checkAndCreateReorderLeads(){
   for(const cust of toCreate){
     const dueDate = cust.reorder_due_date||cust.reorder_due_at;
     const daysUntil = Math.ceil((new Date(dueDate)-now)/86400000);
-    const _ts=Date.now();const _rnd=Math.floor(Math.random()*9000)+1000;const {data:newLead,error}=await sb.from('leads').insert({lead_number:'R-'+_ts+'-'+_rnd,email:cust.email,phone:cust.phone||null,status:'contacting',lead_type:'repeat',agent_id:cust.agent_id||USER.id,agent_name:cust.agent_name||PROF.name,claimed_at:new Date().toISOString(),reorder_due_at:dueDate?new Date(dueDate).toISOString():null,source:'Reorder Auto',is_reorder_lead:true,}).select().single();
+    const {data:newLead,error}=await sb.from('leads').insert({email:cust.email,phone:cust.phone||null,status:'contacting',lead_type:'repeat',agent_id:cust.agent_id||USER.id,agent_name:cust.agent_name||PROF.name,claimed_at:new Date().toISOString(),reorder_due_at:dueDate?new Date(dueDate).toISOString():null,source:'Reorder Auto',is_reorder_lead:true,}).select().single();
 
     if(!error && newLead){
       // Copy over notes from customer
