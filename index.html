@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778457976">
+<meta name="version" content="1778458486">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -65,7 +65,7 @@ USER=data.user;PROF=prof;await startApp();}
 function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
 $('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});}
 async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
-function buildShell(){const app=document.getElementById('app');app.innerHTML='';const shell=document.createElement('div');shell.className='shell';const sbe=document.createElement('div');sbe.className='sidebar';sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?`· ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;const main=document.createElement('div');main.className='main-col';main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);$('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;});renderNav();renderView();}
+function buildShell(){const app=document.getElementById('app');app.innerHTML='';const shell=document.createElement('div');shell.className='shell';const sbe=document.createElement('div');sbe.className='sidebar';sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?`· ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;const main=document.createElement('div');main.className='main-col';main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);$('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;window._reorderCheckDone=true;});renderNav();renderView();}
 function renderNav(){const navEl=$('sbnav');if(!navEl)return;const items=getNavItems();navEl.innerHTML='';items.forEach(item=>{const btn=document.createElement('button');btn.className='nav-item'+(NAV===item.k?' on':'');btn.innerHTML=`<span>${item.i}</span><span>${item.l}</span>${item.c!=null?`<span class="nav-cnt">${item.c}</span>`:''}`;btn.addEventListener('click',()=>{NAV=item.k;DATE_PRESET='all';DATE_FROM=null;DATE_TO=null;renderNav();renderView();const tb=$('tbTitle');if(tb)tb.textContent=item.l;});navEl.appendChild(btn);});const cur=getNavItems().find(i=>i.k===NAV);const tb=$('tbTitle');if(tb&&cur)tb.textContent=cur.l;}
 function getNavItems(){const r=PROF.role;if(r==='agent')return[{k:'dashboard',i:'▦',l:'Dashboard'},{k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'my_leads',i:'◈',l:'My Leads',c:(()=>{const today=new Date().toISOString().slice(0,10);const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor','lost','invalid'].includes(l.status));const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today).length;return mine.length+(followupToday?` 🔔${followupToday}`:'');})()},{k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},{k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},{k:'my_orders',i:'🛒',l:'My Orders',c:ORDERS.filter(o=>o.agent_id===USER.id).length},{k:'my_customers',i:'👥',l:'My Customers',c:CUSTOMERS.length},{k:'floating_custs',i:'◌',l:'Unassigned',c:FLOAT_CUSTS.length},];if(r==='doctor')return[{k:'agent_consults',i:'👤',l:'Agent Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='agent_driven'&&l.doctor_id===USER.id).length},{k:'direct_consults',i:'⚡',l:'Direct Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='direct'&&l.doctor_id===USER.id).length},{k:'done',i:'◎',l:'Completed',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},];return[{k:'all_leads',i:'▦',l:'All Leads'},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'rules',i:'⚙',l:'Workflow Rules'},{k:'customers',i:'👥',l:'Customers',c:0},{k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},{k:'agents',i:'◈',l:'Agents'},];}
 function mkDateFilter(onchange){const wrap=document.createElement('div');wrap.className='date-filter';wrap.innerHTML=`<label>Period:</label>`;[['all','All Time'],['today','Today'],['week','Last 7d'],['month','Last 30d'],['3month','Last 90d'],['custom','Custom']].forEach(([val,lbl])=>{const b=document.createElement('span');b.className='dq'+(DATE_PRESET===val?' on':'');b.textContent=lbl;b.addEventListener('click',()=>{DATE_PRESET=val;if(val!=='custom'){DATE_FROM=null;DATE_TO=null;}wrap.querySelectorAll('.dq').forEach(x=>x.classList.remove('on'));b.classList.add('on');const cw=wrap.querySelector('.custom-dates');if(cw)cw.style.display=val==='custom'?'flex':'none';onchange();});wrap.appendChild(b);});const cw=document.createElement('span');cw.className='custom-dates';cw.style.cssText='display:'+(DATE_PRESET==='custom'?'flex':'none')+';gap:6px;align-items:center';cw.innerHTML=`<input type="date" id="df-from" value="${DATE_FROM||''}"><span style="color:var(--tx3)">→</span><input type="date" id="df-to" value="${DATE_TO||''}">`;wrap.appendChild(cw);cw.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{DATE_FROM=$('df-from')?.value||null;DATE_TO=$('df-to')?.value||null;onchange();}));return wrap;}
@@ -1180,6 +1180,8 @@ async function updateLeadStatus(email, newStatus, conversionType=null, note=null
 // Runs on page load — creates a new 'contacting' lead 5 days before reorder due
 async function checkAndCreateReorderLeads(){
   if(PROF.role!=='agent') return;
+  if(window._reorderCheckDone) return;
+  window._reorderCheckDone=true;
   const now = new Date();
   const in5 = new Date(Date.now() + 5*86400000);
 
@@ -1197,12 +1199,17 @@ async function checkAndCreateReorderLeads(){
   // For each candidate, check if active lead already exists
   const emails = candidates.map(c=>(c.email||'').toLowerCase());
   const {data: existingLeads} = await sb.from('leads')
-    .select('email,status')
+    .select('email,status,source')
     .in('status',['new','contacting','engaged','qualified','with_doctor','prescribed'])
-    .filter('email','in',`(${emails.map(e=>`'${e}'`).join(',')})`)
+    .in('email', emails)
     .limit(500);
 
-  const activeEmails = new Set((existingLeads||[]).map(l=>(l.email||'').toLowerCase()));
+  // Also include already-existing reorder leads to prevent duplicates
+const {data:existingReorder}=await sb.from('leads').select('email').eq('source','Reorder Auto').in('email',emails).limit(500);
+const activeEmails = new Set([
+  ...(existingLeads||[]).map(l=>(l.email||'').toLowerCase()),
+  ...(existingReorder||[]).map(l=>(l.email||'').toLowerCase()),
+]);
 
   // Create reorder leads for candidates with no active lead
   const toCreate = candidates.filter(c=>!activeEmails.has((c.email||'').toLowerCase()));
