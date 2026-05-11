@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778466211">
+<meta name="version" content="1778467141">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -402,7 +402,9 @@ const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<ta
 ${showAssign&&!allowClaim?`<button class="btn btn-ghost btn-sm" data-assign-cust="${c.id}">Assign</button>`:''}<button class="btn btn-ghost btn-sm"data-cust-profile="${c.id}">Profile</button></div></td></tr>`;
     }).join('')}</tbody></table>`;tw.querySelectorAll('[data-assign-cust]').forEach(b=>b.addEventListener('click',()=>{const c=custs.find(x=>x.id===b.dataset.assignCust);if(c)openAssignCustomer(c);}));tw.querySelectorAll('[data-cust-profile]').forEach(b=>b.addEventListener('click',()=>{const c=custs.find(x=>x.id===b.dataset.custProfile);if(c)openCustomerProfile(c);}));tw.querySelectorAll('[data-claim-cust]').forEach(b=>b.addEventListener('click',async()=>{const c=custs.find(x=>x.id===b.dataset.claimCust);if(!c)return;b.disabled=true;b.innerHTML='<span class="spin"></span>';const{error}=await sb.from('orders').update({agent_id:USER.id,agent_name:PROF.name,has_agent:true}).ilike('email',c.email);if(!error){await sb.from('customers').update({agent_id:USER.id,agent_name:PROF.name,is_assigned:true}).eq('email',c.email).maybeSingle();if(c.lead_id)await sb.from('leads').update({agent_id:USER.id,agent_name:PROF.name}).eq('id',c.lead_id);ORDERS.forEach(o=>{if((o.email||'').toLowerCase()===(c.email||'').toLowerCase()){o.agent_id=USER.id;o.agent_name=PROF.name;o.has_agent=true;}});buildCustomersFromOrders();toast(`${c.full_name||c.email} claimed!`,'success');renderNav();renderView();}else{toast(error.message,'error');b.disabled=false;b.textContent='Claim';}}));v.appendChild(tw);}
 function vMyCustomers(v){
-  const myCusts=PROF.role==='agent'?CUSTOMERS:CUSTOMERS.filter(c=>c.agent_id===USER.id);
+  // Re-derive on every render so status updates reflect immediately
+  function getMyCusts(){return PROF.role==='agent'?CUSTOMERS:CUSTOMERS.filter(c=>c.agent_id===USER.id);}
+  const myCusts=getMyCusts();
   const overdue=myCusts.filter(c=>c.reorder_status==='overdue').length;
   const dueSoon=myCusts.filter(c=>c.reorder_status==='due_soon').length;
   const ltv=myCusts.reduce((s,c)=>s+(parseFloat(c.lifetime_value)||0),0);
@@ -434,7 +436,8 @@ function vMyCustomers(v){
 
   function renderTable(filter='all'){
     tableArea.innerHTML='';
-    const d=myCusts.filter(c=>{
+    const _fresh=getMyCusts();
+    const d=_fresh.filter(c=>{
       const ms=!q||[c.full_name,c.phone,c.email,c.last_product].some(x=>(x||'').toLowerCase().includes(q));
       const mf=filter==='all'||c.reorder_status===filter;
       return ms&&mf;
@@ -475,7 +478,8 @@ function vMyCustomers(v){
       row.addEventListener('mouseenter',()=>row.style.background='var(--blue-bg)');
       row.addEventListener('mouseleave',()=>row.style.background='');
       row.addEventListener('click',()=>{
-        const c=d.find(x=>x.id===row.dataset.cid);
+        // Always find from live CUSTOMERS so drawer gets latest data
+        const c=getMyCusts().find(x=>x.id===row.dataset.cid)||d.find(x=>x.id===row.dataset.cid);
         if(c)openCustomerDetailProfile(c,()=>renderTable(activeFilter));
       });
     });
