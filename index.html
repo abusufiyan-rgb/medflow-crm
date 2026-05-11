@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778458486">
+<meta name="version" content="1778458822">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -863,7 +863,7 @@ async function openCustomerDetailProfile(cust,onRefresh){
 
 
 function vFloatingCustomers(v){const isAgent=PROF.role==='agent';const ban=document.createElement('div');ban.className='banner ban-blue';ban.innerHTML=isAgent?`These customers have placed orders but aren't assigned to any agent yet. Click <strong>Claim</strong> to add them to your customer list. Once claimed, you can manage their reorders and create their profile.`:`These customers have placed orders but aren't assigned to any agent. Use <strong>Assign</strong> to allocate them to an agent.`;v.appendChild(ban);if(!FLOAT_CUSTS.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">✅</div>All customers are assigned to agents.';v.appendChild(e);return;}
-renderCustomerTable(v,FLOAT_CUSTS,'Unassigned Customers',!isAgent,false,isAgent);}
+const _fb=document.createElement('div');_fb.className='fbar';const _si=document.createElement('input');_si.className='sinp';_si.placeholder='Search name, email, phone or product…';_si.style.width='280px';let _uq='';_si.addEventListener('input',e=>{_uq=e.target.value.toLowerCase();_renderU();});_fb.appendChild(_si);[['all','All'],['overdue','🔴 Overdue'],['due_soon','🟡 Due soon']].forEach(([k,l])=>{const _c=document.createElement('span');_c.className='fc'+(k==='all'?' on':'');_c.textContent=l;_c.addEventListener('click',()=>{_fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));_c.classList.add('on');_renderU(k);});_fb.appendChild(_c);});v.appendChild(_fb);const _ta=document.createElement('div');v.appendChild(_ta);function _renderU(filter='all'){const _now=new Date();const _D3=new Date(Date.now()+3*86400000);let _d=FLOAT_CUSTS;if(_uq)_d=_d.filter(c=>[c.full_name,c.email,c.phone,c.last_product].some(x=>(x||'').toLowerCase().includes(_uq)));if(filter==='overdue')_d=_d.filter(c=>c.reorder_due_date&&new Date(c.reorder_due_date)<_now);else if(filter==='due_soon')_d=_d.filter(c=>{if(!c.reorder_due_date)return false;const _dt=new Date(c.reorder_due_date);return _dt>=_now&&_dt<=_D3;});_ta.innerHTML='';renderCustomerTable(_ta,_d,'Unassigned Customers',!isAgent,false,isAgent);}_renderU();}
 async function openAssignCustomer(cust){const agents=DOCTORS.filter(d=>d.role==='agent');const{ov,m}=mkModal(true);m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Assign Customer</span><button class="btn-x" id="acX">✕</button></div>
   <div class="modal-body">
     <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px;font-size:13px">
