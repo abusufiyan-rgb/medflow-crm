@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778458822">
+<meta name="version" content="1778459253">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1186,11 +1186,14 @@ async function checkAndCreateReorderLeads(){
   const in5 = new Date(Date.now() + 5*86400000);
 
   // Find customers whose reorder is due within 5 days and hasn't been processed
-  const candidates = [...CUSTOMERS, ...FLOAT_CUSTS].filter(c=>{
+  // Only process customers explicitly assigned to THIS agent
+  // NEVER process unassigned/floating customers
+  const candidates = CUSTOMERS.filter(c=>{
+    if(!c.agent_id || c.agent_id !== USER.id) return false; // must belong to this agent
     if(!c.reorder_due_date && !c.reorder_due_at) return false;
     const due = new Date(c.reorder_due_date||c.reorder_due_at);
-    if(due > in5) return false; // more than 5 days away
-    if(due < new Date(Date.now() - 5*86400000)) return false; // already overdue by more than 5 days - skip ancient ones
+    if(due > in5) return false;
+    if(due < new Date(Date.now() - 5*86400000)) return false;
     return true;
   });
 
@@ -1218,7 +1221,9 @@ const activeEmails = new Set([
   for(const cust of toCreate){
     const dueDate = cust.reorder_due_date||cust.reorder_due_at;
     const daysUntil = Math.ceil((new Date(dueDate)-now)/86400000);
-    const {data:newLead,error}=await sb.from('leads').insert({email:cust.email,phone:cust.phone||null,status:'contacting',lead_type:'repeat',agent_id:cust.agent_id||USER.id,agent_name:cust.agent_name||PROF.name,claimed_at:new Date().toISOString(),reorder_due_at:dueDate?new Date(dueDate).toISOString():null,source:'Reorder Auto',is_reorder_lead:true,}).select().single();
+    // Safety check: skip if no agent assigned (should never happen after candidates filter)
+    if(!cust.agent_id){console.warn('Skipping reorder lead for unassigned customer:',cust.email);continue;}
+    const {data:newLead,error}=await sb.from('leads').insert({email:cust.email,phone:cust.phone||null,status:'contacting',lead_type:'repeat',agent_id:cust.agent_id,agent_name:cust.agent_name||PROF.name,claimed_at:new Date().toISOString(),reorder_due_at:dueDate?new Date(dueDate).toISOString():null,source:'Reorder Auto',is_reorder_lead:true,}).select().single();
 
     if(!error && newLead){
       // Copy over notes from customer
