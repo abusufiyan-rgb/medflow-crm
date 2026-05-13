@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778468667">
+<meta name="version" content="1778699622">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -64,14 +64,20 @@ const{data:prof,error:pe}=await sb.from('profiles').select('*').eq('id',data.use
 USER=data.user;PROF=prof;await startApp();}
 function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
 $('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});}
-async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
-function buildShell(){const app=document.getElementById('app');app.innerHTML='';const shell=document.createElement('div');shell.className='shell';const sbe=document.createElement('div');sbe.className='sidebar';sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?`· ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;const main=document.createElement('div');main.className='main-col';main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);$('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;window._reorderCheckDone=true;});renderNav();renderView();}
+async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':PROF.role==='admin'?'admin_dashboard':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
+function buildShell(){const app=document.getElementById('app');app.innerHTML='';const shell=document.createElement('div');shell.className='shell';const sbe=document.createElement('div');sbe.className='sidebar';sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?`· ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;const main=document.createElement('div');main.className='main-col';main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);$('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});// Export button in topbar
+const _expBtn=document.createElement('button');
+_expBtn.className='btn btn-ghost btn-sm';
+_expBtn.textContent='⬇ Export';
+_expBtn.addEventListener('click',openExportModal);
+$('tbRight')?.appendChild(_expBtn)||(document.querySelector('.tb-right')?.appendChild(_expBtn));
+$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;window._reorderCheckDone=true;});renderNav();renderView();}
 function renderNav(){const navEl=$('sbnav');if(!navEl)return;const items=getNavItems();navEl.innerHTML='';items.forEach(item=>{const btn=document.createElement('button');btn.className='nav-item'+(NAV===item.k?' on':'');btn.innerHTML=`<span>${item.i}</span><span>${item.l}</span>${item.c!=null?`<span class="nav-cnt">${item.c}</span>`:''}`;btn.addEventListener('click',()=>{NAV=item.k;DATE_PRESET='all';DATE_FROM=null;DATE_TO=null;renderNav();renderView();const tb=$('tbTitle');if(tb)tb.textContent=item.l;});navEl.appendChild(btn);});const cur=getNavItems().find(i=>i.k===NAV);const tb=$('tbTitle');if(tb&&cur)tb.textContent=cur.l;}
-function getNavItems(){const r=PROF.role;if(r==='agent')return[{k:'dashboard',i:'▦',l:'Dashboard'},{k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'my_leads',i:'◈',l:'My Leads',c:(()=>{const today=new Date().toISOString().slice(0,10);const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor','lost','invalid'].includes(l.status));const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today).length;return mine.length+(followupToday?` 🔔${followupToday}`:'');})()},{k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},{k:'converted_leads',i:'✅',l:'Converted',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='converted').length},{k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},{k:'my_orders',i:'🛒',l:'My Orders',c:ORDERS.filter(o=>o.agent_id===USER.id).length},{k:'my_customers',i:'👥',l:'My Customers',c:CUSTOMERS.length},{k:'floating_custs',i:'◌',l:'Unassigned',c:FLOAT_CUSTS.length},];if(r==='doctor')return[{k:'agent_consults',i:'👤',l:'Agent Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='agent_driven'&&l.doctor_id===USER.id).length},{k:'direct_consults',i:'⚡',l:'Direct Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='direct'&&l.doctor_id===USER.id).length},{k:'done',i:'◎',l:'Completed',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},];return[{k:'all_leads',i:'▦',l:'All Leads'},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'rules',i:'⚙',l:'Workflow Rules'},{k:'customers',i:'👥',l:'Customers',c:0},{k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},{k:'agents',i:'◈',l:'Agents'},];}
+function getNavItems(){const r=PROF.role;if(r==='agent')return[{k:'dashboard',i:'▦',l:'Dashboard'},{k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'my_leads',i:'◈',l:'My Leads',c:(()=>{const today=new Date().toISOString().slice(0,10);const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor','lost','invalid'].includes(l.status));const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today).length;return mine.length+(followupToday?` 🔔${followupToday}`:'');})()},{k:'prescribed',i:'◎',l:'Prescribed',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed').length},{k:'converted_leads',i:'✅',l:'Converted',c:LEADS.filter(l=>l.agent_id===USER.id&&l.status==='converted').length},{k:'repeat',i:'↻',l:'Repeat Leads',c:LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat').length},{k:'my_orders',i:'🛒',l:'My Orders',c:ORDERS.filter(o=>o.agent_id===USER.id).length},{k:'my_customers',i:'👥',l:'My Customers',c:CUSTOMERS.length},{k:'floating_custs',i:'◌',l:'Unassigned',c:FLOAT_CUSTS.length},];if(r==='doctor')return[{k:'agent_consults',i:'👤',l:'Agent Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='agent_driven'&&l.doctor_id===USER.id).length},{k:'direct_consults',i:'⚡',l:'Direct Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.consultation_type==='direct'&&l.doctor_id===USER.id).length},{k:'done',i:'◎',l:'Completed',c:LEADS.filter(l=>l.doctor_id===USER.id&&['prescribed','converted'].includes(l.status)).length},];return[{k:'admin_dashboard',i:'▦',l:'Dashboard'},{k:'all_leads',i:'≡',l:'All Leads'},{k:'high_potential',i:'⭐',l:'High Potential',c:HP_LEADS.length},{k:'rules',i:'⚙',l:'Workflow Rules'},{k:'customers',i:'👥',l:'Customers',c:0},{k:'orders',i:'🛒',l:'Orders',c:ORDERS.length},{k:'agents',i:'◈',l:'Agents'},];}
 function mkDateFilter(onchange){const wrap=document.createElement('div');wrap.className='date-filter';wrap.innerHTML=`<label>Period:</label>`;[['all','All Time'],['today','Today'],['week','Last 7d'],['month','Last 30d'],['3month','Last 90d'],['custom','Custom']].forEach(([val,lbl])=>{const b=document.createElement('span');b.className='dq'+(DATE_PRESET===val?' on':'');b.textContent=lbl;b.addEventListener('click',()=>{DATE_PRESET=val;if(val!=='custom'){DATE_FROM=null;DATE_TO=null;}wrap.querySelectorAll('.dq').forEach(x=>x.classList.remove('on'));b.classList.add('on');const cw=wrap.querySelector('.custom-dates');if(cw)cw.style.display=val==='custom'?'flex':'none';onchange();});wrap.appendChild(b);});const cw=document.createElement('span');cw.className='custom-dates';cw.style.cssText='display:'+(DATE_PRESET==='custom'?'flex':'none')+';gap:6px;align-items:center';cw.innerHTML=`<input type="date" id="df-from" value="${DATE_FROM||''}"><span style="color:var(--tx3)">→</span><input type="date" id="df-to" value="${DATE_TO||''}">`;wrap.appendChild(cw);cw.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{DATE_FROM=$('df-from')?.value||null;DATE_TO=$('df-to')?.value||null;onchange();}));return wrap;}
 function renderView(){const v=$('viewArea');if(!v)return;v.innerHTML='';if(NAV==='dashboard')vDashboard(v);else if(NAV==='pool')vGrid(v,LEADS.filter(l=>l.status==='new'),'Lead Pool',true);else if(NAV==='my_leads')vMyLeads(v);else if(NAV==='prescribed'){const b=document.createElement('div');b.className='banner ban-green';b.style.marginBottom='16px';b.textContent='💊 Prescription ready — follow up to confirm the order.';v.appendChild(b);vGrid(v,LEADS.filter(l=>l.agent_id===USER.id&&l.status==='prescribed'),'Prescribed Leads',true);}
 else if(NAV==='converted_leads'){vConvertedLeads(v);}else if(NAV==='repeat'){vRepeatLeads(v);}
-else if(NAV==='my_orders')vMyOrders(v);else if(NAV==='high_potential')vHighPotential(v);else if(NAV==='my_customers')vMyCustomers(v);else if(NAV==='floating_custs')vFloatingCustomers(v);else if(NAV==='agent_consults')vDoctorSection(v,'agent_driven');else if(NAV==='direct_consults')vDoctorSection(v,'direct');else if(NAV==='rules')vRules(v);else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);else if(NAV==='done')vDoctorDone(v);else if(NAV==='customers')vCustomers(v);else if(NAV==='all_leads')vAdmin(v);else if(NAV==='orders')vOrders(v);else if(NAV==='agents')vAgents(v);}
+else if(NAV==='my_orders')vMyOrders(v);else if(NAV==='high_potential')vHighPotential(v);else if(NAV==='my_customers')vMyCustomers(v);else if(NAV==='floating_custs')vFloatingCustomers(v);else if(NAV==='agent_consults')vDoctorSection(v,'agent_driven');else if(NAV==='direct_consults')vDoctorSection(v,'direct');else if(NAV==='rules')vRules(v);else if(NAV==='queue')vGrid(v,LEADS.filter(l=>l.status==='with_doctor'),'Consultation Queue',false);else if(NAV==='done')vDoctorDone(v);else if(NAV==='customers')vCustomers(v);else if(NAV==='admin_dashboard')vAdminDashboard(v);else if(NAV==='all_leads')vAdmin(v);else if(NAV==='orders')vOrders(v);else if(NAV==='agents')vAgents(v);}
 function vDashboard(v){const ml=applyDateFilter(LEADS.filter(l=>l.agent_id===USER.id));const allMine=LEADS.filter(l=>l.agent_id===USER.id);const bk={};const _statusMap={contacting:['contacting','claimed'],engaged:['engaged','in_progress'],qualified:['qualified'],with_doctor:['with_doctor'],converted:['converted'],lost:['lost','unqualified','dnd','closed','supplement']};STAGES.forEach(s=>bk[s.k]=ml.filter(l=>(_statusMap[s.k]||[s.k]).includes(l.status)));const gmax=Math.max(1,...allMine.map(l=>da(l.claimed_at)));const oldest=allMine.filter(l=>!['converted','lost','invalid','dnd','closed','unqualified'].includes(l.status)).sort((a,b)=>da(b.claimed_at)-da(a.claimed_at)).slice(0,4);const due=allMine.filter(l=>l.lead_type==='repeat'&&l.reorder_due_at&&new Date(l.reorder_due_at)<=new Date(Date.now()+86400000));const _dfMap={contacting:['contacting','claimed'],engaged:['engaged','in_progress'],qualified:['qualified'],with_doctor:['with_doctor'],converted:['converted'],lost:['lost','unqualified','dnd','closed','supplement'],invalid:['invalid']};const fil=DF==='all'?ml:ml.filter(l=>(_dfMap[DF]||[DF]).includes(l.status));const gr=document.createElement('div');gr.style.marginBottom='20px';gr.innerHTML=`<div style="font-size:18px;font-weight:700;letter-spacing:-.3px">Good day, ${PROF.name.split(' ')[0]} 👋</div><div style="font-size:13px;color:var(--tx3);margin-top:2px">Your pipeline overview</div>`;v.appendChild(gr);if(due.length){const b=document.createElement('div');b.className='banner ban-amber';b.textContent=`🔁 ${due.length} repeat lead(s) due for reorder.`;v.appendChild(b);}
 v.appendChild(mkDateFilter(()=>renderView()));const prow=document.createElement('div');prow.className='pipe-row';STAGES.forEach(s=>{const arr=bk[s.k]||[];const avg=arr.length?Math.round(arr.reduce((a,l)=>a+da(l.claimed_at),0)/arr.length):0;const mx=arr.length?Math.max(...arr.map(l=>da(l.claimed_at))):0;const bW=mx>0?Math.round((mx/gmax)*100):0;const p=document.createElement('div');p.className='pipe'+(DF===s.k?' on':'');p.innerHTML=`<div class="pipe-dot" style="background:${s.c}"></div><div class="pipe-n" style="color:${s.c}">${arr.length}</div><div class="pipe-l">${s.l}</div>${arr.length?`<div class="pipe-a">avg ${avg}d · max ${mx}d</div><div class="pipe-bar-bg"><div class="pipe-bar"style="width:${bW}%;background:${s.c}"></div></div>`:'<div class="pipe-a">—</div>'}`;p.addEventListener('click',()=>{DF=DF===s.k?'all':s.k;renderView();});prow.appendChild(p);});v.appendChild(prow);if(oldest.length){const o=document.createElement('div');o.className='oldest';o.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em">Oldest Active Leads</div><div class="oldest-g">${oldest.map(l=>`<div class="oldest-i"><div><div style="font-size:13px;font-weight:500">${l.client_profiles?.full_name?`<span style="unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${l.client_profiles.full_name}</span>`:l.lead_number}</div><span class="bdg s-${l.status}"style="margin-top:2px">${SL[l.status]||l.status}</span></div></div>`).join('')}</div>`;const items=o.querySelectorAll('.oldest-i');oldest.forEach((l,i)=>{if(items[i])items[i].appendChild(ageEl(l.claimed_at));});v.appendChild(o);}
 const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';const ttl=document.createElement('div');ttl.style.cssText='font-size:13px;font-weight:500';ttl.textContent=`My leads (${fil.length})`;const chips=document.createElement('div');chips.style.cssText='display:flex;gap:6px;flex-wrap:wrap';const mkfc=(lbl,val)=>{const c=document.createElement('span');c.className='fc'+(DF===val?' on':'');c.textContent=lbl;c.addEventListener('click',()=>{DF=val;renderView();});return c;};chips.appendChild(mkfc('All','all'));STAGES.forEach(s=>chips.appendChild(mkfc(s.l,s.k)));hdr.appendChild(ttl);hdr.appendChild(chips);v.appendChild(hdr);if(!fil.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">📭</div>No leads in this period / stage.';v.appendChild(e);return;}
@@ -1030,8 +1036,8 @@ if(dueSoon){const b=document.createElement('div');b.className='banner ban-amber'
 if(unassigned){const b=document.createElement('div');b.className='banner ban-purple';b.innerHTML=`◌ <strong>${unassigned}</strong> customer(s) are not assigned to any agent. Use "Upload Agent Mapping" to assign them.`;v.appendChild(b);}
 let filtered=[...all],activeFilter='all',q='';const fb=document.createElement('div');fb.className='fbar';const si=document.createElement('input');si.className='sinp';si.placeholder='Search name, email, city, product…';si.style.width='240px';si.addEventListener('input',e=>{q=e.target.value.toLowerCase();renderTable();});fb.appendChild(si);[['all','All'],['overdue','Overdue'],['due_soon','Due Soon'],['not_glp','Non-GLP'],['unassigned','Unassigned']].forEach(([k,l])=>{const c=document.createElement('span');c.className='fc'+(k==='all'?' on':'');c.textContent=l;c.addEventListener('click',()=>{activeFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');renderTable();});fb.appendChild(c);});const uploadBtn=document.createElement('button');uploadBtn.className='btn btn-teal btn-sm';uploadBtn.style.marginLeft='auto';uploadBtn.textContent='⬆ Upload Agent Mapping';uploadBtn.addEventListener('click',openUploadMapping);fb.appendChild(uploadBtn);const refreshBtn=document.createElement('button');refreshBtn.className='btn btn-ghost btn-sm';refreshBtn.textContent='↻ Refresh';refreshBtn.addEventListener('click',async()=>{refreshBtn.innerHTML='<span class="spin spin-d"></span>';await loadCustomers();renderView();});fb.appendChild(refreshBtn);v.appendChild(fb);const tableArea=document.createElement('div');v.appendChild(tableArea);function renderTable(){tableArea.innerHTML='';let d=all.filter(c=>{const ms=!q||[c.full_name,c.email,c.phone,c.city,c.region,c.last_product,c.first_product,c.agent_name].some(x=>(x||'').toLowerCase().includes(q));const mf=activeFilter==='all'?true:activeFilter==='unassigned'?!c.is_assigned:c.reorder_status===activeFilter;return ms&&mf;});renderCustomerTable(tableArea,d,'All Customers',true,false);}
 renderTable();}
-function vAdmin(v){let sel=new Set();const filtered=applyDateFilter(LEADS).filter(l=>{const ms=!SRCH||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>(x||'').toLowerCase().includes(SRCH.toLowerCase()));return ms&&(AS==='all'||l.status===AS);});const cnt={total:LEADS.length,u:LEADS.filter(l=>l.status==='new').length,a:LEADS.filter(l=>['claimed','in_progress'].includes(l.status)).length,d:LEADS.filter(l=>l.status==='with_doctor').length,c:LEADS.filter(l=>l.status==='converted').length};const stats=document.createElement('div');stats.className='stats';[[cnt.total,'Total','var(--tx)'],[cnt.u,'Unclaimed','var(--tx3)'],[cnt.a,'Active','var(--amber)'],[cnt.d,'With Doctor','var(--purple)'],[cnt.c,'Converted','var(--green)']].forEach(([n,l,c])=>{const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);});v.appendChild(stats);v.appendChild(mkDateFilter(()=>renderView()));const fb=document.createElement('div');fb.className='fbar';const si=document.createElement('input');si.className='sinp';si.placeholder='Search…';si.value=SRCH;si.style.width='220px';si.addEventListener('input',e=>{SRCH=e.target.value;renderView();});fb.appendChild(si);['all','new','contacting','engaged','qualified','with_doctor','prescribed','converted','lost','invalid'].forEach(s=>{const c=document.createElement('span');c.className='fc'+(AS===s?' on':'');c.textContent=s==='all'?'All':SL[s]||s;c.addEventListener('click',()=>{AS=s;renderView();});fb.appendChild(c);});const addBtn=document.createElement('button');addBtn.className='btn btn-blue btn-sm';addBtn.style.marginLeft='auto';addBtn.textContent='+ Add Leads';addBtn.addEventListener('click',openAddLeads);fb.appendChild(addBtn);const bulkBtn=document.createElement('button');bulkBtn.className='btn btn-amber btn-sm';bulkBtn.id='bulkBtn';bulkBtn.style.display='none';bulkBtn.textContent='Bulk Assign (0)';bulkBtn.addEventListener('click',()=>openBulkAssign(sel));fb.appendChild(bulkBtn);v.appendChild(fb);const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<table><thead><tr><th><input type="checkbox" id="selAll"></th><th>Lead</th><th>Email</th><th>Phone</th><th>Name</th><th>Source</th><th>Type</th><th>Age</th><th>Agent</th><th>Doctor</th><th>Status</th><th>Claimed</th><th>Consulted</th><th>Converted</th><th>Rx</th><th>Actions</th></tr></thead>
-  <tbody>${filtered.length?filtered.map(l=>`<tr data-id="${l.id}"><td><input type="checkbox"class="rcb"data-id="${l.id}"></td><td class="mono">${l.lead_number}</td><td style="font-size:12px;color:var(--tx3)">${l.email}</td><td style="font-size:12px">${l.phone}</td><td style="font-weight:500">${l.client_profiles?.full_name||'—'}</td><td style="font-size:12px;color:var(--tx3)">${l.source||'—'}</td><td><span class="bdg ${l.lead_type_tag==='recurring'?'t-recurring':l.lead_type==='repeat'?'t-repeat':'t-new'}">${l.lead_type_tag==='recurring'?'Recurring':l.lead_type}</span></td><td></td><td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td><td style="font-size:12px">${l.doctor_name||'—'}</td><td><span class="bdg s-${l.status}">${SL[l.status]||l.status}</span></td><td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.claimed_at)||'—'}</td><td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.consultation_at)||'—'}</td><td style="font-size:11px;font-family:'DM Mono',monospace">${fmtDT(l.converted_at)||'—'}</td><td style="font-size:11px">${l.prescriptions?.find(p=>p.is_current)?.product||'—'}</td><td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm"data-ra="${l.id}">Reassign</button><button class="btn btn-ghost btn-sm"data-prof="${l.id}">Profile</button></div></td></tr>`).join(''):`<tr><td colspan="16"style="text-align:center;padding:40px;color:var(--tx3)">No leads found</td></tr>`}</tbody></table>`;const rows=tw.querySelectorAll('tbody tr[data-id]');filtered.forEach((l,i)=>{if(rows[i]){const td=rows[i].querySelectorAll('td')[7];if(td)td.appendChild(ageEl(l.claimed_at||l.created_at));}});$('selAll').addEventListener('change',e=>{tw.querySelectorAll('.rcb').forEach(cb=>{cb.checked=e.target.checked;if(e.target.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);});updateBulk();});tw.querySelectorAll('.rcb').forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);updateBulk();}));function updateBulk(){const btn=$('bulkBtn');if(btn){btn.style.display=sel.size?'inline-flex':'none';btn.textContent=`Bulk Assign (${sel.size})`;}}
+function vAdmin(v){let sel=new Set();const filtered=applyDateFilter(LEADS).filter(l=>{const ms=!SRCH||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>(x||'').toLowerCase().includes(SRCH.toLowerCase()));return ms&&(AS==='all'||l.status===AS);});const cnt={total:LEADS.length,u:LEADS.filter(l=>l.status==='new').length,a:LEADS.filter(l=>['claimed','in_progress'].includes(l.status)).length,d:LEADS.filter(l=>l.status==='with_doctor').length,c:LEADS.filter(l=>l.status==='converted').length};const stats=document.createElement('div');stats.className='stats';[[cnt.total,'Total','var(--tx)'],[cnt.u,'Unclaimed','var(--tx3)'],[cnt.a,'Active','var(--amber)'],[cnt.d,'With Doctor','var(--purple)'],[cnt.c,'Converted','var(--green)']].forEach(([n,l,c])=>{const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);});v.appendChild(stats);v.appendChild(mkDateFilter(()=>renderView()));const fb=document.createElement('div');fb.className='fbar';const si=document.createElement('input');si.className='sinp';si.placeholder='Search…';si.value=SRCH;si.style.width='220px';si.addEventListener('input',e=>{SRCH=e.target.value;renderView();});fb.appendChild(si);['all','new','contacting','engaged','qualified','with_doctor','prescribed','converted','lost','invalid'].forEach(s=>{const c=document.createElement('span');c.className='fc'+(AS===s?' on':'');c.textContent=s==='all'?'All':SL[s]||s;c.addEventListener('click',()=>{AS=s;renderView();});fb.appendChild(c);});const addBtn=document.createElement('button');addBtn.className='btn btn-blue btn-sm';addBtn.style.marginLeft='auto';addBtn.textContent='+ Add Leads';addBtn.addEventListener('click',openAddLeads);fb.appendChild(addBtn);const bulkBtn=document.createElement('button');bulkBtn.className='btn btn-amber btn-sm';bulkBtn.id='bulkBtn';bulkBtn.style.display='none';bulkBtn.textContent='Bulk Assign (0)';bulkBtn.addEventListener('click',()=>openBulkAssign(sel));fb.appendChild(bulkBtn);v.appendChild(fb);const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<table><thead><tr><th><input type="checkbox" id="selAll"></th><th>Lead</th><th>Email</th><th>Phone</th><th>Name</th><th>Source</th><th>Type</th><th>Age</th><th>Agent</th><th>Lead Status</th><th>POC Status</th><th>Last Activity</th><th>Claimed</th><th>Converted</th><th>Rx</th><th>Actions</th></tr></thead>
+  <tbody>${filtered.length?filtered.map(l=>`<tr data-id="${l.id}"><td><input type="checkbox"class="rcb"data-id="${l.id}"></td><td class="mono">${l.lead_number}</td><td style="font-size:12px;color:var(--tx3)">${l.email}</td><td style="font-size:12px">${l.phone}</td><td style="font-weight:500">${l.client_profiles?.full_name||'—'}</td><td style="font-size:12px;color:var(--tx3)">${l.source||'—'}</td><td><span class="bdg ${l.lead_type_tag==='recurring'?'t-recurring':l.lead_type==='repeat'?'t-repeat':'t-new'}">${l.lead_type_tag==='recurring'?'Recurring':l.lead_type}</span></td><td></td><td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td><td style="font-size:12px">${l.doctor_name||'—'}</td><td><span class="bdg s-${['claimed','contacting'].includes(l.status)?'contacting':['in_progress','engaged'].includes(l.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(l.status)?'lost':l.status}">${getStatusLabel(l)}</span></td><td style="font-size:11px;color:var(--tx3);max-width:140px;overflow:hidden;text-overflow:ellipsis">${l.poc_status||'—'}</td><td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${l.last_status_updated_at||l.poc_updated_at?fmtD(l.last_status_updated_at||l.poc_updated_at):'—'}</td><td style="font-size:11px;font-family:'DM Mono',monospace">${fmtD(l.claimed_at)||'—'}</td><td style="font-size:11px;font-family:'DM Mono',monospace">${fmtD(l.converted_at)||'—'}</td><td style="font-size:11px">${l.prescriptions?.find(p=>p.is_current)?.product||'—'}</td><td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm"data-ra="${l.id}">Reassign</button><button class="btn btn-ghost btn-sm"data-prof="${l.id}">Profile</button></div></td></tr>`).join(''):`<tr><td colspan="16"style="text-align:center;padding:40px;color:var(--tx3)">No leads found</td></tr>`}</tbody></table>`;const rows=tw.querySelectorAll('tbody tr[data-id]');filtered.forEach((l,i)=>{if(rows[i]){const td=rows[i].querySelectorAll('td')[7];if(td)td.appendChild(ageEl(l.claimed_at||l.created_at));}});$('selAll').addEventListener('change',e=>{tw.querySelectorAll('.rcb').forEach(cb=>{cb.checked=e.target.checked;if(e.target.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);});updateBulk();});tw.querySelectorAll('.rcb').forEach(cb=>cb.addEventListener('change',()=>{if(cb.checked)sel.add(cb.dataset.id);else sel.delete(cb.dataset.id);updateBulk();}));function updateBulk(){const btn=$('bulkBtn');if(btn){btn.style.display=sel.size?'inline-flex':'none';btn.textContent=`Bulk Assign (${sel.size})`;}}
 tw.querySelectorAll('[data-ra]').forEach(b=>b.addEventListener('click',()=>{const l=LEADS.find(x=>x.id===b.dataset.ra);if(l)openReassignAgent(l);}));tw.querySelectorAll('[data-prof]').forEach(b=>b.addEventListener('click',()=>{const l=LEADS.find(x=>x.id===b.dataset.prof);if(l)openProfile(l);}));v.appendChild(tw);}
 function vAgents(v){const agents=DOCTORS.filter(d=>d.role==='agent');const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=`Agents (${agents.length})`;v.appendChild(h);const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<table><thead><tr><th>Name</th><th>Email</th><th>Total</th><th>Active</th><th>With Doctor</th><th>Converted</th></tr></thead><tbody>${agents.map(a=>{const al=LEADS.filter(l=>l.agent_id===a.id);return`<tr><td style="font-weight:500">${a.name}</td><td style="font-size:12px;color:var(--tx3)">${a.email}</td><td>${al.length}</td><td style="color:var(--amber);font-weight:500">${al.filter(l=>['claimed','in_progress'].includes(l.status)).length}</td><td style="color:var(--purple);font-weight:500">${al.filter(l=>l.status==='with_doctor').length}</td><td style="color:var(--green);font-weight:500">${al.filter(l=>l.status==='converted').length}</td></tr>`;}).join('')||`<tr><td colspan="6"style="text-align:center;padding:40px;color:var(--tx3)">No agents found</td></tr>`}</tbody></table>`;v.appendChild(tw);}
 async function loadRules(){try{const{data}=await sb.from('doctor_rules').select('*').eq('is_active',true);RULES=data||[];}catch(e){console.warn('loadRules:',e);}}
@@ -1436,6 +1442,250 @@ function vConvertedLeads(v){
     grid.appendChild(tw);
   }
   render();
+}
+
+
+function exportToCSV(data, filename){
+  if(!data||!data.length){toast('No data to export','error');return;}
+  const keys=Object.keys(data[0]);
+  const rows=[
+    keys.join(','),
+    ...data.map(row=>keys.map(k=>{
+      const v=row[k]===null||row[k]===undefined?'':String(row[k]);
+      return v.includes(',')||v.includes('"')||v.includes('\n')?`"${v.replace(/"/g,'""')}"`:v;
+    }).join(','))
+  ];
+  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast(`Exported ${data.length} rows to ${filename}.csv`,'success');
+}
+
+async function openExportModal(){
+  const{ov,m}=mkModal(true);
+  m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Export Data</span><button class="btn-x" id="expX">✕</button></div>
+  <div class="modal-body" style="display:flex;flex-direction:column;gap:10px">
+    <div class="banner ban-blue">Each export downloads as a CSV file you can open in Excel.</div>
+    <button class="btn btn-ghost" id="expLeads">📋 Export All Leads</button>
+    <button class="btn btn-ghost" id="expCustomers">👥 Export All Customers</button>
+    <button class="btn btn-ghost" id="expOrders">🛒 Export All Orders</button>
+    <button class="btn btn-ghost" id="expConverted">✅ Export Converted Leads</button>
+    <button class="btn btn-ghost" id="expActivity">📅 Export Activity Log</button>
+  </div>
+  <div class="modal-ftr"><button class="btn btn-ghost" id="expCn">Close</button></div>`;
+  $('expX').addEventListener('click',()=>ov.remove());
+  $('expCn').addEventListener('click',()=>ov.remove());
+
+  $('expLeads').addEventListener('click',async()=>{
+    $('expLeads').innerHTML='<span class="spin spin-d"></span> Exporting…';
+    const{data}=await sb.from('leads').select('lead_number,email,phone,status,conversion_type,lead_type,source,agent_name,doctor_name,poc_status,followup_date,claimed_at,converted_at,reorder_due_at,created_at,client_profiles(full_name,age,gender,height_cm,weight_kg,bmi,primary_goal,monthly_budget),prescriptions(product,is_current)').order('created_at',{ascending:false}).limit(10000);
+    const rows=(data||[]).map(l=>({
+      lead_number:l.lead_number,email:l.email,phone:l.phone||'',
+      full_name:l.client_profiles?.full_name||'',
+      status:l.status,conversion_type:l.conversion_type||'',
+      lead_type:l.lead_type,source:l.source||'',
+      agent:l.agent_name||'',doctor:l.doctor_name||'',
+      poc_status:l.poc_status||'',followup_date:l.followup_date||'',
+      claimed_at:l.claimed_at?fmtDT(l.claimed_at):'',
+      converted_at:l.converted_at?fmtDT(l.converted_at):'',
+      reorder_due:l.reorder_due_at?fmtD(l.reorder_due_at):'',
+      rx:l.prescriptions?.find(p=>p.is_current)?.product||'',
+      bmi:l.client_profiles?.bmi||'',
+      created_at:fmtDT(l.created_at),
+    }));
+    exportToCSV(rows,'leads');
+    $('expLeads').textContent='📋 Export All Leads';
+  });
+
+  $('expCustomers').addEventListener('click',async()=>{
+    $('expCustomers').innerHTML='<span class="spin spin-d"></span> Exporting…';
+    let all=[],from=0;
+    while(true){const{data}=await sb.from('customers').select('full_name,email,phone,agent_name,cust_status,last_order_date,last_product,first_order_date,first_product,total_orders,lifetime_value,reorder_due_date,reorder_status,poc_status,city,region').order('last_order_date',{ascending:false,nullsFirst:false}).range(from,from+999);if(!data||!data.length)break;all=[...all,...data];if(data.length<1000)break;from+=1000;}
+    const rows=all.map(c=>({
+      full_name:c.full_name||'',email:c.email,phone:c.phone||'',
+      agent:c.agent_name||'',status:c.cust_status||'',
+      last_order_date:c.last_order_date?fmtD(c.last_order_date):'',
+      last_product:c.last_product||'',
+      first_order_date:c.first_order_date?fmtD(c.first_order_date):'',
+      first_product:c.first_product||'',
+      total_orders:c.total_orders||0,
+      lifetime_value_sar:c.lifetime_value?parseFloat(c.lifetime_value).toFixed(2):'',
+      reorder_due:c.reorder_due_date?fmtD(c.reorder_due_date):'',
+      reorder_status:c.reorder_status||'',
+      poc_status:c.poc_status||'',
+      city:c.city||'',region:c.region||'',
+    }));
+    exportToCSV(rows,'customers');
+    $('expCustomers').textContent='👥 Export All Customers';
+  });
+
+  $('expOrders').addEventListener('click',async()=>{
+    $('expOrders').innerHTML='<span class="spin spin-d"></span> Exporting…';
+    let all=[],from=0;
+    while(true){const{data}=await sb.from('orders').select('order_number,order_date,email,phone,customer_name,product,quantity,amount,payment_method,order_status,agent_name,city,region').order('order_date',{ascending:false}).range(from,from+999);if(!data||!data.length)break;all=[...all,...data];if(data.length<1000)break;from+=1000;}
+    const rows=all.map(o=>({
+      order_number:o.order_number,order_date:o.order_date?fmtD(o.order_date):'',
+      email:o.email||'',phone:o.phone||'',customer_name:o.customer_name||'',
+      product:o.product||'',quantity:o.quantity||1,
+      amount_sar:o.amount||'',payment_method:o.payment_method||'',
+      status:o.order_status||'',agent:o.agent_name||'',
+      city:o.city||'',region:o.region||'',
+    }));
+    exportToCSV(rows,'orders');
+    $('expOrders').textContent='🛒 Export All Orders';
+  });
+
+  $('expConverted').addEventListener('click',async()=>{
+    $('expConverted').innerHTML='<span class="spin spin-d"></span> Exporting…';
+    const{data}=await sb.from('leads').select('lead_number,email,phone,conversion_type,agent_name,converted_at,reorder_due_at,poc_status,client_profiles(full_name),prescriptions(product,is_current)').eq('status','converted').order('converted_at',{ascending:false}).limit(10000);
+    const rows=(data||[]).map(l=>({
+      lead_number:l.lead_number,
+      full_name:l.client_profiles?.full_name||'',
+      email:l.email,phone:l.phone||'',
+      conversion_type:l.conversion_type||'Unset',
+      agent:l.agent_name||'',
+      converted_at:l.converted_at?fmtDT(l.converted_at):'',
+      reorder_due:l.reorder_due_at?fmtD(l.reorder_due_at):'',
+      rx:l.prescriptions?.find(p=>p.is_current)?.product||'',
+      poc_status:l.poc_status||'',
+    }));
+    exportToCSV(rows,'converted_leads');
+    $('expConverted').textContent='✅ Export Converted Leads';
+  });
+
+  $('expActivity').addEventListener('click',async()=>{
+    $('expActivity').innerHTML='<span class="spin spin-d"></span> Exporting…';
+    const{data}=await sb.from('activity_logs').select('created_at,actor_name,actor_role,action,from_value,to_value,note,lead_id').order('created_at',{ascending:false}).limit(20000);
+    const rows=(data||[]).map(a=>({
+      date:fmtDT(a.created_at),
+      agent:a.actor_name||'',role:a.actor_role||'',
+      action:a.action||'',from:a.from_value||'',to:a.to_value||'',
+      note:a.note||'',
+    }));
+    exportToCSV(rows,'activity_log');
+    $('expActivity').textContent='📅 Export Activity Log';
+  });
+}
+
+
+function vAdminDashboard(v){
+  const now=new Date();
+  const filtered=applyDateFilter(LEADS);
+
+  // Stats row
+  const statData=[
+    [LEADS.length,'Total Leads','var(--tx)'],
+    [LEADS.filter(l=>l.status==='new').length,'In Pool','var(--tx3)'],
+    [LEADS.filter(l=>['contacting','engaged','qualified'].includes(l.status)).length,'Active','var(--amber)'],
+    [LEADS.filter(l=>l.status==='with_doctor').length,'With Doctor','var(--purple)'],
+    [LEADS.filter(l=>l.status==='converted').length,'Converted','var(--green)'],
+    [LEADS.filter(l=>l.status==='lost').length,'Lost','var(--red)'],
+  ];
+  const stats=document.createElement('div');stats.className='stats';
+  statData.forEach(([n,l,c])=>{
+    const s=document.createElement('div');s.className='stat';
+    s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;
+    stats.appendChild(s);
+  });
+  v.appendChild(stats);
+
+  // Agent performance table
+  const agents=[...new Set(LEADS.filter(l=>l.agent_name).map(l=>l.agent_name))];
+  if(agents.length){
+    const agHdr=document.createElement('div');
+    agHdr.style.cssText='font-size:13px;font-weight:600;margin:20px 0 10px';
+    agHdr.textContent='Agent Performance';
+    v.appendChild(agHdr);
+    const agTw=document.createElement('div');agTw.className='tbl-wrap';
+    agTw.innerHTML=`<table><thead><tr>
+      <th>Agent</th><th>Total</th><th>Active</th><th>With Doctor</th>
+      <th>Converted</th><th>Lost</th><th>Conv Rate</th>
+    </tr></thead><tbody>
+    ${agents.map(a=>{
+      const al=LEADS.filter(l=>l.agent_name===a);
+      const active=al.filter(l=>['contacting','engaged','qualified'].includes(l.status)).length;
+      const wd=al.filter(l=>l.status==='with_doctor').length;
+      const conv=al.filter(l=>l.status==='converted').length;
+      const lost=al.filter(l=>l.status==='lost').length;
+      const rate=al.length?Math.round(conv/al.length*100):0;
+      return`<tr>
+        <td style="font-weight:500">${a}</td>
+        <td>${al.length}</td>
+        <td style="color:var(--amber);font-weight:500">${active}</td>
+        <td style="color:var(--purple);font-weight:500">${wd}</td>
+        <td style="color:var(--green);font-weight:500">${conv}</td>
+        <td style="color:var(--red);font-weight:500">${lost}</td>
+        <td><span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:${rate>=50?'var(--green)':rate>=25?'var(--amber)':'var(--red)'}">${rate}%</span></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+    v.appendChild(agTw);
+  }
+
+  // Date filter + search
+  v.appendChild(mkDateFilter(()=>renderAdminTable()));
+  const fb=document.createElement('div');fb.className='fbar';
+  const si=document.createElement('input');si.className='sinp';
+  si.placeholder='Search lead, name, email, phone…';si.style.width='240px';
+  let _q='';si.addEventListener('input',e=>{_q=e.target.value.toLowerCase();renderAdminTable();});
+  fb.appendChild(si);
+  // Status filter chips
+  ['all','new','contacting','engaged','qualified','with_doctor','prescribed','converted','lost','invalid'].forEach(s=>{
+    const c=document.createElement('span');c.className='fc'+(s==='all'?' on':'');
+    c.textContent=s==='all'?'All':(SL[s]||s);
+    c.addEventListener('click',()=>{fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');AS=s;renderAdminTable();});
+    fb.appendChild(c);
+  });
+  v.appendChild(fb);
+
+  const tableArea=document.createElement('div');v.appendChild(tableArea);
+
+  function renderAdminTable(){
+    tableArea.innerHTML='';
+    const _statusGroups={contacting:['contacting','claimed'],engaged:['engaged','in_progress'],lost:['lost','unqualified','dnd','closed','supplement']};
+    let items=applyDateFilter(LEADS).filter(l=>{
+      const ms=!_q||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||'')].some(x=>(x||'').toLowerCase().includes(_q));
+      const mf=AS==='all'||l.status===AS||(_statusGroups[AS]||[]).includes(l.status);
+      return ms&&mf;
+    });
+    const cnt=document.createElement('div');
+    cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:12px';
+    cnt.textContent=`${items.length} lead${items.length!==1?'s':''}`;
+    tableArea.appendChild(cnt);
+    if(!items.length){
+      const e=document.createElement('div');e.className='empty';
+      e.innerHTML='<div class="empty-ico">📭</div>No leads found.';
+      tableArea.appendChild(e);return;
+    }
+    const tw=document.createElement('div');tw.className='tbl-wrap';
+    tw.innerHTML=`<table><thead><tr>
+      <th>Lead #</th><th>Name</th><th>Email</th><th>Phone</th>
+      <th>Agent</th><th>Lead Status</th><th>POC Status</th>
+      <th>Last Activity</th><th>Claimed</th><th>Converted</th><th>Rx</th>
+    </tr></thead>
+    <tbody>${items.map(l=>{
+      const rx=l.prescriptions?.find(p=>p.is_current);
+      const lastAct=l.last_status_updated_at||l.poc_updated_at||l.claimed_at;
+      const statusNorm=['claimed','contacting'].includes(l.status)?'contacting':['in_progress','engaged'].includes(l.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(l.status)?'lost':l.status;
+      return`<tr>
+        <td class="mono" style="font-size:12px">${l.lead_number}</td>
+        <td style="font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${l.client_profiles?.full_name||'—'}</td>
+        <td style="font-size:12px;color:var(--tx3)">${l.email}</td>
+        <td style="font-size:12px;font-family:'DM Mono',monospace">${l.phone||'—'}</td>
+        <td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td>
+        <td><span class="bdg s-${statusNorm}">${getStatusLabel(l)}</span></td>
+        <td style="font-size:11px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis">${l.poc_status||'—'}</td>
+        <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${lastAct?fmtD(lastAct):'—'}</td>
+        <td style="font-size:11px;font-family:'DM Mono',monospace">${l.claimed_at?fmtD(l.claimed_at):'—'}</td>
+        <td style="font-size:11px;font-family:'DM Mono',monospace">${l.converted_at?fmtD(l.converted_at):'—'}</td>
+        <td style="font-size:11px">${rx?.product||'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+    tableArea.appendChild(tw);
+  }
+  renderAdminTable();
 }
 
 async function init(){try{const{data:{session}}=await sb.auth.getSession();if(session){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(prof){USER=session.user;PROF=prof;await startApp();return;}}}catch(e){console.error('init',e);}
