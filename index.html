@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778700750">
+<meta name="version" content="1778701340">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1427,7 +1427,7 @@ function vConvertedLeads(v){
       const isPast=dueDate&&dueDate<now;
       const isSoon=dueDate&&!isPast&&dueDate<=new Date(Date.now()+3*86400000);
       const dueStyle=isPast?'color:var(--red);font-weight:600':isSoon?'color:var(--amber);font-weight:600':'color:var(--green)';
-      return`<tr>
+      return`<tr data-lid="${l.id}">
         <td class="mono" style="font-size:12px">${l.lead_number}</td>
         <td style="font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${l.client_profiles?.full_name||'—'}</td>
         <td style="font-size:12px;color:var(--tx3)">${l.email}</td>
@@ -1717,9 +1717,213 @@ function vAdminDashboard(v){
         <td style="font-size:11px">${rx?.product||'—'}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
+    // Row click → open full profile (same as doctor view)
+    tw.querySelectorAll('tbody tr').forEach(row=>{
+      row.style.cursor='pointer';
+      row.addEventListener('mouseenter',()=>row.style.background='var(--blue-bg)');
+      row.addEventListener('mouseleave',()=>row.style.background='');
+      row.addEventListener('click',async(e)=>{
+        // Don't trigger on checkbox clicks
+        if(e.target.tagName==='INPUT')return;
+        const lid=row.dataset.lid;
+        if(!lid)return;
+        // Find in LEADS first (fast), else fetch from DB
+        let lead=LEADS.find(l=>l.id===lid);
+        if(lead&&lead.client_profiles){
+          openAdminProfile(lead);return;
+        }
+        // Fetch full lead with profile
+        row.style.opacity='0.6';
+        const{data:full}=await sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',lid).single();
+        row.style.opacity='1';
+        if(full)openAdminProfile(full);
+        else toast('Could not load lead','error');
+      });
+    });
     tableArea.appendChild(tw);
   }
   renderAdminTable();
+}
+
+
+async function openAdminProfile(lead){
+  // Open the full profile modal in read-only admin view
+  // Shows everything the doctor sees: questionnaire, BMI, conditions, Rx, notes
+  // Admin can also edit if needed
+  
+  const origRole = PROF.role;
+  // Temporarily treat as doctor for the modal (read-only view)
+  // but with admin edit capability
+  
+  const{data:cp}=await sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle();
+  const{data:rxList}=await sb.from('prescriptions').select('*').eq('lead_id',lead.id).order('prescribed_at',{ascending:false});
+  const{data:actLog}=await sb.from('activity_logs').select('action,from_value,to_value,note,actor_name,actor_role,created_at').eq('lead_id',lead.id).order('created_at',{ascending:false}).limit(30);
+  
+  lead.client_profiles = cp || lead.client_profiles;
+  lead.prescriptions = rxList || lead.prescriptions || [];
+  
+  const{ov,m}=mkModal(false,true);
+  const bmi=cp?.bmi;
+  const bi=bmiInfo(bmi);
+  const currentRx=lead.prescriptions?.find(p=>p.is_current);
+  
+  m.innerHTML=`
+    <div class="modal-hdr">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="modal-t">Profile — ${lead.lead_number}</span>
+        <span class="bdg s-${['claimed','contacting'].includes(lead.status)?'contacting':['in_progress','engaged'].includes(lead.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(lead.status)?'lost':lead.status}">${getStatusLabel(lead)}</span>
+        ${lead.agent_name?`<span style="font-size:12px;color:var(--tx3)">Agent: <strong>${lead.agent_name}</strong></span>`:''}
+      </div>
+      <button class="btn-x" id="apClose">✕</button>
+    </div>
+    <div class="modal-body">
+    
+      <!-- Summary banner -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        ${[
+          ['Email', lead.email],
+          ['Phone', lead.phone||'—'],
+          ['Source', lead.source||'—'],
+          ['Claimed', lead.claimed_at?fmtD(lead.claimed_at):'—'],
+        ].map(([l,v])=>`<div style="background:var(--surf2);border-radius:var(--rs);padding:8px 12px">
+          <div style="font-size:10px;color:var(--tx3);margin-bottom:2px">${l}</div>
+          <div style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">${v}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar" id="apTabs" style="margin-bottom:16px">
+        <button class="tab-btn on" data-tab="profile">Profile</button>
+        <button class="tab-btn" data-tab="rx">Prescription</button>
+        <button class="tab-btn" data-tab="activity">Activity Log</button>
+      </div>
+      
+      <div id="apBody"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="apClose2">Close</button>
+      <button class="btn btn-blue" id="apEdit">✏ Edit Profile</button>
+    </div>`;
+
+  ov.appendChild(m);
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  m.querySelector('#apClose').addEventListener('click',()=>ov.remove());
+  m.querySelector('#apClose2').addEventListener('click',()=>ov.remove());
+  m.querySelector('#apEdit').addEventListener('click',()=>{ov.remove();openProfile(lead);});
+
+  function showTab(tab){
+    m.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+    const body=m.querySelector('#apBody');
+    
+    if(tab==='profile'){
+      body.innerHTML='';
+      if(!cp){
+        body.innerHTML='<div class="empty"><div class="empty-ico">📋</div>No profile filled yet.<br><span style="font-size:12px">Agent has not created a questionnaire for this lead.</span></div>';
+        return;
+      }
+      // BMI
+      if(bmi){
+        const bmiBox=document.createElement('div');bmiBox.className='bmi-box';bmiBox.style.marginBottom='14px';
+        bmiBox.innerHTML=`<div><div class="bmi-l">BMI</div><div class="bmi-n" style="color:${bi.c}">${bmi}</div></div>
+          <span class="bdg" style="background:${bi.bg};color:${bi.c}">${bi.l}</span>
+          <span style="font-size:12px;color:var(--tx3)">${cp.height_cm?cp.height_cm+'cm':''} ${cp.weight_kg?'· '+cp.weight_kg+'kg':''}</span>`;
+        body.appendChild(bmiBox);
+      }
+      // Fields grid
+      const fields=[
+        ['Full Name',cp.full_name],['Age',cp.age],['Gender',cp.gender],
+        ['Goal',cp.primary_goal],['Budget',cp.monthly_budget],
+        ['Motivation',cp.motivation_score?cp.motivation_score+'/5':null],
+        ['Appetite',cp.appetite_score?cp.appetite_score+'/5':null],
+        ['Follow-up',cp.commit_followup],
+      ].filter(([,v])=>v!=null&&v!=='');
+      if(fields.length){
+        const grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px';
+        fields.forEach(([l,v])=>{
+          const cell=document.createElement('div');
+          cell.style.cssText='background:var(--surf2);border-radius:var(--rs);padding:8px 12px';
+          cell.innerHTML=`<div style="font-size:10px;color:var(--tx3);margin-bottom:2px">${l}</div>
+            <div style="font-size:13px;font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${v}</div>`;
+          grid.appendChild(cell);
+        });
+        body.appendChild(grid);
+      }
+      // Conditions
+      if(cp.conditions?.length){
+        const s=document.createElement('div');
+        s.innerHTML=`<div class="sec">Medical Conditions</div><div class="chips">${cp.conditions.map(c=>`<span class="chip on ro">${c}</span>`).join('')}</div>`;
+        body.appendChild(s);
+      }
+      if(cp.medications?.length){
+        const s=document.createElement('div');s.style.marginTop='12px';
+        s.innerHTML=`<div class="sec">Medications</div><div class="chips">${cp.medications.map(c=>`<span class="chip on ro">${c}</span>`).join('')}</div>`;
+        body.appendChild(s);
+      }
+      if(cp.weight_methods?.length){
+        const s=document.createElement('div');s.style.marginTop='12px';
+        s.innerHTML=`<div class="sec">Weight Loss Methods Tried</div><div class="chips">${cp.weight_methods.map(c=>`<span class="chip on ro">${c}</span>`).join('')}</div>`;
+        body.appendChild(s);
+      }
+      // Notes
+      if(cp.agent_notes){
+        const n=document.createElement('div');n.style.marginTop='14px';
+        n.innerHTML=`<div class="sec">Agent Notes</div>
+          <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px;font-size:12px;white-space:pre-wrap;color:var(--tx2)">${cp.agent_notes}</div>`;
+        body.appendChild(n);
+      }
+      if(cp.doctor_notes){
+        const n=document.createElement('div');n.style.marginTop='14px';
+        n.innerHTML=`<div class="sec">Doctor Notes</div>
+          <div class="banner ban-purple">${cp.doctor_notes}</div>`;
+        body.appendChild(n);
+      }
+    }
+    
+    else if(tab==='rx'){
+      if(!lead.prescriptions?.length){
+        body.innerHTML='<div class="empty"><div class="empty-ico">💊</div>No prescriptions yet.</div>';
+        return;
+      }
+      body.innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'
+        +lead.prescriptions.map(rx=>`
+          <div class="${rx.is_current?'rx-box':'ord-card'}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-weight:600;font-size:13px">${rx.product}</span>
+              ${rx.is_current?'<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">Current</span>':''}
+            </div>
+            ${rx.dosage_notes?`<div style="font-size:12px;color:var(--tx2)">${rx.dosage_notes}</div>`:''}
+            <div style="font-size:11px;color:var(--tx3);margin-top:4px;font-family:'DM Mono',monospace">Dr. ${rx.doctor_name||'—'}</div>
+          </div>`).join('')
+        +'</div>';
+    }
+    
+    else if(tab==='activity'){
+      if(!actLog?.length){
+        body.innerHTML='<div class="empty"><div class="empty-ico">📋</div>No activity recorded yet.</div>';
+        return;
+      }
+      const wrap=document.createElement('div');
+      wrap.style.cssText='border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden';
+      actLog.forEach((log,i)=>{
+        const row=document.createElement('div');
+        row.style.cssText=`padding:9px 14px;font-size:12px;${i>0?'border-top:1px solid var(--bdr)':''};background:${i%2===0?'var(--surf)':'var(--surf2)'}`;
+        const action=log.action.replace(/_/g,' ');
+        const change=(log.from_value&&log.to_value)?` — ${log.from_value} → ${log.to_value}`:(log.to_value?` → ${log.to_value}`:'');
+        row.innerHTML=`<div style="color:var(--tx3);font-family:'DM Mono',monospace;font-size:10px;margin-bottom:2px">${fmtDT(log.created_at)} · <span style="text-transform:capitalize">${log.actor_name||'System'} (${log.actor_role||''})</span></div>
+          <div style="font-weight:500;color:var(--tx2)">${action}${change}</div>
+          ${log.note?`<div style="color:var(--tx3);font-size:11px;margin-top:2px">${log.note}</div>`:''}`;
+        wrap.appendChild(row);
+      });
+      body.appendChild(wrap);
+    }
+  }
+
+  m.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>showTab(btn.dataset.tab));
+  });
+  showTab('profile');
 }
 
 async function init(){try{const{data:{session}}=await sb.auth.getSession();if(session){const{data:prof}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(prof){USER=session.user;PROF=prof;await startApp();return;}}}catch(e){console.error('init',e);}
