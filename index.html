@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="1778701340">
+<meta name="version" content="1778701986">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MedFlow CRM</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1703,7 +1703,7 @@ function vAdminDashboard(v){
       const rx=l.prescriptions?.find(p=>p.is_current);
       const lastAct=l.last_status_updated_at||l.poc_updated_at||l.claimed_at;
       const statusNorm=['claimed','contacting'].includes(l.status)?'contacting':['in_progress','engaged'].includes(l.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(l.status)?'lost':l.status;
-      return`<tr>
+      return`<tr data-lid="${l.id}" style="cursor:pointer">
         <td class="mono" style="font-size:12px">${l.lead_number}</td>
         <td style="font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${l.client_profiles?.full_name||'—'}</td>
         <td style="font-size:12px;color:var(--tx3)">${l.email}</td>
