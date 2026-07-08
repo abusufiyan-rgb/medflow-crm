@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Weight Loss Consultation — Valeo Health</title>
+<meta name="description" content="Fill in your details to get a free personalised GLP-1 consultation from our doctors.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+/* ── CONFIG ────────────────────────────────────────────── */
+:root{
+  --brand:#1A5FA6;
+  --brand-dk:#134B85;
+  --brand-lt:#EBF2FB;
+  --brand-bd:#BFDBFE;
+  --green:#16A34A;
+  --green-bg:#DCFCE7;
+  --green-bd:#86EFAC;
+  --red:#DC2626;
+  --red-bg:#FEE2E2;
+  --red-bd:#FCA5A5;
+  --amber:#D97706;
+  --amber-bg:#FEF3C7;
+  --amber-bd:#FDE68A;
+  --bg:#F6F8FC;
+  --surf:#ffffff;
+  --bdr:#E2E8F0;
+  --tx:#0F172A;
+  --tx2:#475569;
+  --tx3:#94A3B8;
+  --r:12px;
+  --rs:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:'DM Sans',sans-serif;font-size:14px}
+
+/* ── LAYOUT ────────────────────────────────────────────── */
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px 60px}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);width:100%;max-width:560px;box-shadow:0 4px 24px rgba(0,0,0,.07);overflow:hidden}
+.card-head{padding:28px 28px 20px;border-bottom:1px solid var(--bdr)}
+.logo{font-size:22px;font-weight:700;color:var(--brand);letter-spacing:-.4px;margin-bottom:4px}
+.logo span{font-weight:400;color:var(--tx2)}
+.card-head h1{font-size:19px;font-weight:700;letter-spacing:-.3px;line-height:1.25;margin-top:14px}
+.card-head p{font-size:13px;color:var(--tx2);margin-top:6px;line-height:1.6}
+
+/* progress */
+.progress{padding:16px 28px 0}
+.prog-steps{display:flex;gap:6px;margin-bottom:6px}
+.prog-dot{flex:1;height:4px;border-radius:2px;background:var(--bdr);transition:background .3s}
+.prog-dot.done{background:var(--brand)}
+.prog-label{font-size:11px;color:var(--tx3);font-weight:500}
+
+.card-body{padding:24px 28px}
+
+/* ── FORM FIELDS ────────────────────────────────────────── */
+.fld{margin-bottom:16px}
+.fld-l{font-size:12px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:6px;display:block}
+.fld-l span{color:var(--red);margin-left:2px}
+.inp{width:100%;padding:10px 13px;border:1px solid var(--bdr);border-radius:var(--rs);background:var(--surf);color:var(--tx);font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(26,95,166,.12)}
+.inp.err{border-color:var(--red);box-shadow:0 0 0 3px rgba(220,38,38,.1)}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hint{font-size:11px;color:var(--tx3);margin-top:4px}
+.err-msg{font-size:11px;color:var(--red);margin-top:4px}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;padding:5px 12px;border:1px solid var(--bdr);border-radius:20px;font-size:12px;cursor:pointer;color:var(--tx2);user-select:none;background:var(--surf);transition:all .12s;font-weight:500}
+.chip:hover{border-color:var(--brand);color:var(--tx)}
+.chip.on{background:var(--brand-lt);border-color:var(--brand-bd);color:var(--brand);font-weight:600}
+
+/* BMI live display */
+.bmi-live{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:var(--rs);border:1px solid var(--bdr);background:var(--bg);margin-top:4px;margin-bottom:4px;min-height:52px;transition:all .3s}
+.bmi-num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.bmi-cat{font-size:13px;font-weight:600}
+.bmi-sub{font-size:11px;color:var(--tx3);margin-top:1px}
+
+/* divider */
+.sec{font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.09em;padding:4px 0 10px;border-bottom:1px solid var(--bdr);margin-bottom:16px;margin-top:6px}
+
+/* nav buttons */
+.nav-row{display:flex;gap:10px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;flex:1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn-primary:hover:not(:disabled){background:var(--brand-dk)}
+.btn-ghost{background:var(--surf);color:var(--tx2);border-color:var(--bdr);flex:0 0 auto;padding:11px 16px}
+.btn-ghost:hover{background:var(--bg)}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-green:hover:not(:disabled){opacity:.9}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .65s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── SUCCESS SCREEN ─────────────────────────────────────── */
+.success{text-align:center;padding:40px 20px}
+.success-ico{font-size:52px;margin-bottom:16px}
+.success h2{font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px}
+.success p{font-size:14px;color:var(--tx2);line-height:1.7;margin-bottom:24px}
+.wa-btn{display:inline-flex;align-items:center;gap:10px;background:#25D366;color:#fff;border:none;border-radius:var(--rs);padding:13px 24px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;transition:opacity .15s}
+.wa-btn:hover{opacity:.9}
+.wa-logo{width:22px;height:22px;flex-shrink:0}
+
+/* ── TRUST ROW ──────────────────────────────────────────── */
+.trust{display:flex;justify-content:center;gap:24px;margin-top:20px;flex-wrap:wrap}
+.trust-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx3);font-weight:500}
+
+/* mobile */
+@media(max-width:480px){
+  .card-head,.card-body{padding-left:20px;padding-right:20px}
+  .progress{padding-left:20px;padding-right:20px}
+  .r2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="card" id="mainCard">
+
+    <div class="card-head">
+      <div class="logo">Valeo <span>Health</span></div>
+      <h1>Get Your Free GLP-1 Consultation</h1>
+      <p>Answer a few quick questions and our medical team will review your case within 24 hours.</p>
+    </div>
+
+    <div class="progress" id="progressBar">
+      <div class="prog-steps">
+        <div class="prog-dot done" id="pd1"></div>
+        <div class="prog-dot" id="pd2"></div>
+        <div class="prog-dot" id="pd3"></div>
+      </div>
+      <div class="prog-label" id="progLabel">Step 1 of 3 — Contact Details</div>
+    </div>
+
+    <div class="card-body" id="formBody">
+      <!-- steps rendered by JS -->
+    </div>
+
+  </div>
+
+  <div class="trust" style="max-width:560px">
+    <div class="trust-item">🔒 100% confidential</div>
+    <div class="trust-item">🩺 Reviewed by licensed doctors</div>
+    <div class="trust-item">⚡ Response within 24 hours</div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════
+   CONFIG — update these two values
+═══════════════════════════════════════════════════ */
+const SUPABASE_URL   = 'https://rmpmhkllnrrybiezpjfb.supabase.co';
+const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtcG1oa2xsbnJyeWJpZXpwamZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjA1ODAsImV4cCI6MjA5Mjg5NjU4MH0.HbHN6oc6bnEUlmZdIHB6fxO6r2M-17xo1BTG_pIAGNU';
+const WHATSAPP_NUM   = '966596603348'; // ← replace with your WhatsApp number (no +, no spaces)
+const CLINIC_NAME    = 'Weight Care'; // shown in success message
+
+/* ═══════════════════════════════════════════════════ */
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+/* read ?source= from URL for tracking which CTA was clicked */
+const urlSource = new URLSearchParams(location.search).get('source') || 'Website';
+
+/* ── State ── */
+let step = 1;
+const data = {
+  full_name: '', email: '', phone: '', city: '',
+  height_cm: '', weight_kg: '',
+  conditions: [],
+  medications: [],
+  methods: [],
+  gi_issues: [],
+  goals: '',
+};
+
+const CONDITIONS = [
+  'Type 2 Diabetes','High Blood Pressure','High Cholesterol',
+  'Sleep Apnea','PCOS','Heart Disease','Thyroid Problems',
+  'Depression','Eating Disorders','Pancreatitis History','Kidney/Liver Disease'
+];
+const MEDICATIONS = [
+  'None','Diabetes Medications','Hypertension Medications',
+  'Heart Medications','Insulin','Thyroid medications',
+  'Psychiatric medications','Other'
+];
+const METHODS = [
+  'Diet and Exercise','Weight loss Medications','Commercial Programs',
+  'Bariatric Consultation','First Attempt',"Doctor's recommendation",'Other'
+];
+const GI = [
+  'None','Severe stomach pain','Persistent nausea',
+  'Gastroparesis','Inflammatory bowel disease'
+];
+
+/* ── Helpers ── */
+const $ = id => document.getElementById(id);
+const calcBMI = (h, w) => (!h || !w) ? null : parseFloat((w / ((h / 100) ** 2)).toFixed(1));
+const bmiInfo = b => {
+  if (!b) return { l: '—', cat: '', c: '#94A3B8', bg: '#F1F5F9' };
+  if (b < 18.5) return { l: b.toFixed(1), cat: 'Underweight', c: '#D97706', bg: '#FEF3C7' };
+  if (b < 25)   return { l: b.toFixed(1), cat: 'Normal weight', c: '#16A34A', bg: '#DCFCE7' };
+  if (b < 30)   return { l: b.toFixed(1), cat: 'Overweight', c: '#D97706', bg: '#FEF3C7' };
+  if (b < 35)   return { l: b.toFixed(1), cat: 'Obese I', c: '#DC2626', bg: '#FEE2E2' };
+  if (b < 40)   return { l: b.toFixed(1), cat: 'Obese II', c: '#DC2626', bg: '#FEE2E2' };
+  return          { l: b.toFixed(1), cat: 'Obese III', c: '#7F1D1D', bg: '#FECACA' };
+};
+
+function updateProgress() {
+  ['pd1','pd2','pd3'].forEach((id, i) => {
+    $(id).classList.toggle('done', i < step);
+  });
+  const labels = ['Step 1 of 3 — Contact Details', 'Step 2 of 3 — Health Information', 'Step 3 of 3 — Goals'];
+  $('progLabel').textContent = labels[step - 1];
+}
+
+/* ── Chip group builder ── */
+function chipGroup(id, options, selected, multi = true) {
+  const wrap = document.createElement('div');
+  wrap.className = 'chips';
+  wrap.id = id;
+  options.forEach(opt => {
+    const c = document.createElement('span');
+    c.className = 'chip' + (selected.includes(opt) ? ' on' : '');
+    c.textContent = opt;
+    c.addEventListener('click', () => {
+      if (!multi) {
+        wrap.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+        selected.length = 0;
+      }
+      if (c.classList.contains('on')) {
+        c.classList.remove('on');
+        const idx = selected.indexOf(opt);
+        if (idx > -1) selected.splice(idx, 1);
+      } else {
+        c.classList.add('on');
+        selected.push(opt);
+      }
+    });
+    wrap.appendChild(c);
+  });
+  return wrap;
+}
+
+/* ── Render BMI ── */
+function updateBMI() {
+  const bx = $('bmiBox');
+  if (!bx) return;
+  const h = parseFloat($('fHeight')?.value) || 0;
+  const w = parseFloat($('fWeight')?.value) || 0;
+  data.height_cm = h || '';
+  data.weight_kg = w || '';
+  const bmi = calcBMI(h, w);
+  const info = bmiInfo(bmi);
+  bx.style.background = info.bg;
+  bx.style.borderColor = info.c + '55';
+  $('bmiNum').textContent = bmi ? info.l : '—';
+  $('bmiNum').style.color = info.c;
+  $('bmiCat').textContent = bmi ? info.cat : 'Enter height & weight';
+  $('bmiCat').style.color = info.c;
+}
+
+/* ── STEP 1: Contact ── */
+function renderStep1() {
+  const b = $('formBody');
+  b.innerHTML = `
+    <div class="fld">
+      <label class="fld-l">Full Name <span>*</span></label>
+      <input class="inp" id="fName" type="text" placeholder="e.g. Sara Ahmed" value="${data.full_name}" autocomplete="name">
+    </div>
+    <div class="fld">
+      <label class="fld-l">Email Address <span>*</span></label>
+      <input class="inp" id="fEmail" type="email" placeholder="you@example.com" value="${data.email}" autocomplete="email">
+    </div>
+    <div class="r2">
+      <div class="fld">
+        <label class="fld-l">Phone / WhatsApp <span>*</span></label>
+        <input class="inp" id="fPhone" type="tel" placeholder="+971 50 000 0000" value="${data.phone}" autocomplete="tel">
+      </div>
+      <div class="fld">
+        <label class="fld-l">City</label>
+        <input class="inp" id="fCity" type="text" placeholder="Dubai" value="${data.city}" autocomplete="address-level2">
+      </div>
+    </div>
+    <div id="stepErr" class="err-msg" style="display:none"></div>
+    <div class="nav-row">
+      <button class="btn btn-primary" id="nextBtn1">Continue →</button>
+    </div>
+  `;
+  $('nextBtn1').addEventListener('click', () => {
+    const name  = $('fName').value.trim();
+    const email = $('fEmail').value.trim();
+    const phone = $('fPhone').value.trim();
+    if (!name || !email || !phone) {
+      showStepErr('Please fill in Name, Email and Phone.');
+      if (!name)  $('fName').classList.add('err');
+      if (!email) $('fEmail').classList.add('err');
+      if (!phone) $('fPhone').classList.add('err');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showStepErr('Please enter a valid email address.');
+      $('fEmail').classList.add('err');
+      return;
+    }
+    data.full_name = name;
+    data.email     = email;
+    data.phone     = phone;
+    data.city      = $('fCity').value.trim();
+    step = 2;
+    updateProgress();
+    renderStep2();
+  });
+  ['fName','fEmail','fPhone'].forEach(id => {
+    $(id)?.addEventListener('input', () => { $(id).classList.remove('err'); $('stepErr').style.display='none'; });
+  });
+  $('fName').focus();
+}
+
+function showStepErr(msg) {
+  const e = $('stepErr');
+  if (!e) return;
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+
+/* ── STEP 2: Health ── */
+function renderStep2() {
+  const b = $('formBody');
+  b.innerHTML = `
+    <div class="sec">Body Measurements</div>
+    <div class="r2">
+      <div class="fld">
+        <label class="fld-l">Height (cm) <span>*</span></label>
+        <input class="inp" id="fHeight" type="number" placeholder="170" min="100" max="250" value="${data.height_cm}">
+      </div>
+      <div class="fld">
+        <label class="fld-l">Current Weight (kg) <span>*</span></label>
+        <input class="inp" id="fWeight" type="number" placeholder="85" min="30" max="300" value="${data.weight_kg}">
+      </div>
+    </div>
+    <div class="bmi-live" id="bmiBox">
+      <div>
+        <div id="bmiNum" class="bmi-num">—</div>
+        <div id="bmiSub" class="bmi-sub">BMI</div>
+      </div>
+      <div>
+        <div id="bmiCat" class="bmi-cat" style="color:var(--tx3)">Enter height &amp; weight</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:2px">Body Mass Index</div>
+      </div>
+    </div>
+
+    <div class="sec" style="margin-top:20px">Medical Conditions</div>
+    <div class="fld">
+      <label class="fld-l">Do you have any of these conditions? <span style="color:var(--tx3);font-weight:400">(select all that apply)</span></label>
+    </div>
+    <div id="condWrap"></div>
+
+    <div class="sec" style="margin-top:20px">Current Medications</div>
+    <div class="fld">
+      <label class="fld-l">Are you currently taking any of these?</label>
+    </div>
+    <div id="medWrap"></div>
+
+    <div class="sec" style="margin-top:20px">Digestive Health</div>
+    <div class="fld">
+      <label class="fld-l">Any GI / digestive issues?</label>
+    </div>
+    <div id="giWrap"></div>
+
+    <div id="stepErr2" class="err-msg" style="display:none"></div>
+    <div class="nav-row">
+      <button class="btn btn-ghost" id="backBtn2">← Back</button>
+      <button class="btn btn-primary" id="nextBtn2">Continue →</button>
+    </div>
+  `;
+
+  $('condWrap').appendChild(chipGroup('condChips', CONDITIONS, data.conditions, true));
+  $('medWrap').appendChild(chipGroup('medChips', MEDICATIONS, data.medications, true));
+  $('giWrap').appendChild(chipGroup('giChips', GI, data.gi_issues, true));
+
+  $('fHeight').addEventListener('input', updateBMI);
+  $('fWeight').addEventListener('input', updateBMI);
+  updateBMI();
+
+  $('backBtn2').addEventListener('click', () => { step = 1; updateProgress(); renderStep1(); });
+  $('nextBtn2').addEventListener('click', () => {
+    const h = parseFloat($('fHeight').value) || 0;
+    const w = parseFloat($('fWeight').value) || 0;
+    if (!h || !w) {
+      const e = $('stepErr2'); e.textContent = 'Please enter your height and weight.'; e.style.display = 'block';
+      return;
+    }
+    data.height_cm = h;
+    data.weight_kg = w;
+    step = 3;
+    updateProgress();
+    renderStep3();
+  });
+}
+
+/* ── STEP 3: Goals ── */
+function renderStep3() {
+  const b = $('formBody');
+  b.innerHTML = `
+    <div class="sec">Weight Loss History</div>
+    <div class="fld">
+      <label class="fld-l">What have you tried before?</label>
+    </div>
+    <div id="methodWrap"></div>
+
+    <div class="fld" style="margin-top:20px">
+      <label class="fld-l">Tell us about your weight loss goals</label>
+      <textarea class="inp" id="fGoals" rows="4" placeholder="e.g. I want to lose 20kg for my wedding in 6 months. I've tried keto but couldn't maintain it…">${data.goals}</textarea>
+      <div class="hint">This helps our doctor personalise your consultation.</div>
+    </div>
+
+    <div id="stepErr3" class="err-msg" style="display:none"></div>
+    <div class="nav-row">
+      <button class="btn btn-ghost" id="backBtn3">← Back</button>
+      <button class="btn btn-primary" id="submitBtn">Submit — Get My Consultation</button>
+    </div>
+  `;
+
+  $('methodWrap').appendChild(chipGroup('methodChips', METHODS, data.methods, true));
+
+  $('backBtn3').addEventListener('click', () => { step = 2; updateProgress(); renderStep2(); });
+  $('submitBtn').addEventListener('click', submitForm);
+}
+
+/* ── Submit ── */
+async function submitForm() {
+  data.goals = $('fGoals')?.value.trim() || '';
+  const btn = $('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Submitting…';
+
+  try {
+    /* 1. Insert lead */
+    const { data: lead, error: le } = await sb
+      .from('leads')
+      .insert({
+        email:  data.email.toLowerCase().trim(),
+        phone:  data.phone,
+        status: 'new',
+        source: urlSource,
+      })
+      .select('id')
+      .single();
+
+    if (le) throw le;
+
+    /* 2. Insert client profile */
+    const bmi = calcBMI(data.height_cm, data.weight_kg);
+    const { error: pe } = await sb
+      .from('client_profiles')
+      .insert({
+        lead_id:       lead.id,
+        full_name:     data.full_name,
+        email:         data.email.toLowerCase().trim(),
+        phone:         data.phone,
+        city:          data.city || null,
+        height_cm:     data.height_cm || null,
+        weight_kg:     data.weight_kg || null,
+        bmi:           bmi,
+        conditions:    data.conditions.length ? data.conditions : null,
+        medications:   data.medications.length ? data.medications : null,
+        gi_issues:     data.gi_issues.length   ? data.gi_issues   : null,
+        previous_weight_loss_methods: data.methods.length ? data.methods : null,
+        agent_notes:   data.goals || null,
+      });
+
+    if (pe) console.warn('Profile insert warning:', pe.message);
+
+    showSuccess();
+
+  } catch (err) {
+    console.error('Submit error:', err);
+    const e = $('stepErr3');
+    if (e) {
+      const isDup = err.message?.includes('duplicate') || err.code === '23505';
+      const isRLS = err.code === '42501' || err.message?.toLowerCase().includes('row-level security') || err.message?.toLowerCase().includes('permission denied');
+      let msg;
+      if (isDup) {
+        msg = 'We already have an inquiry from this email. Our team will be in touch soon!';
+      } else if (isRLS) {
+        msg = 'Form permissions are not set up yet. Please contact us directly on WhatsApp.';
+      } else {
+        msg = `Error: ${err.message || JSON.stringify(err)} — please screenshot this and send to your developer.`;
+      }
+      e.textContent = msg;
+      e.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Submit — Get My Consultation';
+  }
+}
+
+/* ── Success ── */
+function showSuccess() {
+  $('progressBar').style.display = 'none';
+  $('formBody').innerHTML = `
+    <div class="success">
+      <div class="success-ico">🎉</div>
+      <h2>You're all set, ${data.full_name.split(' ')[0]}!</h2>
+      <p>
+        Your consultation request has been received.<br>
+        Our medical team will review your profile and reach out<br>
+        within <strong>24 hours</strong> via WhatsApp or phone.
+      </p>
+      <a class="wa-btn" href="https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(`Hi! I just submitted my consultation form on the ${CLINIC_NAME} website. My name is ${data.full_name}.`)}" target="_blank" rel="noopener">
+        <svg class="wa-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Chat with us on WhatsApp
+      </a>
+    </div>
+  `;
+}
+
+/* ── Init ── */
+updateProgress();
+renderStep1();
+</script>
+</body>
+</html>
