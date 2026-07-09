@@ -439,41 +439,35 @@ async function submitForm() {
   btn.innerHTML = '<span class="spin"></span> Submitting…';
 
   try {
-    /* 1. Insert lead */
-    const { data: lead, error: le } = await sb
-      .from('leads')
-      .insert({
-        email:  data.email.toLowerCase().trim(),
-        phone:  data.phone,
-        status: 'new',
-        source: urlSource,
-      })
-      .select('id')
-      .single();
-
-    if (le) throw le;
-
-    /* 2. Insert client profile */
     const bmi = calcBMI(data.height_cm, data.weight_kg);
-    const { error: pe } = await sb
-      .from('client_profiles')
-      .insert({
-        lead_id:       lead.id,
-        full_name:     data.full_name,
-        email:         data.email.toLowerCase().trim(),
-        phone:         data.phone,
-        city:          data.city || null,
-        height_cm:     data.height_cm || null,
-        weight_kg:     data.weight_kg || null,
-        bmi:           bmi,
-        conditions:    data.conditions.length ? data.conditions : null,
-        medications:   data.medications.length ? data.medications : null,
-        gi_issues:     data.gi_issues.length   ? data.gi_issues   : null,
-        previous_weight_loss_methods: data.methods.length ? data.methods : null,
-        agent_notes:   data.goals || null,
-      });
 
-    if (pe) console.warn('Profile insert warning:', pe.message);
+    const { data: result, error } = await sb.rpc('submit_intake_form', {
+      p_email:      data.email.toLowerCase().trim(),
+      p_phone:      data.phone,
+      p_source:     urlSource,
+      p_full_name:  data.full_name,
+      p_height_cm:  data.height_cm || null,
+      p_weight_kg:  data.weight_kg || null,
+      p_bmi:        bmi,
+      p_conditions: data.conditions.length ? data.conditions : null,
+      p_medications:data.medications.length ? data.medications : null,
+      p_gi_issues:  data.gi_issues.length   ? data.gi_issues   : null,
+      p_methods:    data.methods.length     ? data.methods     : null,
+      p_goals:      data.goals || null,
+    });
+
+    if (error) throw error;
+    if (!result?.ok) {
+      if (result?.code === 'duplicate') {
+        const e = $('stepErr3');
+        e.textContent = 'We already have an inquiry from this email. Our team will be in touch soon!';
+        e.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Submit — Get My Consultation';
+        return;
+      }
+      throw new Error(result?.message || 'Submission failed');
+    }
 
     showSuccess();
 
