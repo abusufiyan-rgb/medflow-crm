@@ -2,19 +2,21 @@
 <html lang="en" dir="ltr" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Free Consultation — Valeo Health</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webkit-font-smoothing:antialiased}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
 
 /* ── Language switcher ── */
 .lang-bar{
   position:fixed;top:0;left:0;right:0;z-index:100;
   display:flex;align-items:center;justify-content:space-between;
-  padding:8px 16px;background:#fff;border-bottom:1px solid #E2E8F0;
+  padding:8px 16px;
+  padding-top:calc(8px + env(safe-area-inset-top));
+  background:#fff;border-bottom:1px solid #E2E8F0;
   gap:10px;
 }
 .lang-brand{font-size:13px;font-weight:700;color:#1A5FA6}
@@ -27,10 +29,11 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
 
 /* ── Wrapper ── */
 .chat-wrap{
-  display:flex;flex-direction:column;height:100vh;
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;
   max-width:520px;margin:0 auto;
   background:#fff;box-shadow:0 0 30px rgba(0,0,0,.08);
-  padding-top:48px; /* lang bar height */
+  padding-top:48px;
 }
 
 /* ── Header ── */
@@ -110,15 +113,18 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
 /* ── Input bar ── */
 .input-bar{
   flex-shrink:0;background:#fff;border-top:1px solid #E2E8F0;
-  padding:10px 12px 14px;display:flex;flex-direction:column;gap:8px;
+  padding:10px 12px calc(14px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:8px;
 }
 
 /* Chips */
-.chips-row{display:flex;flex-wrap:wrap;gap:7px;max-height:180px;overflow-y:auto}
+.chips-row{display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow-y:auto}
 .chip{
-  padding:6px 13px;border:1.5px solid #CBD5E1;border-radius:20px;
-  font-size:13px;font-weight:500;color:#475569;background:#fff;
+  padding:9px 16px;border:1.5px solid #CBD5E1;border-radius:20px;
+  font-size:14px;font-weight:500;color:#475569;background:#fff;
   cursor:pointer;transition:all .12s;user-select:none;
+  /* min 44px touch target height */
+  min-height:44px;display:flex;align-items:center;
 }
 .chip:hover{border-color:#1A5FA6;color:#1A5FA6}
 .chip.on{background:#EBF2FB;border-color:#1A5FA6;color:#1A5FA6;font-weight:600}
@@ -126,26 +132,28 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
 /* Skip / Done row */
 .action-row{display:flex;gap:8px;align-items:center}
 .skip-btn{
-  padding:7px 16px;border:1px solid #CBD5E1;border-radius:20px;
-  font-size:13px;color:#64748B;background:#fff;cursor:pointer;font-weight:500;
+  padding:10px 18px;border:1px solid #CBD5E1;border-radius:20px;
+  font-size:14px;color:#64748B;background:#fff;cursor:pointer;font-weight:500;
+  min-height:44px;
 }
 .done-btn{
-  padding:7px 18px;border:none;border-radius:20px;
-  font-size:13px;font-weight:700;color:#fff;background:#1A5FA6;cursor:pointer;
-  margin-inline-start:auto;
+  padding:10px 20px;border:none;border-radius:20px;
+  font-size:14px;font-weight:700;color:#fff;background:#1A5FA6;cursor:pointer;
+  margin-inline-start:auto;min-height:44px;
 }
 
 /* Text input row */
 .text-row{display:flex;gap:8px;align-items:flex-end}
 .text-in{
-  flex:1;padding:11px 14px;border:1.5px solid #CBD5E1;border-radius:22px;
-  font-size:14px;outline:none;resize:none;font-family:inherit;line-height:1.4;
+  flex:1;padding:12px 16px;border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:16px;/* 16px prevents iOS auto-zoom */
+  outline:none;resize:none;font-family:inherit;line-height:1.4;
   transition:border-color .15s;max-height:120px;overflow-y:auto;
 }
 .text-in:focus{border-color:#1A5FA6}
 .send-btn{
-  width:42px;height:42px;border-radius:50%;border:none;
-  background:#1A5FA6;color:#fff;font-size:18px;cursor:pointer;
+  width:46px;height:46px;border-radius:50%;border:none;
+  background:#1A5FA6;color:#fff;font-size:20px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   transition:background .15s;
 }
@@ -175,8 +183,18 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
   animation:bubIn .2s ease;
 }
 
-@media(max-width:480px){
+@media(max-width:600px){
   .chat-wrap{max-width:100%;box-shadow:none}
+  .lang-bar{padding-left:12px;padding-right:12px}
+  .lang-brand{font-size:12px}
+  .msgs{padding:12px 10px}
+  .bubble{font-size:14px;max-width:88%}
+  .bmi-card{max-width:88%}
+  .chips-row{max-height:130px}
+  .g-card-head,.g-card-body{padding-left:16px;padding-right:16px}
+  .success-wrap{padding:24px 16px}
+  .success-title{font-size:20px}
+  .wa-btn{width:100%;justify-content:center}
 }
 </style>
 </head>
@@ -287,7 +305,7 @@ const T = {
     bmiCat:{u:'Underweight',n:'Normal weight',ow:'Overweight',o1:'Obese Class I',o2:'Obese Class II',o3:'Obese Class III'},
 
     q:[
-      ()=>`Hi there! I'm Valeo Medical Team 👋\n\nI'll help you book a free weight loss consultation. It takes about 2 minutes.\n\nWhat's your first name?`,
+      ()=>`Hi there! I'm the weight loss advisor from Valeo Medical Team 👋\n\nI'll help you book a free weight loss consultation. It takes about 2 minutes.\n\nWhat's your first name?`,
       d=>`Nice to meet you, ${d.first_name}! 😊\n\nWhat's your WhatsApp number?\n(Our doctor will contact you on this number)`,
       ()=>`Which city are you in? _(optional — tap Skip)_`,
       ()=>`Let's look at your health numbers 📊\n\nWhat's your height in cm?`,
@@ -330,7 +348,7 @@ const T = {
     bmiCat:{u:'نقص الوزن',n:'وزن طبيعي',ow:'زيادة الوزن',o1:'سمنة درجة أولى',o2:'سمنة درجة ثانية',o3:'سمنة درجة ثالثة'},
 
     q:[
-      ()=>`مرحباً! أنا د. فاليو 👋\n\nسأساعدك في حجز استشارة مجانية لإنقاص الوزن. لن تستغرق أكثر من دقيقتين.\n\nما اسمك الأول؟`,
+      ()=>`مرحباً! أنا مستشار إنقاص الوزن من فريق فاليو الطبي 👋\n\nسأساعدك في حجز استشارة مجانية لإنقاص الوزن. لن تستغرق أكثر من دقيقتين.\n\nما اسمك الأول؟`,
       d=>`سعيد بمعرفتك، ${d.first_name}! 😊\n\nما رقم واتساب الخاص بك؟\n(سيتواصل معك طبيبنا على هذا الرقم)`,
       ()=>`في أي مدينة أنت؟ _(اختياري — اضغط تخطي)_`,
       ()=>`لنلقِ نظرة على أرقامك الصحية 📊\n\nما طولك بالسنتيمتر؟`,
@@ -438,11 +456,8 @@ function isKsaOnline(){
 }
 
 function applyOnlineStatus(l){
-  const online = isKsaOnline();
-  document.getElementById('botSub').textContent  = online ? T[l].botSubOnline : T[l].botSubOffline;
-  const dot = document.getElementById('onlineDot');
-  dot.style.background  = online ? '#4ADE80' : '#94A3B8';
-  dot.title = online ? 'Online' : 'Offline';
+  document.getElementById('botSub').textContent = T[l].botSubOnline;
+  document.getElementById('onlineDot').style.background = '#4ADE80';
 }
 
 function scrollBottom(){ msgsEl.scrollTo({top:msgsEl.scrollHeight,behavior:'smooth'}); }
@@ -728,14 +743,10 @@ async function submitForm(){
   });
   removeTyping();
 
-  if(error||!result?.ok){
-    const isDup = result?.code==='duplicate';
-    if(isDup){
-      addBotBubble(T[lang].errDup);
-    } else {
-      const detail = result?.message || error?.message || '';
-      addBotBubble(T[lang].errGeneric + (detail ? `\n\n_(${detail})_` : ''));
-    }
+  // On duplicate phone, still land on the success screen
+  if(error && result?.code!=='duplicate'){
+    const detail = result?.message || error?.message || '';
+    addBotBubble(T[lang].errGeneric + (detail ? `\n\n_(${detail})_` : ''));
     document.getElementById('inputBar').style.display='none';
     return;
   }
@@ -755,12 +766,17 @@ function showSuccess(){
   const waUrl = `https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(waMsg)}`;
   const waSVG = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
+  const online = isKsaOnline();
+  const urgencyHtml = online
+    ? `<div class="success-urgency">${T[lang].successUrgency}</div>`
+    : `<div class="success-urgency" style="color:#B45309;background:#FEF3C7;border-color:#FCD34D">${lang==='ar'?'🕘 فريقنا متاح من الساعة 9 صباحاً حتى 9 مساءً بتوقيت السعودية — سنرد عليك فور استئناف العمل.':'🕘 Our team is available 9 AM – 9 PM KSA time. Send us a message and we\'ll reply as soon as we\'re back.'}</div>`;
+
   const wrap = document.createElement('div'); wrap.className='success-wrap';
   wrap.innerHTML=`
     <div class="success-ico">🎉</div>
     <div class="success-title">${T[lang].successTitle(name)}</div>
     <div class="success-msg">${T[lang].successMsg}</div>
-    <div class="success-urgency">${T[lang].successUrgency}</div>
+    ${urgencyHtml}
     <a class="wa-btn" href="${waUrl}" target="_blank" rel="noopener">
       ${waSVG} ${T[lang].waBtnLabel}
     </a>`;
