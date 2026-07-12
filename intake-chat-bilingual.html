@@ -142,6 +142,24 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
   margin-inline-start:auto;min-height:44px;
 }
 
+/* Phone prefix */
+.pfx-wrap{display:flex;align-items:center;flex-shrink:0}
+.pfx-select{
+  height:46px;padding:0 8px;border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:14px;font-weight:600;color:#1E293B;background:#F8FAFC;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
+  padding-right:22px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;
+  max-width:110px;
+}
+.pfx-select:focus{border-color:#1A5FA6}
+.pfx-custom{
+  width:72px;height:46px;padding:0 10px;border:1.5px solid #1A5FA6;
+  border-radius:22px;font-size:15px;font-weight:600;color:#1E293B;
+  outline:none;background:#EBF2FB;text-align:center;
+}
+
 /* Text input row */
 .text-row{display:flex;gap:8px;align-items:flex-end}
 .text-in{
@@ -236,6 +254,21 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
       <button class="done-btn" id="doneBtn"></button>
     </div>
     <div class="text-row" id="textRow">
+      <div class="pfx-wrap" id="pfxWrap" style="display:none">
+        <select class="pfx-select" id="pfxSelect">
+          <option value="+966">🇸🇦 +966</option>
+          <option value="+971">🇦🇪 +971</option>
+          <option value="+965">🇰🇼 +965</option>
+          <option value="+974">🇶🇦 +974</option>
+          <option value="+973">🇧🇭 +973</option>
+          <option value="+968">🇴🇲 +968</option>
+          <option value="+20">🇪🇬 +20</option>
+          <option value="+44">🇬🇧 +44</option>
+          <option value="+1">🇺🇸 +1</option>
+          <option value="other">✏️ Other</option>
+        </select>
+        <input class="pfx-custom" id="pfxCustom" type="tel" placeholder="+__" style="display:none" maxlength="5">
+      </div>
       <textarea class="text-in" id="textIn" rows="1" placeholder="Type your answer…"></textarea>
       <button class="send-btn" id="sendBtn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -587,6 +620,15 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden && data.phone) savePartial();
 });
 
+// ── Get full phone (prefix + number) ─────────────────────
+function getFullPhone(){
+  const pfxSel = document.getElementById('pfxSelect');
+  const pfxCustom = document.getElementById('pfxCustom');
+  const prefix = pfxSel.value==='other' ? pfxCustom.value.trim() : pfxSel.value;
+  const num = textIn.value.trim().replace(/\s/g,'');
+  return prefix + num;
+}
+
 // ── Validate step value ───────────────────────────────────
 function validate(stepIdx, val){
   const s = STEPS[stepIdx];
@@ -594,7 +636,10 @@ function validate(stepIdx, val){
   switch(s.id){
     case 'first_name': return val.trim().length>=2?{ok:true}:{ok:false,msg:T[lang].errName};
     case 'email':      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())?{ok:true}:{ok:false,msg:T[lang].errEmail};
-    case 'phone':      return val.trim().length>=7?{ok:true}:{ok:false,msg:T[lang].errPhone};
+    case 'phone': {
+      const digits = val.replace(/\D/g,'');
+      return digits.length>=7&&digits.length<=15 ? {ok:true} : {ok:false,msg:T[lang].errPhone};
+    }
     case 'height_cm':  { const n=parseFloat(val); return n>=100&&n<=250?{ok:true}:{ok:false,msg:T[lang].errHeight}; }
     case 'weight_kg':  { const n=parseFloat(val); return n>=30&&n<=300?{ok:true}:{ok:false,msg:T[lang].errWeight}; }
     default: return {ok:true};
@@ -604,7 +649,10 @@ function validate(stepIdx, val){
 // ── Answer handler ────────────────────────────────────────
 async function handleAnswer(rawVal, skipped=false){
   const step = STEPS[stepIdx];
-  const val  = rawVal?.toString().trim()||'';
+  // For phone step, combine prefix + number
+  const val = (!skipped && step.id==='phone')
+    ? getFullPhone()
+    : (rawVal?.toString().trim()||'');
 
   // Validate
   if(!skipped){
@@ -709,9 +757,19 @@ function setupInput(step){
       actionRow.style.display='none';
     }
 
-    textIn.inputMode   = step.inputmode||'text';
-    textIn.type        = (step.type==='textarea'||step.type==='text')?'text':step.type;
-    textIn.placeholder = T[lang].ph[stepIdx]||'';
+    const isPhone = step.id==='phone';
+    document.getElementById('pfxWrap').style.display = isPhone ? 'flex' : 'none';
+    if(isPhone){
+      document.getElementById('pfxSelect').value = '+966';
+      document.getElementById('pfxCustom').style.display = 'none';
+      textIn.inputMode = 'tel';
+      textIn.type      = 'tel';
+      textIn.placeholder = lang==='ar'?'5X XXX XXXX':'5X XXX XXXX';
+    } else {
+      textIn.inputMode   = step.inputmode||'text';
+      textIn.type        = (step.type==='textarea'||step.type==='text')?'text':step.type;
+      textIn.placeholder = T[lang].ph[stepIdx]||'';
+    }
     sendBtn.disabled   = false;
     setTimeout(()=>textIn.focus(),100);
   }
@@ -769,7 +827,7 @@ function showSuccess(){
   const online = isKsaOnline();
   const urgencyHtml = online
     ? `<div class="success-urgency">${T[lang].successUrgency}</div>`
-    : `<div class="success-urgency" style="color:#B45309;background:#FEF3C7;border-color:#FCD34D">${lang==='ar'?'🕘 فريقنا متاح من الساعة 9 صباحاً حتى 9 مساءً بتوقيت السعودية — سنرد عليك فور استئناف العمل.':'🕘 Our team is available 9 AM – 9 PM KSA time. Send us a message and we\'ll reply as soon as we\'re back.'}</div>`;
+    : `<div class="success-urgency" style="color:#B45309;background:#FEF3C7;border-color:#FCD34D">${lang==='ar'?'🕘 فريقنا متاح من الساعة 9 صباحاً حتى 9 مساءً بتوقيت السعودية — سنرد عليك فور استئناف العمل.':'💬 We\'re away right now — drop us a message on WhatsApp and let us know a preferred time to reach out!'}</div>`;
 
   const wrap = document.createElement('div'); wrap.className='success-wrap';
   wrap.innerHTML=`
@@ -806,6 +864,19 @@ sendBtn.addEventListener('click',()=>{
     handleAnswer(null, false);
   } else {
     handleAnswer(textIn.value);
+  }
+});
+
+// ── Phone prefix "Other" toggle ───────────────────────────
+document.getElementById('pfxSelect').addEventListener('change', function(){
+  const custom = document.getElementById('pfxCustom');
+  if(this.value==='other'){
+    custom.style.display='block';
+    custom.value='+';
+    setTimeout(()=>custom.focus(),50);
+  } else {
+    custom.style.display='none';
+    setTimeout(()=>textIn.focus(),50);
   }
 });
 
