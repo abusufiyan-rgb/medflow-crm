@@ -142,6 +142,24 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
   margin-inline-start:auto;min-height:44px;
 }
 
+/* City dropdown */
+.city-wrap{display:flex;flex:1;flex-direction:column;gap:6px}
+.city-select{
+  width:100%;height:46px;padding:0 36px 0 14px;
+  border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:15px;font-weight:500;color:#1E293B;background:#F8FAFC;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+.city-select:focus{border-color:#1A5FA6;box-shadow:0 0 0 3px rgba(26,95,166,.1)}
+.city-custom{
+  width:100%;padding:11px 16px;border:1.5px solid #1A5FA6;
+  border-radius:22px;font-size:16px;color:#1E293B;outline:none;
+  background:#EBF2FB;font-family:inherit;
+}
+.city-custom::placeholder{color:#94A3B8}
+
 /* Phone prefix */
 .pfx-wrap{display:flex;align-items:center;flex-shrink:0}
 .pfx-select{
@@ -268,6 +286,18 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webki
           <option value="other">✏️ Other</option>
         </select>
         <input class="pfx-custom" id="pfxCustom" type="tel" placeholder="+__" style="display:none" maxlength="5">
+      </div>
+      <div class="city-wrap" id="cityWrap" style="display:none;flex:1;flex-direction:column;gap:6px">
+        <select class="city-select" id="citySelect">
+          <option value="">— Select your city —</option>
+          <option value="Riyadh">Riyadh · الرياض</option>
+          <option value="Jeddah">Jeddah · جدة</option>
+          <option value="Dammam">Dammam · الدمام</option>
+          <option value="Makkah">Makkah · مكة المكرمة</option>
+          <option value="Madinah">Madinah · المدينة المنورة</option>
+          <option value="other">Other — اكتب مدينتك</option>
+        </select>
+        <input class="city-custom" id="cityCustom" type="text" placeholder="Type your city…" style="display:none">
       </div>
       <textarea class="text-in" id="textIn" rows="1" placeholder="Type your answer…"></textarea>
       <button class="send-btn" id="sendBtn">
@@ -620,6 +650,13 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden && data.phone) savePartial();
 });
 
+// ── Get city value from dropdown ──────────────────────────
+function getCityValue(){
+  const sel = document.getElementById('citySelect');
+  if(sel.value==='other') return document.getElementById('cityCustom').value.trim();
+  return sel.value;
+}
+
 // ── Get full phone (prefix + number) ─────────────────────
 function getFullPhone(){
   const pfxSel = document.getElementById('pfxSelect');
@@ -649,10 +686,10 @@ function validate(stepIdx, val){
 // ── Answer handler ────────────────────────────────────────
 async function handleAnswer(rawVal, skipped=false){
   const step = STEPS[stepIdx];
-  // For phone step, combine prefix + number
-  const val = (!skipped && step.id==='phone')
-    ? getFullPhone()
-    : (rawVal?.toString().trim()||'');
+  // For phone step, combine prefix + number; for city, read dropdown
+  const val = (!skipped && step.id==='phone') ? getFullPhone()
+            : (!skipped && step.id==='city')  ? getCityValue()
+            : (rawVal?.toString().trim()||'');
 
   // Validate
   if(!skipped){
@@ -758,20 +795,31 @@ function setupInput(step){
     }
 
     const isPhone = step.id==='phone';
-    document.getElementById('pfxWrap').style.display = isPhone ? 'flex' : 'none';
+    const isCity  = step.id==='city';
+    document.getElementById('pfxWrap').style.display  = isPhone ? 'flex' : 'none';
+    document.getElementById('cityWrap').style.display = isCity  ? 'flex' : 'none';
+    textIn.style.display = isCity ? 'none' : '';
+
     if(isPhone){
       document.getElementById('pfxSelect').value = '+966';
       document.getElementById('pfxCustom').style.display = 'none';
       textIn.inputMode = 'tel';
       textIn.type      = 'tel';
-      textIn.placeholder = lang==='ar'?'5X XXX XXXX':'5X XXX XXXX';
+      textIn.placeholder = '5X XXX XXXX';
+    } else if(isCity){
+      const sel = document.getElementById('citySelect');
+      sel.value = '';
+      document.getElementById('cityCustom').style.display = 'none';
+      // reset AR/EN label of placeholder option
+      sel.options[0].text = lang==='ar' ? '— اختر مدينتك —' : '— Select your city —';
+      setTimeout(()=>sel.focus(),100);
     } else {
       textIn.inputMode   = step.inputmode||'text';
       textIn.type        = (step.type==='textarea'||step.type==='text')?'text':step.type;
       textIn.placeholder = T[lang].ph[stepIdx]||'';
     }
     sendBtn.disabled   = false;
-    setTimeout(()=>textIn.focus(),100);
+    if(!isCity) setTimeout(()=>textIn.focus(),100);
   }
 }
 
@@ -860,10 +908,19 @@ textIn.addEventListener('keydown',e=>{
 sendBtn.addEventListener('click',()=>{
   const step = STEPS[stepIdx];
   if(!step) return;
-  if(step.type==='chips'){
-    handleAnswer(null, false);
+  if(step.type==='chips') handleAnswer(null, false);
+  else if(step.id==='city') handleAnswer(null, false);
+  else handleAnswer(textIn.value);
+});
+
+// ── City "Other" toggle ───────────────────────────────────
+document.getElementById('citySelect').addEventListener('change', function(){
+  const custom = document.getElementById('cityCustom');
+  if(this.value==='other'){
+    custom.style.display='block';
+    setTimeout(()=>custom.focus(),50);
   } else {
-    handleAnswer(textIn.value);
+    custom.style.display='none';
   }
 });
 
