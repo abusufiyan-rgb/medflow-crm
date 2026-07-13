@@ -100,8 +100,112 @@ items=oldAll.filter(c=>c.followup_date&&c.followup_date<=today);if(oldSearch)ite
 const g=document.createElement('div');g.className='grid';items.forEach(item=>{if(item._isCustomer){g.appendChild(buildOldCustomerCard(item,nowR,D3,renderOldGrid));}else{g.appendChild(buildCard(item));}});gridArea.appendChild(g);}
 renderOldGrid();}}
 render();}
-function vGrid(v,leads,title,showDF=false){const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=title;v.appendChild(h);if(showDF)v.appendChild(mkDateFilter(()=>renderView()));const filtered=showDF?applyDateFilter(leads):leads;const cnt=document.createElement('div');cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';cnt.textContent=`${filtered.length} lead${filtered.length!==1?'s':''}`;v.appendChild(cnt);if(!filtered.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">📭</div>No leads here.';v.appendChild(e);return;}
-const g=document.createElement('div');g.className='grid';filtered.forEach(l=>g.appendChild(buildCard(l)));v.appendChild(g);}
+function vGrid(v,leads,title,showDF=false){
+  const h=document.createElement('div');h.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';h.textContent=title;v.appendChild(h);
+  if(showDF)v.appendChild(mkDateFilter(()=>renderView()));
+  const base=showDF?applyDateFilter(leads):leads;
+
+  // ── Filter state ──────────────────────────────────────────
+  let _q='', _src='all', _region='all', _city='all';
+
+  // Collect unique values from this lead set
+  const sources=[...new Set(base.map(l=>l.source).filter(Boolean))].sort();
+  const regions=[...new Set(base.map(l=>l.region).filter(Boolean))].sort();
+  const cities=[...new Set(base.map(l=>l.city).filter(Boolean))].sort();
+
+  // ── Search bar ────────────────────────────────────────────
+  const searchRow=document.createElement('div');
+  searchRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap';
+  const si=document.createElement('input');
+  si.className='sinp';si.placeholder='Search name, phone or lead #…';si.style.cssText='flex:1;min-width:200px;max-width:360px';
+  si.addEventListener('input',e=>{_q=e.target.value.toLowerCase();render();});
+  searchRow.appendChild(si);
+
+  // Clear filters button
+  const clrBtn=document.createElement('button');
+  clrBtn.className='btn btn-ghost btn-sm';clrBtn.textContent='Clear filters';
+  clrBtn.style.display='none';
+  clrBtn.addEventListener('click',()=>{
+    _q='';_src='all';_region='all';_city='all';
+    si.value='';
+    filterArea.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));
+    filterArea.querySelectorAll('.fc[data-val="all"]').forEach(c=>c.classList.add('on'));
+    clrBtn.style.display='none';
+    render();
+  });
+  searchRow.appendChild(clrBtn);
+  v.appendChild(searchRow);
+
+  // ── Filter chips ──────────────────────────────────────────
+  const filterArea=document.createElement('div');
+  filterArea.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:16px';
+
+  function mkChipRow(label,values,getter,setter){
+    if(!values.length)return null;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+    const lbl=document.createElement('span');
+    lbl.style.cssText='font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;min-width:52px';
+    lbl.textContent=label;row.appendChild(lbl);
+    [['all','All'],...values.map(s=>[s,s])].forEach(([val,lab])=>{
+      const c=document.createElement('span');
+      c.className='fc'+(getter()===val?' on':'');
+      c.dataset.val=val;
+      const cnt=val==='all'?base.length:base.filter(l=>{
+        if(label==='Source')return l.source===val;
+        if(label==='Region')return l.region===val;
+        if(label==='City')return l.city===val;
+        return false;
+      }).length;
+      c.textContent=lab+(cnt!=null?` (${cnt})`:'');
+      c.addEventListener('click',()=>{
+        setter(val);
+        row.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));
+        c.classList.add('on');
+        clrBtn.style.display=(_q||_src!=='all'||_region!=='all'||_city!=='all')?'':'none';
+        render();
+      });
+      row.appendChild(c);
+    });
+    return row;
+  }
+
+  const srcRow=mkChipRow('Source',sources,()=>_src,v=>{_src=v});
+  const regRow=mkChipRow('Region',regions,()=>_region,v=>{_region=v});
+  const citRow=mkChipRow('City',cities,()=>_city,v=>{_city=v});
+  if(srcRow)filterArea.appendChild(srcRow);
+  if(regRow)filterArea.appendChild(regRow);
+  if(citRow)filterArea.appendChild(citRow);
+  if(srcRow||regRow||citRow)v.appendChild(filterArea);
+
+  // ── Result area ───────────────────────────────────────────
+  const resultArea=document.createElement('div');v.appendChild(resultArea);
+
+  function render(){
+    clrBtn.style.display=(_q||_src!=='all'||_region!=='all'||_city!=='all')?'inline-flex':'none';
+    let list=base;
+    if(_q)list=list.filter(l=>[(l.client_profiles?.full_name||''),(l.phone||''),(l.lead_number||''),(l.email||'')].some(x=>x.toLowerCase().includes(_q)));
+    if(_src!=='all')list=list.filter(l=>l.source===_src);
+    if(_region!=='all')list=list.filter(l=>l.region===_region);
+    if(_city!=='all')list=list.filter(l=>l.city===_city);
+
+    resultArea.innerHTML='';
+    const cnt=document.createElement('div');
+    cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';
+    cnt.textContent=`${list.length} lead${list.length!==1?'s':''}${list.length!==base.length?` of ${base.length}`:''}`;
+    resultArea.appendChild(cnt);
+
+    if(!list.length){
+      const e=document.createElement('div');e.className='empty';
+      e.innerHTML='<div class="empty-ico">🔍</div>No leads match your filters.';
+      resultArea.appendChild(e);return;
+    }
+    const g=document.createElement('div');g.className='grid';
+    list.forEach(l=>g.appendChild(buildCard(l)));
+    resultArea.appendChild(g);
+  }
+  render();
+}
 function buildCard(lead){const role=PROF.role;const rx=lead.prescriptions?.find(p=>p.is_current);const cp=lead.client_profiles;const due=lead.lead_type==='repeat'&&lead.reorder_due_at&&new Date(lead.reorder_due_at)<=new Date(Date.now()+86400000);const card=document.createElement('div');card.className='card';const hdr=document.createElement('div');hdr.className='card-hdr';const idSpan=document.createElement('span');idSpan.className='card-id';idSpan.textContent=lead.lead_number;if(lead.is_high_potential){const t=document.createElement('span');t.className='bdg';t.style.cssText='margin-left:6px;background:#FFF7ED;color:#C2410C;border-color:#FED7AA';t.textContent='⭐ High Potential';idSpan.appendChild(t);}
 else if(lead.lead_type_tag==='recurring'){const t=document.createElement('span');t.className='bdg t-recurring';t.style.marginLeft='6px';t.textContent='Recurring';idSpan.appendChild(t);}
 else if(lead.lead_type==='repeat'){const t=document.createElement('span');t.className='bdg t-repeat';t.style.marginLeft='6px';t.textContent='Repeat';idSpan.appendChild(t);}
