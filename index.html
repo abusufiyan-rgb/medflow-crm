@@ -64,11 +64,10 @@ const{data:prof,error:pe}=await sb.from('profiles').select('*').eq('id',data.use
 USER=data.user;PROF=prof;await startApp();}
 function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
 $('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});}
-// ── New-lead sound notification ───────────────────────────
+// ── New-lead sound + auto-refresh (polling) ───────────────
 function playLeadChime(){
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    // ascending three-note chime: C5 → E5 → G5
     [[523.25,0],[659.25,0.2],[783.99,0.4]].forEach(([freq,delay])=>{
       const osc=ctx.createOscillator(),gain=ctx.createGain();
       osc.connect(gain);gain.connect(ctx.destination);
@@ -82,18 +81,34 @@ function playLeadChime(){
   }catch(e){}
 }
 
-let _leadChannel=null;
-function startLeadPoolWatcher(){
-  if(_leadChannel)sb.removeChannel(_leadChannel);
-  _leadChannel=sb.channel('lead-pool-watcher')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'leads',filter:'status=eq.new'},()=>{
-      setTimeout(()=>{
+let _lastNewLeadAt=null,_pollTimer=null,_notifyPending=false;
+
+async function pollNewLeads(){
+  try{
+    const{data}=await sb.from('leads').select('created_at').eq('status','new')
+      .order('created_at',{ascending:false}).limit(1);
+    const newest=data?.[0]?.created_at||null;
+    if(!newest){_lastNewLeadAt=_lastNewLeadAt||null;return;}
+    if(_lastNewLeadAt===null){_lastNewLeadAt=newest;return;}  // baseline on first poll
+    if(new Date(newest)>new Date(_lastNewLeadAt)&&!_notifyPending){
+      _lastNewLeadAt=newest;
+      _notifyPending=true;
+      setTimeout(async()=>{
+        _notifyPending=false;
         playLeadChime();
         toast('🔔 New lead in Lead Pool!','success');
-        loadLeads().then(()=>renderNav());
+        await loadLeads();
+        renderNav();
+        if(NAV==='pool')renderView();
       },10000);
-    })
-    .subscribe();
+    }
+  }catch(e){console.warn('[lead-poll]',e);}
+}
+
+function startLeadPoolWatcher(){
+  if(_pollTimer)clearInterval(_pollTimer);
+  pollNewLeads();                        // set baseline immediately
+  _pollTimer=setInterval(pollNewLeads,20000); // check every 20 s
 }
 
 async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':PROF.role==='admin'?'admin_dashboard':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();startLeadPoolWatcher();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
