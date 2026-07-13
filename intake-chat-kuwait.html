@@ -347,7 +347,6 @@ let lang          = 'en';
 let stepIdx       = 0;
 let data          = { conditions:[], medications:[], gi_issues:[], methods:[] };
 let partialLeadId = null;
-//let saving        = false;
 
 // ── Options (bilingual, parallel arrays — index maps EN↔AR) ──
 const OPT = {
@@ -628,12 +627,49 @@ function hideChips(){
 }
 
 // ── Partial save ──────────────────────────────────────────
+let _saveInFlight = false;
+let _savePending  = false;
+
+// keepalive fetch — used on page exit; browser sends this even during page teardown
+function savePartialBeacon(){
+  if(!data.phone) return;
+  const bmi = calcBMI(data.height_cm, data.weight_kg);
+  const body = JSON.stringify({
+    p_phone:       data.phone,
+    p_email:       data.email ? data.email.toLowerCase().trim() : data.phone.replace(/\D/g,'')+'@proxy.com',
+    p_full_name:   data.full_name    || null,
+    p_city:        data.city         || null,
+    p_height_cm:   data.height_cm    || null,
+    p_weight_kg:   data.weight_kg    || null,
+    p_bmi:         bmi               || null,
+    p_conditions:  data.conditions.length  ? data.conditions  : null,
+    p_medications: data.medications.length ? data.medications : null,
+    p_gi_issues:   data.gi_issues.length   ? data.gi_issues   : null,
+    p_methods:     data.methods.length     ? data.methods     : null,
+    p_goals:       data.goals              || null,
+    p_source:      tracking.source,
+    p_utm_source:  tracking.utmSource,
+    p_utm_medium:  tracking.utmMed,
+    p_utm_campaign:tracking.utmCamp,
+    p_utm_content: tracking.utmCont,
+    p_referrer_url:tracking.referrer,
+    p_landing_url: tracking.landing,
+  });
+  fetch(SUPABASE_URL+'/rest/v1/rpc/save_partial_intake',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':'Bearer '+SUPABASE_ANON},
+    body,
+    keepalive:true,
+  }).catch(()=>{});
+}
+
 async function savePartial(){
-  if(saving || !data.phone) return;
-  saving = true;
+  if(!data.phone) return false;
+  if(_saveInFlight){ _savePending=true; return false; }
+  _saveInFlight = true;
   const bmi = calcBMI(data.height_cm, data.weight_kg);
   try{
-    await sb.rpc('save_partial_intake',{
+    const { data:res, error } = await sb.rpc('save_partial_intake',{
       p_phone:       data.phone,
       p_email:       data.email ? data.email.toLowerCase().trim() : (data.phone||'').replace(/\D/g,'')+'@proxy.com',
       p_full_name:   data.full_name    || null,
@@ -654,16 +690,25 @@ async function savePartial(){
       p_referrer_url:tracking.referrer,
       p_landing_url: tracking.landing,
     });
-  }catch(e){ /* silent — partial save failing shouldn't block UX */ }
-  saving = false;
+    if(error){ console.error('[partial-save] Supabase error:', JSON.stringify(error)); _saveInFlight=false; if(_savePending){_savePending=false;savePartial();} return false; }
+    if(res && !res.ok){ console.error('[partial-save] RPC returned not-ok:', JSON.stringify(res)); _saveInFlight=false; if(_savePending){_savePending=false;savePartial();} return false; }
+    _saveInFlight=false;
+    if(_savePending){ _savePending=false; savePartial(); }
+    return true;
+  }catch(e){
+    console.error('[partial-save] Exception:', e);
+    _saveInFlight=false;
+    if(_savePending){ _savePending=false; savePartial(); }
+    return false;
+  }
 }
 
-// Auto-save when user hides/leaves tab (visibilitychange = desktop; pagehide = mobile iOS)
+// Auto-save on exit — use keepalive fetch so browser sends it even during page teardown
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden && data.phone) savePartial();
+  if(document.hidden && data.phone) savePartialBeacon();
 });
 window.addEventListener('pagehide',()=>{
-  if(data.phone) savePartial();
+  if(data.phone) savePartialBeacon();
 });
 
 // ── Get city value from dropdown ──────────────────────────
@@ -750,10 +795,8 @@ async function handleAnswer(rawVal, skipped=false){
     if(bmi) await delay(200).then(()=>addBMICard(bmi));
   }
 
-  // Partial save
-  if(step.saveAfter){
-    savePartial().then(()=>addSaveBadge());
-  }
+  // Partial save — fires on every step; no-op until phone is collected
+  if(data.phone) savePartial().then(()=>addSaveBadge());
 
   // Move to next step or submit
   stepIdx++;
