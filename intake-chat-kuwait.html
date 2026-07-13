@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="htmlRoot">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Free Consultation — Valeo Health Kuwait</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:#EEF0F4;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+
+/* ── Language switcher ── */
+.lang-bar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;
+  padding-top:calc(8px + env(safe-area-inset-top));
+  background:#fff;border-bottom:1px solid #E2E8F0;
+  gap:10px;
+}
+.lang-brand{font-size:13px;font-weight:700;color:#1A5FA6}
+.lang-btns{display:flex;gap:4px;background:#F1F5F9;border-radius:8px;padding:3px}
+.lb{
+  padding:4px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;
+  cursor:pointer;background:transparent;color:#64748B;transition:all .15s
+}
+.lb.active{background:#fff;color:#1A5FA6;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* ── Wrapper ── */
+.chat-wrap{
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;
+  max-width:520px;margin:0 auto;
+  background:#fff;box-shadow:0 0 30px rgba(0,0,0,.08);
+  padding-top:48px;
+}
+
+/* ── Header ── */
+.chat-head{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:#1A5FA6;color:#fff;flex-shrink:0;
+}
+.avatar{
+  width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0
+}
+.head-info{flex:1;min-width:0}
+.bot-name{font-size:15px;font-weight:700}
+.bot-sub{font-size:12px;opacity:.85;margin-top:1px}
+.online-dot{width:10px;height:10px;border-radius:50%;background:#4ADE80;flex-shrink:0}
+
+/* ── Progress bar ── */
+.prog-wrap{background:#1A5FA6;padding:0 16px 10px;flex-shrink:0}
+.prog-track{height:4px;background:rgba(255,255,255,.25);border-radius:2px}
+.prog-fill{height:100%;border-radius:2px;background:#4ADE80;width:0%;transition:width .6s ease}
+
+/* ── Messages ── */
+.msgs{
+  flex:1;overflow-y:auto;padding:16px 12px;
+  display:flex;flex-direction:column;gap:6px;
+  background:#EEF0F4;
+}
+
+/* ── Bubble base ── */
+.bubble{
+  max-width:78%;padding:10px 13px;border-radius:16px;
+  font-size:14px;line-height:1.55;word-break:break-word;
+  white-space:pre-wrap;animation:bubIn .2s ease;
+}
+@keyframes bubIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Bot bubble (left) */
+.bub-bot{
+  align-self:flex-start;background:#fff;color:#1E293B;
+  border-bottom-left-radius:4px;
+  box-shadow:0 1px 2px rgba(0,0,0,.08);
+}
+[dir=rtl] .bub-bot{align-self:flex-start;border-bottom-left-radius:16px;border-bottom-right-radius:4px}
+
+/* User bubble (right) */
+.bub-user{
+  align-self:flex-end;background:#1A5FA6;color:#fff;
+  border-bottom-right-radius:4px;
+}
+[dir=rtl] .bub-user{align-self:flex-end;border-bottom-right-radius:16px;border-bottom-left-radius:4px}
+
+/* Typing indicator */
+.typing-wrap{align-self:flex-start;display:flex;align-items:center;gap:5px;padding:8px 12px;background:#fff;border-radius:16px;border-bottom-left-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.typing-wrap span{width:7px;height:7px;border-radius:50%;background:#94A3B8;animation:dot .9s infinite}
+.typing-wrap span:nth-child(2){animation-delay:.15s}
+.typing-wrap span:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+
+/* BMI card */
+.bmi-card{
+  align-self:flex-start;background:#fff;border-radius:14px;padding:14px 18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.1);max-width:78%;
+  border-left:4px solid var(--bmi-c,#94A3B8);animation:bubIn .2s ease;
+}
+[dir=rtl] .bmi-card{border-left:none;border-right:4px solid var(--bmi-c,#94A3B8);align-self:flex-start}
+.bmi-num{font-size:28px;font-weight:800;color:var(--bmi-c,#1E293B)}
+.bmi-cat{font-size:13px;font-weight:600;color:var(--bmi-c,#64748B);margin-top:2px}
+.bmi-sub{font-size:11px;color:#94A3B8;margin-top:4px}
+
+/* Partial-save indicator */
+.save-badge{
+  align-self:center;font-size:11px;color:#94A3B8;
+  display:flex;align-items:center;gap:4px;padding:2px 0;
+}
+.save-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80}
+
+/* ── Input bar ── */
+.input-bar{
+  flex-shrink:0;background:#fff;border-top:1px solid #E2E8F0;
+  padding:10px 12px calc(14px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:8px;
+}
+
+/* Chips */
+.chips-row{display:flex;flex-wrap:wrap;gap:8px;max-height:150px;overflow-y:auto}
+.chip{
+  padding:9px 16px;border:1.5px solid #CBD5E1;border-radius:20px;
+  font-size:14px;font-weight:500;color:#475569;background:#fff;
+  cursor:pointer;transition:all .12s;user-select:none;
+  /* min 44px touch target height */
+  min-height:44px;display:flex;align-items:center;
+}
+.chip:hover{border-color:#1A5FA6;color:#1A5FA6}
+.chip.on{background:#EBF2FB;border-color:#1A5FA6;color:#1A5FA6;font-weight:600}
+
+/* Skip / Done row */
+.action-row{display:flex;gap:8px;align-items:center}
+.skip-btn{
+  padding:10px 18px;border:1px solid #CBD5E1;border-radius:20px;
+  font-size:14px;color:#64748B;background:#fff;cursor:pointer;font-weight:500;
+  min-height:44px;
+}
+.done-btn{
+  padding:10px 20px;border:none;border-radius:20px;
+  font-size:14px;font-weight:700;color:#fff;background:#1A5FA6;cursor:pointer;
+  margin-inline-start:auto;min-height:44px;
+}
+
+/* City dropdown */
+.city-wrap{display:flex;flex:1;flex-direction:column;gap:6px}
+.city-select{
+  width:100%;height:46px;padding:0 36px 0 14px;
+  border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:15px;font-weight:500;color:#1E293B;background:#F8FAFC;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+.city-select:focus{border-color:#1A5FA6;box-shadow:0 0 0 3px rgba(26,95,166,.1)}
+.city-custom{
+  width:100%;padding:11px 16px;border:1.5px solid #1A5FA6;
+  border-radius:22px;font-size:16px;color:#1E293B;outline:none;
+  background:#EBF2FB;font-family:inherit;
+}
+.city-custom::placeholder{color:#94A3B8}
+
+/* Phone prefix */
+.pfx-wrap{display:flex;align-items:center;flex-shrink:0}
+.pfx-select{
+  height:46px;padding:0 8px;border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:14px;font-weight:600;color:#1E293B;background:#F8FAFC;
+  cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;
+  padding-right:22px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;
+  max-width:110px;
+}
+.pfx-select:focus{border-color:#1A5FA6}
+.pfx-custom{
+  width:72px;height:46px;padding:0 10px;border:1.5px solid #1A5FA6;
+  border-radius:22px;font-size:15px;font-weight:600;color:#1E293B;
+  outline:none;background:#EBF2FB;text-align:center;
+}
+
+/* Text input row */
+.text-row{display:flex;gap:8px;align-items:flex-end}
+.text-in{
+  flex:1;padding:12px 16px;border:1.5px solid #CBD5E1;border-radius:22px;
+  font-size:16px;/* 16px prevents iOS auto-zoom */
+  outline:none;resize:none;font-family:inherit;line-height:1.4;
+  transition:border-color .15s;max-height:120px;overflow-y:auto;
+}
+.text-in:focus{border-color:#1A5FA6}
+.send-btn{
+  width:46px;height:46px;border-radius:50%;border:none;
+  background:#1A5FA6;color:#fff;font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .15s;
+}
+.send-btn:hover{background:#134B85}
+.send-btn:disabled{background:#CBD5E1;cursor:not-allowed}
+
+/* Success screen */
+.success-wrap{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;text-align:center;gap:12px;background:#EEF0F4;
+}
+.success-ico{font-size:60px}
+.success-title{font-size:22px;font-weight:800;color:#1E293B;line-height:1.3}
+.success-msg{font-size:14px;color:#64748B;line-height:1.7;max-width:320px}
+.success-urgency{font-size:13px;font-weight:600;color:#16A34A;background:#DCFCE7;border:1px solid #86EFAC;border-radius:10px;padding:10px 16px;max-width:320px;line-height:1.5}
+.wa-btn{
+  display:inline-flex;align-items:center;gap:10px;
+  background:#25D366;color:#fff;border:none;border-radius:14px;
+  padding:13px 24px;font-size:15px;font-weight:700;cursor:pointer;
+  text-decoration:none;margin-top:8px;
+}
+
+/* Callback box (Kuwait version) */
+.call-back-box{
+  display:flex;align-items:center;gap:14px;
+  background:#F0F9FF;border:1px solid #BAE6FD;border-radius:14px;
+  padding:14px 18px;max-width:320px;margin-top:4px;
+}
+.call-back-ico{font-size:28px;flex-shrink:0}
+.call-back-text{font-size:13px;font-weight:600;color:#0369A1;line-height:1.5}
+
+/* Error */
+.err-bubble{
+  align-self:flex-start;background:#FEE2E2;color:#DC2626;
+  border-radius:12px;padding:10px 14px;font-size:13px;max-width:80%;
+  animation:bubIn .2s ease;
+}
+
+@media(max-width:600px){
+  .chat-wrap{max-width:100%;box-shadow:none}
+  .lang-bar{padding-left:12px;padding-right:12px}
+  .lang-brand{font-size:12px}
+  .msgs{padding:12px 10px}
+  .bubble{font-size:14px;max-width:88%}
+  .bmi-card{max-width:88%}
+  .chips-row{max-height:130px}
+  .g-card-head,.g-card-body{padding-left:16px;padding-right:16px}
+  .success-wrap{padding:24px 16px}
+  .success-title{font-size:20px}
+  .wa-btn{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Language bar -->
+<div class="lang-bar">
+  <span class="lang-brand">Valeo Health · فاليو هيلث</span>
+  <div class="lang-btns">
+    <button class="lb active" id="lb-en" onclick="setLang('en')">EN</button>
+    <button class="lb" id="lb-ar" onclick="setLang('ar')">عربي</button>
+  </div>
+</div>
+
+<!-- Chat -->
+<div class="chat-wrap" id="chatWrap">
+
+  <!-- Header -->
+  <div class="chat-head">
+    <div class="avatar">🩺</div>
+    <div class="head-info">
+      <div class="bot-name" id="botName">Valeo Medical Team</div>
+      <div class="bot-sub" id="botSub">Weight Loss Specialist · Online now</div>
+    </div>
+    <div class="online-dot" id="onlineDot"></div>
+  </div>
+
+  <!-- Progress -->
+  <div class="prog-wrap"><div class="prog-track"><div class="prog-fill" id="progFill"></div></div></div>
+
+  <!-- Messages -->
+  <div class="msgs" id="msgs"></div>
+
+  <!-- Input bar -->
+  <div class="input-bar" id="inputBar">
+    <div class="chips-row" id="chipsRow" style="display:none"></div>
+    <div class="action-row" id="actionRow" style="display:none">
+      <button class="skip-btn" id="skipBtn"></button>
+      <button class="done-btn" id="doneBtn"></button>
+    </div>
+    <div class="text-row" id="textRow">
+      <div class="pfx-wrap" id="pfxWrap" style="display:none">
+        <select class="pfx-select" id="pfxSelect">
+          <option value="+965">🇰🇼 +965</option>
+          <option value="+966">🇸🇦 +966</option>
+          <option value="+971">🇦🇪 +971</option>
+          <option value="+974">🇶🇦 +974</option>
+          <option value="+973">🇧🇭 +973</option>
+          <option value="+968">🇴🇲 +968</option>
+          <option value="+20">🇪🇬 +20</option>
+          <option value="+44">🇬🇧 +44</option>
+          <option value="+1">🇺🇸 +1</option>
+          <option value="other">✏️ Other</option>
+        </select>
+        <input class="pfx-custom" id="pfxCustom" type="tel" placeholder="+__" style="display:none" maxlength="5">
+      </div>
+      <div class="city-wrap" id="cityWrap" style="display:none;flex:1;flex-direction:column;gap:6px">
+        <select class="city-select" id="citySelect">
+          <option value="">— Select your city —</option>
+          <option value="Kuwait City">Kuwait City · مدينة الكويت</option>
+          <option value="Hawalli">Hawalli · حولي</option>
+          <option value="Salmiya">Salmiya · السالمية</option>
+          <option value="Farwaniya">Farwaniya · الفروانية</option>
+          <option value="Ahmadi">Ahmadi · الأحمدي</option>
+          <option value="Jahra">Jahra · الجهراء</option>
+          <option value="Mubarak Al-Kabeer">Mubarak Al-Kabeer · مبارك الكبير</option>
+          <option value="Fintas">Fintas · الفنطاس</option>
+          <option value="other">Other — اكتب مدينتك</option>
+        </select>
+        <input class="city-custom" id="cityCustom" type="text" placeholder="Type your city…" style="display:none">
+      </div>
+      <textarea class="text-in" id="textIn" rows="1" placeholder="Type your answer…"></textarea>
+      <button class="send-btn" id="sendBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// ── Config ──────────────────────────────────────────────
+const SUPABASE_URL  = 'https://rmpmhkllnrrybiezpjfb.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtcG1oa2xsbnJyeWJpZXpwamZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjA1ODAsImV4cCI6MjA5Mjg5NjU4MH0.HbHN6oc6bnEUlmZdIHB6fxO6r2M-17xo1BTG_pIAGNU';
+const WHATSAPP_NUM  = '96500000000'; // ← replace with Kuwait WhatsApp number
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── UTM Tracking ─────────────────────────────────────────
+const _p = new URLSearchParams(location.search);
+const tracking = {
+  source:    _p.get('source')       || 'Website',
+  utmSource: _p.get('utm_source')   || null,
+  utmMed:    _p.get('utm_medium')   || null,
+  utmCamp:   _p.get('utm_campaign') || null,
+  utmCont:   _p.get('utm_content')  || null,
+  referrer:  document.referrer      || null,
+  landing:   location.href          || null,
+};
+
+// ── State ────────────────────────────────────────────────
+let lang          = 'en';
+let stepIdx       = 0;
+let data          = { conditions:[], medications:[], gi_issues:[], methods:[] };
+let partialLeadId = null;
+let saving        = false;
+
+// ── Options (bilingual, parallel arrays — index maps EN↔AR) ──
+const OPT = {
+  conditions:{
+    en:['Type 2 Diabetes','High Blood Pressure','High Cholesterol','Sleep Apnea','PCOS','Heart Disease','Thyroid Problems','Depression','Eating Disorders','Pancreatitis History','Kidney/Liver Disease','None of the above'],
+    ar:['السكري من النوع الثاني','ارتفاع ضغط الدم','ارتفاع الكوليسترول','انقطاع التنفس أثناء النوم','تكيس المبايض','أمراض القلب','مشاكل الغدة الدرقية','الاكتئاب','اضطرابات الأكل','التهاب البنكرياس','أمراض الكلى/الكبد','لا شيء مما سبق'],
+  },
+  medications:{
+    en:['None','Diabetes Medications','Hypertension Medications','Heart Medications','Insulin','Thyroid Medications','Psychiatric Medications','Other'],
+    ar:['لا يوجد','أدوية السكري','أدوية ضغط الدم','أدوية القلب','الأنسولين','أدوية الغدة الدرقية','الأدوية النفسية','أخرى'],
+  },
+  gi:{
+    en:['None','Severe stomach pain','Persistent nausea','Gastroparesis','Inflammatory bowel disease'],
+    ar:['لا يوجد','آلام معدة حادة','غثيان مستمر','شلل المعدة','التهاب الأمعاء'],
+  },
+  methods:{
+    en:['Diet and Exercise','Weight Loss Medications','Commercial Programs','Bariatric Consultation','First Attempt',"Doctor's Recommendation",'Other'],
+    ar:['الحمية والرياضة','أدوية إنقاص الوزن','برامج تجارية','استشارة جراحة السمنة','المحاولة الأولى','توصية الطبيب','أخرى'],
+  },
+};
+
+// ── Translations ─────────────────────────────────────────
+const T = {
+  en:{
+    botName:'Valeo Medical Team', botSubOnline:'Weight Loss Specialist · Online now',
+    botSubOffline:'Reach out on WhatsApp — we\'ll text you back when available',
+    typing:'typing…', send:'Send', skip:'Skip', done:'Done ✓',
+    saveBadge:'Progress saved',
+    bmiLabel:'Your BMI',
+    bmiCat:{u:'Underweight',n:'Normal weight',ow:'Overweight',o1:'Obese Class I',o2:'Obese Class II',o3:'Obese Class III'},
+
+    q:[
+      ()=>`Hi there! I'm the weight loss advisor from Valeo Medical Team 👋\n\nI'll help you book a free weight loss consultation. It takes about 2 minutes.\n\nWhat's your first name?`,
+      d=>`Nice to meet you, ${d.first_name}! 😊\n\nWhat's your WhatsApp number?\n(Our doctor will contact you on this number)`,
+      ()=>`Which city are you in? _(optional — tap Skip)_`,
+      ()=>`Let's look at your health numbers 📊\n\nWhat's your height in cm?`,
+      ()=>`And your current weight in kg?`,
+      ()=>`Do you have any of these medical conditions?\n(Choose all that apply, then tap Send)`,
+      ()=>`Are you currently taking any medications?\n(Choose all that apply, then tap Send)`,
+      ()=>`Any digestive issues we should know about?\n(Choose all that apply, then tap Send)`,
+      ()=>`What have you tried before to lose weight?\n(Choose all that apply, then tap Send)`,
+    ],
+    ack:[
+      d=>`Nice to meet you, ${d.first_name}! 👋`,
+      ()=>`Got it! ✅`,
+      d=>d.city?`Got it, I'll note that! 📍`:`No problem!`,
+      ()=>`Noted 📏`,
+      ()=>``, // BMI card instead
+      d=>`Recorded${d.conditions.length&&d.conditions[0]!=='None of the above'?' — our doctor will review this':''} ✅`,
+      ()=>`Noted ✅`,
+      ()=>`Got it ✅`,
+      ()=>`Thank you! Sending your profile now…`,
+    ],
+    ph:['e.g. Sara','+966 5X XXX XXXX','e.g. Riyadh','e.g. 165','e.g. 85','','','',''],
+    errName:'Please enter your name (at least 2 characters)',
+    errEmail:'Please enter a valid email address',
+    errPhone:'Please enter a valid phone number',
+    errHeight:'Please enter your height in cm (e.g. 165)',
+    errWeight:'Please enter your weight in kg (e.g. 85)',
+    successTitle:n=>`You're all set, ${n}! 🎉`,
+    successMsg:`Your profile has been sent to our medical team.`,
+    successUrgency:`🟢 A specialist is available right now — tap below to get started immediately.`,
+    waBtnLabel:'⚡ Chat on WhatsApp Now',
+    errDup:`We already have your details! Our team will reach out to you soon.`,
+    errGeneric:`Something went wrong. Please try again or message us on WhatsApp.`,
+  },
+  ar:{
+    botName:'د. فاليو', botSubOnline:'أخصائي إنقاص الوزن · متاح الآن',
+    botSubOffline:'تواصل معنا عبر واتساب — سنرد عليك فور توفرنا',
+    typing:'يكتب…', send:'إرسال', skip:'تخطي', done:'تم ✓',
+    saveBadge:'تم حفظ تقدمك',
+    bmiLabel:'مؤشر كتلة الجسم',
+    bmiCat:{u:'نقص الوزن',n:'وزن طبيعي',ow:'زيادة الوزن',o1:'سمنة درجة أولى',o2:'سمنة درجة ثانية',o3:'سمنة درجة ثالثة'},
+
+    q:[
+      ()=>`مرحباً! أنا مستشار إنقاص الوزن من فريق فاليو الطبي 👋\n\nسأساعدك في حجز استشارة مجانية لإنقاص الوزن. لن تستغرق أكثر من دقيقتين.\n\nما اسمك الأول؟`,
+      d=>`سعيد بمعرفتك، ${d.first_name}! 😊\n\nما رقم واتساب الخاص بك؟\n(سيتواصل معك طبيبنا على هذا الرقم)`,
+      ()=>`في أي مدينة أنت؟ _(اختياري — اضغط تخطي)_`,
+      ()=>`لنلقِ نظرة على أرقامك الصحية 📊\n\nما طولك بالسنتيمتر؟`,
+      ()=>`وما وزنك الحالي بالكيلوغرام؟`,
+      ()=>`هل تعاني من أي من هذه الحالات الطبية؟\n(اختر كل ما ينطبق، ثم اضغط إرسال)`,
+      ()=>`هل تتناول أي أدوية حالياً؟\n(اختر كل ما ينطبق، ثم اضغط إرسال)`,
+      ()=>`هل لديك أي مشاكل في الجهاز الهضمي؟\n(اختر كل ما ينطبق، ثم اضغط إرسال)`,
+      ()=>`ماذا جربت من قبل لإنقاص الوزن؟\n(اختر كل ما ينطبق، ثم اضغط إرسال)`,
+    ],
+    ack:[
+      d=>`سعيد بمعرفتك، ${d.first_name}! 👋`,
+      ()=>`تمام! ✅`,
+      d=>d.city?`تمت الملاحظة! 📍`:`لا مشكلة!`,
+      ()=>`تم التسجيل 📏`,
+      ()=>``,
+      d=>`تم التسجيل${d.conditions.length&&d.conditions[0]!=='None of the above'?' — سيراجع طبيبنا هذا':''} ✅`,
+      ()=>`تمت الملاحظة ✅`,
+      ()=>`حسناً ✅`,
+      ()=>`شكراً! جارٍ إرسال ملفك…`,
+    ],
+    ph:['مثال: سارة','+966 5X XXX XXXX','مثال: الرياض','مثال: 165','مثال: 85','','','',''],
+    errName:'الرجاء إدخال اسمك (حرفان على الأقل)',
+    errEmail:'الرجاء إدخال عنوان بريد إلكتروني صحيح',
+    errPhone:'الرجاء إدخال رقم هاتف صحيح',
+    errHeight:'الرجاء إدخال طولك بالسنتيمتر (مثال: 165)',
+    errWeight:'الرجاء إدخال وزنك بالكيلوغرام (مثال: 85)',
+    successTitle:n=>`تم بنجاح، ${n}! 🎉`,
+    successMsg:`تم إرسال ملفك إلى فريقنا الطبي.`,
+    successUrgency:`🟢 يوجد متخصص متاح الآن — اضغط أدناه لبدء استشارتك فوراً.`,
+    waBtnLabel:'⚡ تحدث عبر واتساب الآن',
+    errDup:`لدينا معلوماتك بالفعل! سيتواصل فريقنا معك قريباً.`,
+    errGeneric:`حدث خطأ ما. يرجى المحاولة مرة أخرى أو التواصل معنا عبر واتساب.`,
+  },
+};
+
+// ── Step definitions ──────────────────────────────────────
+// type: text | email | tel | number | chips | textarea
+// optional: show skip button
+// chipKey: key in OPT
+// dataKey: where to store in data{}
+// saveAfter: call save_partial_intake after this step
+const STEPS = [
+  { id:'first_name', type:'text',     inputmode:'text',    saveAfter:false },               // 0
+  { id:'phone',      type:'tel',      inputmode:'tel',     saveAfter:true  },               // 1 ← first save
+  { id:'city',       type:'text',     inputmode:'text',    optional:true,  saveAfter:false }, // 2
+  { id:'height_cm',  type:'number',   inputmode:'decimal', saveAfter:true  },               // 3
+  { id:'weight_kg',  type:'number',   inputmode:'decimal', saveAfter:true, showBMI:true },  // 4
+  { id:'conditions', type:'chips',    chipKey:'conditions',optional:true,  saveAfter:true  }, // 5
+  { id:'medications',type:'chips',    chipKey:'medications',optional:true, saveAfter:true  }, // 6
+  { id:'gi_issues',  type:'chips',    chipKey:'gi',        optional:true,  saveAfter:true  }, // 7
+  { id:'methods',    type:'chips',    chipKey:'methods',   optional:true,  saveAfter:true  }, // 8
+];
+
+const TOTAL = STEPS.length;
+
+// ── DOM refs ──────────────────────────────────────────────
+const msgsEl    = document.getElementById('msgs');
+const chipsRow  = document.getElementById('chipsRow');
+const actionRow = document.getElementById('actionRow');
+const skipBtn   = document.getElementById('skipBtn');
+const doneBtn   = document.getElementById('doneBtn');
+const textRow   = document.getElementById('textRow');
+const textIn    = document.getElementById('textIn');
+const sendBtn   = document.getElementById('sendBtn');
+const progFill  = document.getElementById('progFill');
+
+// ── Language ──────────────────────────────────────────────
+function setLang(l) {
+  lang = l;
+  document.getElementById('htmlRoot').lang   = l;
+  document.getElementById('htmlRoot').dir    = l==='ar'?'rtl':'ltr';
+  document.getElementById('lb-en').classList.toggle('active', l==='en');
+  document.getElementById('lb-ar').classList.toggle('active', l==='ar');
+  document.getElementById('botName').textContent = T[l].botName;
+  applyOnlineStatus(l);
+
+  // Re-render current bot question in new language (last bot bubble)
+  const bots = msgsEl.querySelectorAll('.bub-bot[data-step]');
+  if(bots.length){
+    const last = bots[bots.length-1];
+    const s = parseInt(last.dataset.step, 10);
+    if(!isNaN(s) && T[l].q[s]) last.textContent = T[l].q[s](data);
+  }
+
+  // Re-render chips if visible
+  const step = STEPS[stepIdx];
+  if(step && step.type==='chips') showChips(step.chipKey, data[step.id]);
+
+  // Update button labels
+  skipBtn.textContent = T[l].skip;
+  doneBtn.textContent = T[l].done;
+  textIn.placeholder  = T[l].ph[stepIdx]||'';
+}
+
+// ── Progress ──────────────────────────────────────────────
+function updateProgress(idx){
+  progFill.style.width = Math.round((idx/TOTAL)*100)+'%';
+}
+
+// ── Scroll ────────────────────────────────────────────────
+function isKsaOnline(){
+  const now = new Date();
+  const h = parseInt(new Intl.DateTimeFormat('en-US',{hour:'numeric',hour12:false,timeZone:'Asia/Riyadh'}).format(now), 10);
+  return h >= 9 && h < 21; // 09:00–20:59 KSA = online
+}
+
+function applyOnlineStatus(l){
+  document.getElementById('botSub').textContent = T[l].botSubOnline;
+  document.getElementById('onlineDot').style.background = '#4ADE80';
+}
+
+function scrollBottom(){ msgsEl.scrollTo({top:msgsEl.scrollHeight,behavior:'smooth'}); }
+
+// ── Add bubble ────────────────────────────────────────────
+function addBubble(text, cls, dataset={}){
+  const d = document.createElement('div');
+  d.className = 'bubble '+cls;
+  d.textContent = text;
+  Object.entries(dataset).forEach(([k,v])=>d.dataset[k]=v);
+  msgsEl.appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+function addBotBubble(text, stepI){
+  const d = addBubble(text,'bub-bot', stepI!==undefined?{step:stepI}:{});
+  return d;
+}
+function addUserBubble(text){ addBubble(text,'bub-user'); }
+
+// ── Typing indicator ──────────────────────────────────────
+function showTyping(){
+  const d=document.createElement('div'); d.className='typing-wrap'; d.id='typing';
+  d.innerHTML='<span></span><span></span><span></span>';
+  msgsEl.appendChild(d); scrollBottom(); return d;
+}
+function removeTyping(){ document.getElementById('typing')?.remove(); }
+
+// ── BMI card ──────────────────────────────────────────────
+function calcBMI(h,w){ return (!h||!w)?null:parseFloat((w/((h/100)**2)).toFixed(1)); }
+function bmiInfo(b){
+  const C=T[lang].bmiCat;
+  if(!b)return{cat:'—',c:'#94A3B8'};
+  if(b<18.5)return{cat:C.u,c:'#F59E0B'};
+  if(b<25)return{cat:C.n,c:'#10B981'};
+  if(b<30)return{cat:C.ow,c:'#F59E0B'};
+  if(b<35)return{cat:C.o1,c:'#EF4444'};
+  if(b<40)return{cat:C.o2,c:'#EF4444'};
+  return{cat:C.o3,c:'#DC2626'};
+}
+function addBMICard(bmi){
+  const info = bmiInfo(bmi);
+  const d=document.createElement('div'); d.className='bmi-card';
+  d.style.setProperty('--bmi-c',info.c);
+  d.innerHTML=`<div class="bmi-num">${bmi}</div><div class="bmi-cat">${info.cat}</div><div class="bmi-sub">${T[lang].bmiLabel}</div>`;
+  msgsEl.appendChild(d); scrollBottom();
+}
+
+// ── Save badge ────────────────────────────────────────────
+function addSaveBadge(){
+  const d=document.createElement('div'); d.className='save-badge';
+  d.innerHTML=`<div class="save-dot"></div><span>${T[lang].saveBadge}</span>`;
+  msgsEl.appendChild(d); scrollBottom();
+}
+
+// ── Chips ─────────────────────────────────────────────────
+function showChips(chipKey, selected){
+  chipsRow.style.display='flex';
+  actionRow.style.display='flex';
+  textRow.style.display='none';
+  skipBtn.textContent = T[lang].skip;
+  doneBtn.textContent = lang==='ar'?'إرسال ✈':'Send ✈';
+  doneBtn.style.display='';
+
+  chipsRow.innerHTML='';
+  const enOpts = OPT[chipKey].en;
+  const displayOpts = OPT[chipKey][lang];
+
+  displayOpts.forEach((label, i)=>{
+    const enVal = enOpts[i];
+    const chip = document.createElement('button');
+    chip.className = 'chip'+(selected.includes(enVal)?' on':'');
+    chip.textContent = label;
+    chip.addEventListener('click',()=>{
+      if(selected.includes(enVal)){
+        selected.splice(selected.indexOf(enVal),1);
+        chip.classList.remove('on');
+      } else {
+        selected.push(enVal);
+        chip.classList.add('on');
+      }
+    });
+    chipsRow.appendChild(chip);
+  });
+  setTimeout(()=>msgsEl.scrollTo({top:msgsEl.scrollHeight,behavior:'instant'}), 250);
+}
+
+function hideChips(){
+  chipsRow.style.display='none';
+  actionRow.style.display='none';
+  textRow.style.display='flex';
+}
+
+// ── Partial save ──────────────────────────────────────────
+async function savePartial(){
+  if(saving || !data.phone) return;
+  saving = true;
+  const bmi = calcBMI(data.height_cm, data.weight_kg);
+  try{
+    await sb.rpc('save_partial_intake',{
+      p_phone:       data.phone,
+      p_email:       data.email ? data.email.toLowerCase().trim() : null,
+      p_full_name:   data.full_name    || null,
+      p_height_cm:   data.height_cm    || null,
+      p_weight_kg:   data.weight_kg    || null,
+      p_bmi:         bmi,
+      p_conditions:  data.conditions.length   ? data.conditions   : null,
+      p_medications: data.medications.length  ? data.medications  : null,
+      p_gi_issues:   data.gi_issues.length    ? data.gi_issues    : null,
+      p_methods:     data.methods.length      ? data.methods      : null,
+      p_goals:       data.goals               || null,
+      p_source:      tracking.source,
+      p_utm_source:  tracking.utmSource,
+      p_utm_medium:  tracking.utmMed,
+      p_utm_campaign:tracking.utmCamp,
+      p_utm_content: tracking.utmCont,
+      p_referrer_url:tracking.referrer,
+      p_landing_url: tracking.landing,
+    });
+  }catch(e){ /* silent — partial save failing shouldn't block UX */ }
+  saving = false;
+}
+
+// Auto-save when user hides/leaves tab
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && data.phone) savePartial();
+});
+
+// ── Get city value from dropdown ──────────────────────────
+function getCityValue(){
+  const sel = document.getElementById('citySelect');
+  if(sel.value==='other') return document.getElementById('cityCustom').value.trim();
+  return sel.value;
+}
+
+// ── Get full phone (prefix + number) ─────────────────────
+function getFullPhone(){
+  const pfxSel = document.getElementById('pfxSelect');
+  const pfxCustom = document.getElementById('pfxCustom');
+  const prefix = pfxSel.value==='other' ? pfxCustom.value.trim() : pfxSel.value;
+  const num = textIn.value.trim().replace(/\s/g,'');
+  return prefix + num;
+}
+
+// ── Validate step value ───────────────────────────────────
+function validate(stepIdx, val){
+  const s = STEPS[stepIdx];
+  if(s.optional && (!val||!val.toString().trim())) return {ok:true};
+  switch(s.id){
+    case 'first_name': return val.trim().length>=2?{ok:true}:{ok:false,msg:T[lang].errName};
+    case 'email':      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())?{ok:true}:{ok:false,msg:T[lang].errEmail};
+    case 'phone': {
+      const digits = val.replace(/\D/g,'');
+      return digits.length>=7&&digits.length<=15 ? {ok:true} : {ok:false,msg:T[lang].errPhone};
+    }
+    case 'height_cm':  { const n=parseFloat(val); return n>=100&&n<=250?{ok:true}:{ok:false,msg:T[lang].errHeight}; }
+    case 'weight_kg':  { const n=parseFloat(val); return n>=30&&n<=300?{ok:true}:{ok:false,msg:T[lang].errWeight}; }
+    default: return {ok:true};
+  }
+}
+
+// ── Answer handler ────────────────────────────────────────
+async function handleAnswer(rawVal, skipped=false){
+  const step = STEPS[stepIdx];
+  // For phone step, combine prefix + number; for city, read dropdown
+  const val = (!skipped && step.id==='phone') ? getFullPhone()
+            : (!skipped && step.id==='city')  ? getCityValue()
+            : (rawVal?.toString().trim()||'');
+
+  // Validate
+  if(!skipped){
+    const v = validate(stepIdx, val);
+    if(!v.ok){ showError(v.msg); return; }
+  }
+
+  // Store in data
+  if(step.type==='chips'){
+    // already mutated via chip clicks; nothing to do
+  } else if(step.type==='number'){
+    data[step.id] = val ? parseFloat(val) : null;
+  } else {
+    data[step.id] = val||null;
+    if(step.id==='first_name') data.full_name = val; // alias
+    if(step.id==='first_name') data.first_name = val.split(' ')[0];
+  }
+
+  // Hide input bar temporarily
+  textIn.value=''; textIn.style.height='auto'; sendBtn.disabled=true;
+  hideChips();
+
+  // User bubble
+  let displayVal = skipped ? '—' : val;
+  if(step.type==='chips'){
+    const enOpts = OPT[step.chipKey].en;
+    const displayOpts = OPT[step.chipKey][lang];
+    displayVal = data[step.id].length
+      ? data[step.id].map(ev=>{ const i=enOpts.indexOf(ev); return displayOpts[i]||ev; }).join(', ')
+      : (skipped?'—':'—');
+  }
+  if(displayVal && displayVal!=='—') addUserBubble(displayVal);
+
+  // Ack message (brief delay)
+  await delay(300);
+  const ackText = T[lang].ack[stepIdx] && T[lang].ack[stepIdx](data);
+  if(ackText) addBotBubble(ackText);
+
+  // BMI card special case
+  if(step.showBMI && data.height_cm && data.weight_kg){
+    const bmi = calcBMI(data.height_cm, data.weight_kg);
+    if(bmi) await delay(200).then(()=>addBMICard(bmi));
+  }
+
+  // Partial save
+  if(step.saveAfter){
+    savePartial().then(()=>addSaveBadge());
+  }
+
+  // Move to next step or submit
+  stepIdx++;
+  updateProgress(stepIdx);
+
+  if(stepIdx >= TOTAL){
+    await delay(600);
+    submitForm();
+    return;
+  }
+
+  // Next question
+  await delay(700);
+  const typing = showTyping();
+  await delay(900);
+  removeTyping();
+  const qText = T[lang].q[stepIdx](data);
+  addBotBubble(qText, stepIdx);
+
+  // Setup input for next step
+  setupInput(STEPS[stepIdx]);
+  sendBtn.disabled = false;
+}
+
+function showError(msg){
+  const old = msgsEl.querySelector('.err-bubble');
+  if(old) old.remove();
+  const d=document.createElement('div'); d.className='err-bubble';
+  d.textContent=msg;
+  msgsEl.appendChild(d); scrollBottom();
+  setTimeout(()=>d.remove(),3500);
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ── Setup input for a step ────────────────────────────────
+function setupInput(step){
+  msgsEl.querySelector('.err-bubble')?.remove();
+  textIn.value=''; textIn.style.height='auto';
+
+  if(step.type==='chips'){
+    showChips(step.chipKey, data[step.id]);
+    textRow.style.display='none';
+    sendBtn.disabled=false;
+  } else {
+    hideChips();
+    textRow.style.display='flex';
+
+    if(step.optional){
+      actionRow.style.display='flex';
+      skipBtn.textContent  = T[lang].skip;
+      doneBtn.style.display='none'; // only skip for optional text
+    } else {
+      actionRow.style.display='none';
+    }
+
+    const isPhone = step.id==='phone';
+    const isCity  = step.id==='city';
+    document.getElementById('pfxWrap').style.display  = isPhone ? 'flex' : 'none';
+    document.getElementById('cityWrap').style.display = isCity  ? 'flex' : 'none';
+    textIn.style.display = isCity ? 'none' : '';
+
+    if(isPhone){
+      document.getElementById('pfxSelect').value = '+965';
+      document.getElementById('pfxCustom').style.display = 'none';
+      textIn.inputMode = 'tel';
+      textIn.type      = 'tel';
+      textIn.placeholder = '5X XXX XXXX';
+    } else if(isCity){
+      const sel = document.getElementById('citySelect');
+      sel.value = '';
+      document.getElementById('cityCustom').style.display = 'none';
+      // reset AR/EN label of placeholder option
+      sel.options[0].text = lang==='ar' ? '— اختر مدينتك —' : '— Select your city —';
+      setTimeout(()=>sel.focus(),100);
+    } else {
+      textIn.inputMode   = step.inputmode||'text';
+      textIn.type        = (step.type==='textarea'||step.type==='text')?'text':step.type;
+      textIn.placeholder = T[lang].ph[stepIdx]||'';
+    }
+    sendBtn.disabled   = false;
+    if(!isCity) setTimeout(()=>textIn.focus(),100);
+  }
+}
+
+// ── Submit (final) ────────────────────────────────────────
+async function submitForm(){
+  const typing = showTyping();
+  const bmi = calcBMI(data.height_cm, data.weight_kg);
+  const { data:result, error } = await sb.rpc('submit_intake_form',{
+    p_phone:        data.phone||'',
+    p_email:        data.email ? data.email.toLowerCase().trim() : `${(data.phone||'').replace(/\D/g,'')}@noemail.placeholder`,
+    p_source:       tracking.source,
+    p_full_name:    data.full_name||data.first_name||'',
+    p_height_cm:    data.height_cm||null,
+    p_weight_kg:    data.weight_kg||null,
+    p_bmi:          bmi,
+    p_conditions:   data.conditions.length   ? data.conditions   : null,
+    p_medications:  data.medications.length  ? data.medications  : null,
+    p_gi_issues:    data.gi_issues.length    ? data.gi_issues    : null,
+    p_methods:      data.methods.length      ? data.methods      : null,
+    p_goals:        data.goals||null,
+    p_utm_source:   tracking.utmSource,
+    p_utm_medium:   tracking.utmMed,
+    p_utm_campaign: tracking.utmCamp,
+    p_utm_content:  tracking.utmCont,
+    p_referrer_url: tracking.referrer,
+    p_landing_url:  tracking.landing,
+  });
+  removeTyping();
+
+  // On duplicate phone, still land on the success screen
+  if(error && result?.code!=='duplicate'){
+    const detail = result?.message || error?.message || '';
+    addBotBubble(T[lang].errGeneric + (detail ? `\n\n_(${detail})_` : ''));
+    document.getElementById('inputBar').style.display='none';
+    return;
+  }
+
+  updateProgress(TOTAL);
+  showSuccess();
+}
+
+function showSuccess(){
+  progFill.style.width='100%';
+  document.getElementById('inputBar').style.display='none';
+
+  const name = data.first_name || data.full_name || '';
+  const online = isKsaOnline();
+  const availabilityHtml = online
+    ? `<div class="success-urgency">${lang==='ar'?'🟢 فريقنا متاح الآن وسيتواصل معك قريباً.':'🟢 Our team is available now and will reach out to you shortly.'}</div>`
+    : `<div class="success-urgency" style="color:#B45309;background:#FEF3C7;border-color:#FCD34D">${lang==='ar'?'💬 نحن غير متاحين حالياً — سيتصل بك فريقنا خلال ساعات العمل (9 ص – 9 م بتوقيت الكويت).':'💬 We\'re away right now — our team will call you back during working hours (9 AM – 9 PM Kuwait time).'}</div>`;
+
+  const wrap = document.createElement('div'); wrap.className='success-wrap';
+  wrap.innerHTML=`
+    <div class="success-ico">🎉</div>
+    <div class="success-title">${T[lang].successTitle(name)}</div>
+    <div class="success-msg">${lang==='ar'?'تم إرسال ملفك إلى فريقنا الطبي. سنتواصل معك قريباً.':'Your profile has been sent to our medical team. We\'ll be in touch with you soon.'}</div>
+    ${availabilityHtml}
+    <div class="call-back-box">
+      <div class="call-back-ico">📞</div>
+      <div class="call-back-text">${lang==='ar'?'سيتصل بك أحد مستشارينا على الرقم الذي أدخلته.':'One of our advisors will call you on the number you provided.'}</div>
+    </div>`;
+
+  // Replace msgs + input bar
+  const cw = document.getElementById('chatWrap');
+  msgsEl.style.display='none';
+  cw.appendChild(wrap);
+}
+
+// ── Auto-grow textarea ────────────────────────────────────
+textIn.addEventListener('input',()=>{
+  textIn.style.height='auto';
+  textIn.style.height=Math.min(textIn.scrollHeight,120)+'px';
+});
+
+// ── Send on Enter (but Shift+Enter = new line) ────────────
+textIn.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendBtn.click(); }
+});
+
+// ── Send button ───────────────────────────────────────────
+sendBtn.addEventListener('click',()=>{
+  const step = STEPS[stepIdx];
+  if(!step) return;
+  if(step.type==='chips') handleAnswer(null, false);
+  else if(step.id==='city') handleAnswer(null, false);
+  else handleAnswer(textIn.value);
+});
+
+// ── City "Other" toggle ───────────────────────────────────
+document.getElementById('citySelect').addEventListener('change', function(){
+  const custom = document.getElementById('cityCustom');
+  if(this.value==='other'){
+    custom.style.display='block';
+    setTimeout(()=>custom.focus(),50);
+  } else {
+    custom.style.display='none';
+  }
+});
+
+// ── Phone prefix "Other" toggle ───────────────────────────
+document.getElementById('pfxSelect').addEventListener('change', function(){
+  const custom = document.getElementById('pfxCustom');
+  if(this.value==='other'){
+    custom.style.display='block';
+    custom.value='+';
+    setTimeout(()=>custom.focus(),50);
+  } else {
+    custom.style.display='none';
+    setTimeout(()=>textIn.focus(),50);
+  }
+});
+
+// ── Skip button ───────────────────────────────────────────
+skipBtn.addEventListener('click',()=>{ handleAnswer(null, true); });
+
+// ── Done button (chips) ───────────────────────────────────
+doneBtn.addEventListener('click',()=>{ handleAnswer(null, false); });
+
+// ── Kick off ──────────────────────────────────────────────
+async function start(){
+  applyOnlineStatus(lang);
+  updateProgress(0);
+  await delay(400);
+  const typing = showTyping();
+  await delay(1000);
+  removeTyping();
+  addBotBubble(T[lang].q[0](data), 0);
+  setupInput(STEPS[0]);
+  sendBtn.disabled=false;
+}
+
+start();
+</script>
+</body>
+</html>
