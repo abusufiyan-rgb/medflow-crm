@@ -64,7 +64,39 @@ const{data:prof,error:pe}=await sb.from('profiles').select('*').eq('id',data.use
 USER=data.user;PROF=prof;await startApp();}
 function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
 $('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});}
-async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':PROF.role==='admin'?'admin_dashboard':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
+// ── New-lead sound notification ───────────────────────────
+function playLeadChime(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // ascending three-note chime: C5 → E5 → G5
+    [[523.25,0],[659.25,0.2],[783.99,0.4]].forEach(([freq,delay])=>{
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type='sine';osc.frequency.value=freq;
+      const t=ctx.currentTime+delay;
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.35,t+0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.55);
+      osc.start(t);osc.stop(t+0.6);
+    });
+  }catch(e){}
+}
+
+let _leadChannel=null;
+function startLeadPoolWatcher(){
+  if(_leadChannel)sb.removeChannel(_leadChannel);
+  _leadChannel=sb.channel('lead-pool-watcher')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'leads',filter:'status=eq.new'},()=>{
+      setTimeout(()=>{
+        playLeadChime();
+        toast('🔔 New lead in Lead Pool!','success');
+        loadLeads().then(()=>renderNav());
+      },10000);
+    })
+    .subscribe();
+}
+
+async function startApp(){NAV=PROF.role==='agent'?'dashboard':PROF.role==='doctor'?'agent_consults':PROF.role==='admin'?'admin_dashboard':'all_leads';document.getElementById('app').innerHTML='<div class="loading"><div class="spin spin-d"></div><span style="margin-top:8px">Loading…</span></div>';await Promise.all([loadLeads(),loadDoctors(),loadOrders()]);await loadCustomers();buildShell();startLeadPoolWatcher();setTimeout(()=>{Promise.all([loadRules(),loadHPLeads()]).then(()=>{renderNav();if(PROF.role==='agent')checkAndCreateReorderLeads();});},300);}
 function buildShell(){const app=document.getElementById('app');app.innerHTML='';const shell=document.createElement('div');shell.className='shell';const sbe=document.createElement('div');sbe.className='sidebar';sbe.innerHTML=`<div class="sb-brand"><div class="sb-logo">MedFlow</div><div class="sb-sub">CRM v2.0</div></div><nav class="sb-nav" id="sbnav"></nav><div class="sb-foot"><div class="sb-name">${PROF.name}</div><div class="sb-role">${PROF.role}${PROF.specialty?`· ${PROF.specialty}`:''}</div><button class="sb-out" id="signOutBtn">Sign out</button></div>`;const main=document.createElement('div');main.className='main-col';main.innerHTML=`<div class="topbar"><div class="tb-title" id="tbTitle"></div><div class="tb-right"><span class="role-pill rp-${PROF.role}">${PROF.role.charAt(0).toUpperCase()+PROF.role.slice(1)}</span><button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button></div></div><div class="content" id="viewArea"></div>`;shell.appendChild(sbe);shell.appendChild(main);app.appendChild(shell);$('signOutBtn').addEventListener('click',async()=>{await sb.auth.signOut();USER=null;PROF=null;showAuth();});// Export button in topbar
 const _expBtn=document.createElement('button');
 _expBtn.className='btn btn-ghost btn-sm';
