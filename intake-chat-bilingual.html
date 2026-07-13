@@ -335,7 +335,6 @@ let lang          = 'en';
 let stepIdx       = 0;
 let data          = { conditions:[], medications:[], gi_issues:[], methods:[] };
 let partialLeadId = null;
-//let saving        = false;
 
 // ── Options (bilingual, parallel arrays — index maps EN↔AR) ──
 const OPT = {
@@ -622,8 +621,7 @@ function hideChips(){
 
 // ── Partial save ──────────────────────────────────────────
 async function savePartial(){
-  if(saving || !data.phone) return false;
-  saving = true;
+  if(!data.phone) return false;
   const bmi = calcBMI(data.height_cm, data.weight_kg);
   try{
     const { data:res, error } = await sb.rpc('save_partial_intake',{
@@ -647,13 +645,11 @@ async function savePartial(){
       p_referrer_url:tracking.referrer,
       p_landing_url: tracking.landing,
     });
-    if(error){ console.error('[partial-save] Supabase error:', JSON.stringify(error)); saving=false; return false; }
-    if(res && !res.ok){ console.error('[partial-save] RPC returned not-ok:', JSON.stringify(res)); saving=false; return false; }
-    saving = false;
+    if(error){ console.error('[partial-save] Supabase error:', JSON.stringify(error)); return false; }
+    if(res && !res.ok){ console.error('[partial-save] RPC returned not-ok:', JSON.stringify(res)); return false; }
     return true;
   }catch(e){
     console.error('[partial-save] Exception:', e);
-    saving = false;
     return false;
   }
 }
