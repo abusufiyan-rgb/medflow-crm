@@ -468,7 +468,7 @@ const T = {
 const STEPS = [
   { id:'first_name', type:'text',     inputmode:'text',    saveAfter:false },               // 0
   { id:'phone',      type:'tel',      inputmode:'tel',     saveAfter:true  },               // 1 ← first save
-  { id:'city',       type:'text',     inputmode:'text',    optional:true,  saveAfter:false }, // 2
+  { id:'city',       type:'text',     inputmode:'text',    optional:true,  saveAfter:true  }, // 2
   { id:'height_cm',  type:'number',   inputmode:'decimal', saveAfter:true  },               // 3
   { id:'weight_kg',  type:'number',   inputmode:'decimal', saveAfter:true, showBMI:true },  // 4
   { id:'conditions', type:'chips',    chipKey:'conditions',optional:true,  saveAfter:true  }, // 5
@@ -635,8 +635,9 @@ async function savePartial(){
   try{
     await sb.rpc('save_partial_intake',{
       p_phone:       data.phone,
-      p_email:       data.email ? data.email.toLowerCase().trim() : null,
+      p_email:       data.email ? data.email.toLowerCase().trim() : (data.phone||'').replace(/\D/g,'')+'@proxy.com',
       p_full_name:   data.full_name    || null,
+      p_city:        data.city         || null,
       p_height_cm:   data.height_cm    || null,
       p_weight_kg:   data.weight_kg    || null,
       p_bmi:         bmi,
@@ -657,9 +658,12 @@ async function savePartial(){
   saving = false;
 }
 
-// Auto-save when user hides/leaves tab
+// Auto-save when user hides/leaves tab (visibilitychange = desktop; pagehide = mobile iOS)
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden && data.phone) savePartial();
+});
+window.addEventListener('pagehide',()=>{
+  if(data.phone) savePartial();
 });
 
 // ── Get city value from dropdown ──────────────────────────
@@ -841,9 +845,10 @@ async function submitForm(){
   const bmi = calcBMI(data.height_cm, data.weight_kg);
   const { data:result, error } = await sb.rpc('submit_intake_form',{
     p_phone:        data.phone||'',
-    p_email:        data.email ? data.email.toLowerCase().trim() : `${(data.phone||'').replace(/\D/g,'')}@noemail.placeholder`,
+    p_email:        data.email ? data.email.toLowerCase().trim() : (data.phone||'').replace(/\D/g,'')+'@proxy.com',
     p_source:       tracking.source,
     p_full_name:    data.full_name||data.first_name||'',
+    p_city:         data.city||null,
     p_height_cm:    data.height_cm||null,
     p_weight_kg:    data.weight_kg||null,
     p_bmi:          bmi,
