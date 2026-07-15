@@ -37,7 +37,8 @@ if(DATE_PRESET==='custom'&&DATE_FROM&&DATE_TO)return{from:new Date(DATE_FROM).to
 function applyDateFilter(leads){const r=getDateRange();if(!r)return leads;return leads.filter(l=>{const d=new Date(l.claimed_at||l.created_at);return d>=new Date(r.from)&&d<=new Date(r.to);});}
 function deduplicateLeads(leads){const map=new Map();const sorted=[...leads].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));sorted.forEach(l=>{const key=l.email?l.email.toLowerCase():'__noemail_'+l.id;if(!map.has(key)){map.set(key,l);return;}
 const existing=map.get(key);const diff=Math.abs(new Date(l.created_at)-new Date(existing.created_at))/(86400000);if(diff>7)map.set(key+'_'+l.id,l);});return Array.from(map.values());}
-const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,utm_campaign,city,region,agent_id,agent_name,doctor_id,doctor_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,followup_date,is_reorder_lead,last_status_updated_at,conversion_type,poc_updated_at,client_profiles(full_name,bmi,age,agent_notes),prescriptions(product,is_current)';const SEL_FULL='*,client_profiles(*),prescriptions(*)';async function loadLeads(){try{if(PROF.role==='agent'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false}).limit(2000)]);const seen=new Set();LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));}else if(PROF.role==='doctor'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').order('created_at',{ascending:false}).limit(200),sb.from('leads').select(SEL).eq('doctor_id',USER.id).order('created_at',{ascending:false}).limit(200)]);const seen=new Set();LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});}else{const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false}).limit(5000);LEADS=deduplicateLeads(data||[]);}}catch(e){console.error('loadLeads',e);}}
+const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,utm_campaign,city,region,agent_id,agent_name,doctor_id,doctor_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,followup_date,is_reorder_lead,last_status_updated_at,conversion_type,poc_updated_at,landing_url,client_profiles(full_name,bmi,age,agent_notes),prescriptions(product,is_current)';
+function detectForm(lead){const u=lead.landing_url||'';if(u.includes('kuwait'))return 'Kuwait Form';if(u.includes('bilingual'))return 'General Form';const match=u.match(/\/([^/?#]+\.html)/);return match?match[1]:'Direct';}const SEL_FULL='*,client_profiles(*),prescriptions(*)';async function loadLeads(){try{if(PROF.role==='agent'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).order('created_at',{ascending:false}).limit(2000)]);const seen=new Set();LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));}else if(PROF.role==='doctor'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').order('created_at',{ascending:false}).limit(200),sb.from('leads').select(SEL).eq('doctor_id',USER.id).order('created_at',{ascending:false}).limit(200)]);const seen=new Set();LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});}else{const{data}=await sb.from('leads').select(SEL).order('created_at',{ascending:false}).limit(5000);LEADS=deduplicateLeads(data||[]);}}catch(e){console.error('loadLeads',e);}}
 async function loadDoctors(){const{data}=await sb.from('profiles').select('*').eq('is_active',true);DOCTORS=data||[];}
 async function loadOrders(){try{const role=PROF?.role;const PAGE=1000;let all=[];let from=0;let keepGoing=true;while(keepGoing){let q=sb.from('orders').select('id,order_number,email,phone,customer_name,product,order_date,amount,lead_id,agent_id,agent_name,is_linked,has_agent,order_status,city,region,notes,quantity,payment_method').order('order_date',{ascending:false}).range(from,from+PAGE-1);if(role==='agent')q=q.or(`agent_id.eq.${USER.id},has_agent.eq.false`);const{data,error}=await q;if(error||!data||data.length===0){keepGoing=false;break;}all=[...all,...data];if(data.length<PAGE)keepGoing=false;else from+=PAGE;if(all.length>=10000)keepGoing=false;}ORDERS=all;}catch(e){console.error('loadOrders',e);}}
 let CUSTOMERS_LOADED=false;async function loadCustomers(){try{const role=PROF?.role;if(role==='agent'){const[{data:mine,error:e1},{data:unassigned,error:e2}]=await Promise.all([(async()=>{let _m=[];let _f=0;let _g=true;while(_g){const{data:_d}=await sb.from('customers').select('*').eq('agent_id',USER.id).order('last_order_date',{ascending:false,nullsFirst:false}).range(_f,_f+999);if(!_d||_d.length===0)break;_m=[..._m,..._d];if(_d.length<1000)_g=false;else _f+=1000;if(_m.length>=10000)break;}return{data:_m,error:null};})(),(async()=>{let _u=[];let _f=0;let _g=true;while(_g){const{data:_d}=await sb.from('customers').select('*').eq('is_assigned',false).order('last_order_date',{ascending:false,nullsFirst:false}).range(_f,_f+999);if(!_d||_d.length===0)break;_u=[..._u,..._d];if(_d.length<1000)_g=false;else _f+=1000;if(_u.length>=10000)break;}return{data:_u,error:null};})(),]);if(!e1&&!e2){CUSTOMERS=mine||[];FLOAT_CUSTS=unassigned||[];CUSTOMERS_LOADED=true;return;}}else{let _allCusts=[];let _from=0;let _going=true;while(_going){const{data:_cd,error:_ce}=await sb.from('customers').select('*').order('last_order_date',{ascending:false,nullsFirst:false}).range(_from,_from+999);if(_ce||!_cd||_cd.length===0){_going=false;break;}_allCusts=[..._allCusts,..._cd];if(_cd.length<1000)_going=false;else _from+=1000;if(_allCusts.length>=20000)_going=false;}const data=_allCusts;const error=null;if(!error&&data){CUSTOMERS=data;FLOAT_CUSTS=data.filter(c=>!c.is_assigned);CUSTOMERS_LOADED=true;return;}}}catch(e){console.warn('loadCustomers DB:',e.message);}
@@ -157,12 +158,13 @@ function vGrid(v,leads,title,showDF=false){
   const base=showDF?applyDateFilter(leads):leads;
 
   // ── Filter state ──────────────────────────────────────────
-  let _q='', _src='all', _region='all', _city='all';
+  let _q='', _src='all', _region='all', _city='all', _form='all';
 
   // Collect unique values from this lead set
   const sources=[...new Set(base.map(l=>l.source).filter(Boolean))].sort();
   const regions=[...new Set(base.map(l=>l.region).filter(Boolean))].sort();
   const cities=[...new Set(base.map(l=>l.city).filter(Boolean))].sort();
+  const forms=[...new Set(base.map(l=>detectForm(l)).filter(Boolean))].sort();
 
   // ── Search bar ────────────────────────────────────────────
   const searchRow=document.createElement('div');
@@ -177,7 +179,7 @@ function vGrid(v,leads,title,showDF=false){
   clrBtn.className='btn btn-ghost btn-sm';clrBtn.textContent='Clear filters';
   clrBtn.style.display='none';
   clrBtn.addEventListener('click',()=>{
-    _q='';_src='all';_region='all';_city='all';
+    _q='';_src='all';_region='all';_city='all';_form='all';
     si.value='';
     filterArea.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));
     filterArea.querySelectorAll('.fc[data-val="all"]').forEach(c=>c.classList.add('on'));
@@ -221,13 +223,15 @@ function vGrid(v,leads,title,showDF=false){
     return row;
   }
 
+  const frmRow=mkChipRow('Form',forms,()=>_form,v=>{_form=v});
   const srcRow=mkChipRow('Source',sources,()=>_src,v=>{_src=v});
   const regRow=mkChipRow('Region',regions,()=>_region,v=>{_region=v});
   const citRow=mkChipRow('City',cities,()=>_city,v=>{_city=v});
+  if(frmRow)filterArea.appendChild(frmRow);
   if(srcRow)filterArea.appendChild(srcRow);
   if(regRow)filterArea.appendChild(regRow);
   if(citRow)filterArea.appendChild(citRow);
-  if(srcRow||regRow||citRow)v.appendChild(filterArea);
+  if(frmRow||srcRow||regRow||citRow)v.appendChild(filterArea);
 
   // ── Result area ───────────────────────────────────────────
   const resultArea=document.createElement('div');v.appendChild(resultArea);
@@ -236,6 +240,7 @@ function vGrid(v,leads,title,showDF=false){
     clrBtn.style.display=(_q||_src!=='all'||_region!=='all'||_city!=='all')?'inline-flex':'none';
     let list=base;
     if(_q)list=list.filter(l=>[(l.client_profiles?.full_name||''),(l.phone||''),(l.lead_number||''),(l.email||'')].some(x=>x.toLowerCase().includes(_q)));
+    if(_form!=='all')list=list.filter(l=>detectForm(l)===_form);
     if(_src!=='all')list=list.filter(l=>l.source===_src);
     if(_region!=='all')list=list.filter(l=>l.region===_region);
     if(_city!=='all')list=list.filter(l=>l.city===_city);
@@ -273,8 +278,41 @@ if(lead.is_high_potential&&lead.high_potential_reason){const w=document.createEl
 if(lead.source==='Reorder Auto'||lead.is_reorder_lead){const rb=document.createElement('div');rb.style.cssText='background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--rs);padding:8px 12px;margin-top:8px';const due=lead.reorder_due_at;const daysUntil=due?Math.ceil((new Date(due)-new Date())/86400000):null;rb.innerHTML='<div style="font-size:10px;font-weight:600;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🔁 Reorder Lead</div>'+(due?'<div style="font-size:12px;color:var(--amber);font-weight:500">Due: '+fmtD(due)+(daysUntil!=null?' ('+Math.abs(daysUntil)+(daysUntil<0?' overdue':' days')+')':"")+'</div>':'');card.appendChild(rb);}if(rx){const b=document.createElement('div');b.className='rx-box';b.innerHTML=`<div class="rx-box-lbl">Prescription</div><div class="rx-box-val">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:11px;color:var(--tx2);margin-top:2px">${rx.dosage_notes}</div>`:''}`;card.appendChild(b);}
 if(due){const d=document.createElement('div');d.className='reorder-tag';d.textContent=`🔁 Reorder: ${fmtD(lead.reorder_due_at)}`;card.appendChild(d);}
 const hasTs=lead.claimed_at||lead.consultation_at||lead.converted_at;if(hasTs){const ts=document.createElement('div');ts.className='card-ts';if(lead.claimed_at)ts.innerHTML+=`<span>📋 Claimed: ${fmtDT(lead.claimed_at)}</span>`;if(lead.consultation_at)ts.innerHTML+=`<span>🩺 Consulted: ${fmtDT(lead.consultation_at)}</span>`;if(lead.converted_at)ts.innerHTML+=`<span>✅ Converted: ${fmtDT(lead.converted_at)}</span>`;card.appendChild(ts);}
-const acts=[];if(role==='agent'&&lead.status==='new')acts.push(['Claim Lead','btn-blue',()=>claimLead(lead)]);if(lead.status!=='new')acts.push([cp?'View / Edit Profile':'Create Profile','btn-ghost',()=>openProfile(lead)]);if(role==='agent'&&['claimed','in_progress','supplement','prescribed'].includes(lead.status))acts.push(['Update Status / POC','btn-ghost',()=>openStatus(lead)]);if(role==='agent'&&['contacting','engaged','qualified','claimed','in_progress'].includes(lead.status)&&cp)acts.push(['Send to Doctor','btn-purple',()=>openAssign(lead)]);if((role==='doctor'||role==='admin')&&lead.status==='with_doctor')acts.push(['Prescribe & Return','btn-green',()=>openPrescribe(lead)]);if(role==='agent'&&lead.status==='prescribed')acts.push(['Mark Converted','btn-green',()=>openConvert(lead)]);if(acts.length){const wrap=document.createElement('div');wrap.className='card-acts';acts.forEach(([lbl,cls,fn])=>{const btn=document.createElement('button');btn.className=`btn ${cls} btn-sm btn-w`;btn.textContent=lbl;btn.addEventListener('click',async()=>{btn.disabled=true;const orig=btn.textContent;btn.innerHTML=`<span class="spin"></span> ${orig}`;try{await fn();}catch(e){toast(e.message||'Error','error');}btn.disabled=false;btn.textContent=orig;});wrap.appendChild(btn);});card.appendChild(wrap);}
+const acts=[];if(role==='agent'&&lead.status==='new'){acts.push(['👁 View Lead','btn-ghost',()=>openLeadPreview(lead)]);acts.push(['Claim Lead','btn-blue',()=>claimLead(lead)]);}if(lead.status!=='new')acts.push([cp?'View / Edit Profile':'Create Profile','btn-ghost',()=>openProfile(lead)]);if(role==='agent'&&['claimed','in_progress','supplement','prescribed'].includes(lead.status))acts.push(['Update Status / POC','btn-ghost',()=>openStatus(lead)]);if(role==='agent'&&['contacting','engaged','qualified','claimed','in_progress'].includes(lead.status)&&cp)acts.push(['Send to Doctor','btn-purple',()=>openAssign(lead)]);if((role==='doctor'||role==='admin')&&lead.status==='with_doctor')acts.push(['Prescribe & Return','btn-green',()=>openPrescribe(lead)]);if(role==='agent'&&lead.status==='prescribed')acts.push(['Mark Converted','btn-green',()=>openConvert(lead)]);if(acts.length){const wrap=document.createElement('div');wrap.className='card-acts';acts.forEach(([lbl,cls,fn])=>{const btn=document.createElement('button');btn.className=`btn ${cls} btn-sm btn-w`;btn.textContent=lbl;btn.addEventListener('click',async()=>{btn.disabled=true;const orig=btn.textContent;btn.innerHTML=`<span class="spin"></span> ${orig}`;try{await fn();}catch(e){toast(e.message||'Error','error');}btn.disabled=false;btn.textContent=orig;});wrap.appendChild(btn);});card.appendChild(wrap);}
 return card;}
+async function openLeadPreview(lead){
+  const{ov,m}=mkModal(true);
+  m.innerHTML='<div class="modal-hdr"><span class="modal-t">Lead Preview — '+lead.lead_number+'</span><button class="btn-x" id="lpX">✕</button></div><div class="modal-body" id="lpBody"><div style="text-align:center;padding:24px"><span class="spin spin-d"></span></div></div><div class="modal-ftr"><button class="btn btn-ghost" id="lpCn">Close</button><button class="btn btn-blue" id="lpClaim">Claim Lead</button></div>';
+  m.querySelector('#lpX').addEventListener('click',()=>ov.remove());
+  m.querySelector('#lpCn').addEventListener('click',()=>ov.remove());
+  m.querySelector('#lpClaim').addEventListener('click',async()=>{
+    const btn=m.querySelector('#lpClaim');btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    try{await claimLead(lead);ov.remove();}catch(e){toast(e.message,'error');btn.disabled=false;btn.textContent='Claim Lead';}
+  });
+  // Fetch full profile
+  const{data:cp}=await sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle();
+  const bmi=cp?.bmi,bi=bmiInfo(bmi);
+  const form=detectForm(lead);
+  const rows=[
+    ['Name',cp?.full_name||'—'],
+    ['Phone',lead.phone||'—'],
+    ['City',lead.city||cp?.city||'—'],
+    ['Source',lead.source||'—'],
+    form?['Form',form]:null,
+    lead.utm_campaign?['Ad',lead.utm_campaign]:null,
+    ['Submitted',fmtDT(lead.created_at)||'—'],
+    bmi?['BMI',`<span style="font-weight:600;color:${bi.c}">${bmi}</span> <span class="bdg" style="background:${bi.bg};color:${bi.c};border:none">${bi.l}</span>`]:null,
+    cp?.age?['Age',cp.age+' yrs']:null,
+    cp?.conditions?.length?['Conditions',cp.conditions.join(', ')]:null,
+    cp?.medications?.length?['Medications',cp.medications.join(', ')]:null,
+    cp?.gi_issues?.length?['GI Issues',cp.gi_issues.join(', ')]:null,
+    cp?.weight_methods?.length?['Methods Tried',cp.weight_methods.join(', ')]:null,
+    cp?.agent_notes?['Goals/Notes',cp.agent_notes]:null,
+  ].filter(Boolean);
+  const body=m.querySelector('#lpBody');
+  body.innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'+rows.map(([l,val])=>`<div style="display:flex;gap:12px;align-items:baseline;border-bottom:1px solid var(--bdr);padding-bottom:8px"><span style="font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;min-width:100px;flex-shrink:0">${l}</span><span style="font-size:13px;color:var(--tx1)">${val}</span></div>`).join('')+'</div>';
+}
+
 async function claimLead(lead){const{error}=await sb.from('leads').update({status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString()}).eq('id',lead.id);if(error)throw new Error(error.message);await logAct(lead.id,'lead_claimed','new','claimed');toast('Lead claimed!','success');await loadLeads();renderNav();renderView();}
 function mkModal(sm=false,lg=false){const ov=document.createElement('div');ov.className='overlay';const m=document.createElement('div');m.className='modal'+(sm?' modal-sm':lg?' modal-lg':'');ov.appendChild(m);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);return{ov,m};}
 async function openProfile(lead){const isDoc=PROF.role==='doctor';let docEdit=false;let prof={lead_id:lead.id,conditions:[],medications:[],weight_methods:[],gi_issues:[]};async function rebuild(){const[{data:cp},{data:rx}]=await Promise.all([sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle(),sb.from('prescriptions').select('*').eq('lead_id',lead.id).order('prescribed_at',{ascending:false}).limit(3).maybeSingle()]);if(cp)prof={...cp};document.querySelectorAll('.profile-ov').forEach(e=>e.remove());const ov=document.createElement('div');ov.className='overlay profile-ov';const m=document.createElement('div');m.className='modal';const can=!isDoc||docEdit;const bmi=calcBMI(parseFloat(prof.height_cm),parseFloat(prof.weight_kg));const bi=bmiInfo(bmi);const inp=(id,v,type='text')=>`<input class="inp" id="pm${id}" type="${type}" value="${v||''}"${!can?' readonly':''}>`;const sel=(id,v,opts)=>!can?`<input class="inp" value="${v||'—'}" readonly>`:`<select class="inp" id="pm${id}"><option value="">Select</option>${opts.map(o=>`<option${v===o?' selected':''}>${o}</option>`).join('')}</select>`;const chips=(opts,arr,key)=>opts.map(o=>`<span class="chip${(arr||[]).includes(o)?' on':''}${!can?' ro':''}" data-key="${key}" data-v="${o.replace(/"/g,'&quot;')}">${o}</span>`).join('');m.innerHTML=`<div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><span class="modal-t">Profile — ${lead.lead_number}</span>${lead.doc_changes?'<span style="background:var(--amber-bg);color:var(--amber);font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--amber-bd)">Doctor updated</span>':''}</div><button class="btn-x" id="pmClose">✕</button></div>
