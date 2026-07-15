@@ -318,13 +318,33 @@ const WHATSAPP_NUM  = '966596603348';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ── UTM Tracking ─────────────────────────────────────────
+// ── UTM / Source Tracking ────────────────────────────────
 const _p = new URLSearchParams(location.search);
+const _SRC_MAP = {
+  // Instagram
+  instagram:'Instagram', insta:'Instagram', ig:'Instagram',
+  // Facebook
+  facebook:'Facebook', fb:'Facebook',
+  // Snapchat
+  snapchat:'Snapchat', snap:'Snapchat',
+  // TikTok
+  tiktok:'TikTok', tt:'TikTok',
+  // Sales team
+  sales:'Sales Team', team:'Sales Team', agent:'Sales Team',
+  // WhatsApp
+  whatsapp:'WhatsApp', wa:'WhatsApp',
+  // Google
+  google:'Google Ads', gads:'Google Ads',
+};
+function _resolveSource(){
+  const raw = (_p.get('src') || _p.get('source') || _p.get('utm_source') || '').toLowerCase().trim();
+  return _SRC_MAP[raw] || (_p.get('source') || _p.get('utm_source') || 'Website');
+}
 const tracking = {
-  source:    _p.get('source')       || 'Website',
+  source:    _resolveSource(),
   utmSource: _p.get('utm_source')   || null,
   utmMed:    _p.get('utm_medium')   || null,
-  utmCamp:   _p.get('utm_campaign') || null,
+  utmCamp:   _p.get('ad') || _p.get('utm_campaign') || null,
   utmCont:   _p.get('utm_content')  || null,
   referrer:  document.referrer      || null,
   landing:   location.href          || null,
