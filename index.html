@@ -58,16 +58,49 @@ function showAuth(){document.getElementById('app').innerHTML=`<div class="auth-w
     <div style="font-size:22px;font-weight:700;letter-spacing:-.4px;margin-bottom:4px">MedFlow CRM</div>
     <div style="font-size:13px;color:var(--tx3);margin-bottom:24px">Lead Allocation & Conversion Tracking</div>
     <div class="fld"><label class="fld-l">Email</label><input class="inp" id="loginEmail" type="email" placeholder="you@clinic.com" autocomplete="username"></div>
-    <div class="fld"><label class="fld-l">Password</label><input class="inp" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <div class="fld"><label class="fld-l" style="display:flex;justify-content:space-between">Password<a href="#" id="forgotLink" style="font-weight:400;color:var(--blue);text-decoration:none;font-size:11px">Forgot password?</a></label><input class="inp" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <div id="loginErr" style="color:var(--red);font-size:12px;margin-top:6px;display:none"></div>
     <button class="btn btn-blue btn-w" id="loginBtn" style="margin-top:16px">Sign In</button>
-    <div style="margin-top:18px;font-size:11px;color:var(--tx3);line-height:1.7;padding:12px;background:var(--surf2);border-radius:var(--rs)">Create users in <strong>Supabase → Auth → Users</strong>, then add a row in the <code>profiles</code> table with the UUID and role.</div>
   </div></div>`;async function doLogin(){const email=$('loginEmail').value.trim(),pass=$('loginPass').value;if(!email||!pass){showErr('Enter email and password');return;}
 const btn=$('loginBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error){showErr(error.message);btn.disabled=false;btn.textContent='Sign In';return;}
 const{data:prof,error:pe}=await sb.from('profiles').select('*').eq('id',data.user.id).single();if(pe||!prof){showErr('Profile not found — ask admin to add your profile.');btn.disabled=false;btn.textContent='Sign In';return;}
 USER=data.user;PROF=prof;await startApp();}
 function showErr(msg){const e=$('loginErr');e.textContent=msg;e.style.display='block';}
-$('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});}
+$('loginBtn').addEventListener('click',doLogin);$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});$('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginPass').focus();});
+$('forgotLink').addEventListener('click',e=>{e.preventDefault();showForgotPassword();});}
+
+function showForgotPassword(){document.getElementById('app').innerHTML=`<div class="auth-wrap"><div class="auth-box">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px">Reset Password</div>
+    <div style="font-size:13px;color:var(--tx3);margin-bottom:24px">Enter your email and we'll send you a reset link.</div>
+    <div class="fld"><label class="fld-l">Email</label><input class="inp" id="resetEmail" type="email" placeholder="you@clinic.com" autocomplete="username"></div>
+    <div id="resetMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+    <button class="btn btn-blue btn-w" id="resetBtn" style="margin-top:16px">Send Reset Link</button>
+    <button class="btn btn-ghost btn-w" style="margin-top:8px" onclick="showAuth()">← Back to Sign In</button>
+  </div></div>`;
+$('resetBtn').addEventListener('click',async()=>{const email=$('resetEmail').value.trim();if(!email){const m=$('resetMsg');m.textContent='Enter your email address.';m.style.color='var(--red)';m.style.display='block';return;}
+const btn=$('resetBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';
+const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+const m=$('resetMsg');m.style.display='block';
+if(error){m.textContent='Error: '+error.message;m.style.color='var(--red)';btn.disabled=false;btn.textContent='Send Reset Link';}
+else{m.textContent='✅ Reset link sent! Check your email inbox (and spam folder).';m.style.color='var(--green)';btn.textContent='Sent';}});}
+
+function showResetPassword(){document.getElementById('app').innerHTML=`<div class="auth-wrap"><div class="auth-box">
+    <div style="font-size:20px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px">Set New Password</div>
+    <div style="font-size:13px;color:var(--tx3);margin-bottom:24px">Choose a new password for your account.</div>
+    <div class="fld"><label class="fld-l">New Password</label><input class="inp" id="newPass" type="password" placeholder="Min. 8 characters" autocomplete="new-password"></div>
+    <div class="fld"><label class="fld-l">Confirm Password</label><input class="inp" id="newPassConf" type="password" placeholder="Repeat password" autocomplete="new-password"></div>
+    <div id="newPassMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+    <button class="btn btn-blue btn-w" id="newPassBtn" style="margin-top:16px">Update Password</button>
+  </div></div>`;
+$('newPassBtn').addEventListener('click',async()=>{const p=$('newPass').value,c=$('newPassConf').value;const m=$('newPassMsg');m.style.display='block';
+if(p.length<8){m.textContent='Password must be at least 8 characters.';m.style.color='var(--red)';return;}
+if(p!==c){m.textContent='Passwords do not match.';m.style.color='var(--red)';return;}
+const btn=$('newPassBtn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Updating…';
+const{error}=await sb.auth.updateUser({password:p});
+if(error){m.textContent='Error: '+error.message;m.style.color='var(--red)';btn.disabled=false;btn.textContent='Update Password';}
+else{m.textContent='✅ Password updated! Signing you in…';m.style.color='var(--green)';setTimeout(()=>init(),1500);}});}
+
+sb.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')showResetPassword();});
 // ── New-lead sound + auto-refresh (polling) ───────────────
 function playLeadChime(){
   try{
