@@ -180,7 +180,7 @@ _expBtn.className='btn btn-ghost btn-sm';
 _expBtn.textContent='⬇ Export';
 _expBtn.addEventListener('click',openExportModal);
 $('tbRight')?.appendChild(_expBtn)||(document.querySelector('.tb-right')?.appendChild(_expBtn));
-$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;window._reorderCheckDone=true;});renderNav();renderView();}
+$('refreshBtn').addEventListener('click',async()=>{const btn=$('refreshBtn');btn.innerHTML='<span class="spin spin-d"></span>';btn.disabled=true;await Promise.all([loadLeads(),loadOrders(),loadCustomers()]);renderNav();renderView();btn.innerHTML='↻ Refresh';btn.disabled=false;window._reorderCheckDone=true;});renderNav();renderView();}
 function renderNav(){const navEl=$('sbnav');if(!navEl)return;const items=getNavItems();navEl.innerHTML='';items.forEach(item=>{if(item.divider){const d=document.createElement('div');d.style.cssText='height:1px;background:var(--bdr);margin:6px 4px';navEl.appendChild(d);return;}const btn=document.createElement('button');btn.className='nav-item'+(NAV===item.k?' on':'');btn.innerHTML=`<span>${item.i}</span><span>${item.l}</span>${item.c!=null?`<span class="nav-cnt">${item.c}</span>`:''}`;btn.addEventListener('click',()=>{NAV=item.k;DATE_PRESET='all';DATE_FROM=null;DATE_TO=null;renderNav();renderView();const tb=$('tbTitle');if(tb)tb.textContent=item.l;});navEl.appendChild(btn);});const cur=getNavItems().find(i=>i.k===NAV);const tb=$('tbTitle');if(tb&&cur)tb.textContent=cur.l;}
 function getNavItems(){const r=PROF.role;if(r==='agent')return[{k:'dashboard',i:'▦',l:'Dashboard'},{k:'lead_report',i:'📋',l:'My Pipeline Report'},{k:'pool',i:'◉',l:'Lead Pool',c:LEADS.filter(l=>l.status==='new').length},{k:'my_leads',i:'◈',l:'My Leads',c:(()=>{const today=new Date().toISOString().slice(0,10);const mine=LEADS.filter(l=>l.agent_id===USER.id&&!['converted','dnd','closed','with_doctor','lost','invalid','prescribed'].includes(l.status)&&l.doctor_action!=='rejected');const followupToday=mine.filter(l=>l.followup_date&&l.followup_date<=today).length;return mine.length+(followupToday?` 🔔${followupToday}`:'');})()},{k:'all_leads_agent',i:'≡',l:'All Leads'},{k:'my_customers',i:'👥',l:'Customers',c:CUSTOMERS.length},];if(r==='doctor')return[{k:'my_stats',i:'📊',l:'My Stats'},{k:'consults',i:'🩺',l:'Consultations',c:LEADS.filter(l=>l.status==='with_doctor'&&l.doctor_id===USER.id).length},{k:'done',i:'◎',l:'Completed',c:LEADS.filter(l=>l.doctor_id===USER.id&&(['prescribed','converted'].includes(l.status)||l.doctor_action==='rejected')).length},];return[{k:'admin_dashboard',i:'▦',l:'Dashboard'},{k:'all_leads',i:'≡',l:'All Leads'},{k:'consult_tracker',i:'🗂',l:'Consultations',c:LEADS.filter(l=>l.doctor_id&&l.status==='with_doctor').length},{k:'analytics',i:'📊',l:'Analytics'},{k:'customers',i:'👥',l:'Customers',c:0},{k:'agents',i:'◈',l:'Agents'},{divider:true},{k:'rules',i:'⚙',l:'Settings'},];}
 function mkDateFilter(onchange){const wrap=document.createElement('div');wrap.className='date-filter';wrap.innerHTML=`<label>Period:</label>`;[['all','All Time'],['today','Today'],['week','Last 7d'],['month','Last 30d'],['3month','Last 90d'],['custom','Custom']].forEach(([val,lbl])=>{const b=document.createElement('span');b.className='dq'+(DATE_PRESET===val?' on':'');b.textContent=lbl;b.addEventListener('click',()=>{DATE_PRESET=val;if(val!=='custom'){DATE_FROM=null;DATE_TO=null;}wrap.querySelectorAll('.dq').forEach(x=>x.classList.remove('on'));b.classList.add('on');const cw=wrap.querySelector('.custom-dates');if(cw)cw.style.display=val==='custom'?'flex':'none';onchange();});wrap.appendChild(b);});const cw=document.createElement('span');cw.className='custom-dates';cw.style.cssText='display:'+(DATE_PRESET==='custom'?'flex':'none')+';gap:6px;align-items:center';cw.innerHTML=`<input type="date" id="df-from" value="${DATE_FROM||''}"><span style="color:var(--tx3)">→</span><input type="date" id="df-to" value="${DATE_TO||''}">`;wrap.appendChild(cw);cw.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{DATE_FROM=$('df-from')?.value||null;DATE_TO=$('df-to')?.value||null;onchange();}));return wrap;}
@@ -2060,7 +2060,8 @@ function vRepeatLeads(v){
   function renderDose(){
     doseContent.innerHTML='';
     const cutoff=new Date(Date.now()-_days*86400000);
-    const clients=CUSTOMERS.filter(c=>c.agent_id===USER.id&&c.last_order_date&&new Date(c.last_order_date)<=cutoff)
+    // CUSTOMERS is already scoped to this agent for agent role; also accept null agent_id (buildCustomersFromOrders fallback)
+    const clients=CUSTOMERS.filter(c=>(c.agent_id===USER.id||!c.agent_id)&&c.last_order_date&&new Date(c.last_order_date)<=cutoff)
       .sort((a,b)=>new Date(a.last_order_date)-new Date(b.last_order_date));
 
     if(!clients.length){
@@ -2100,7 +2101,7 @@ function vRepeatLeads(v){
       const daysTd=document.createElement('td');daysTd.style.cssText=`padding:10px 12px;font-size:13px;font-weight:700;color:${urgColor}`;daysTd.textContent=ds+'d';
       const noteTd=document.createElement('td');noteTd.style.cssText='padding:10px 12px;font-size:12px;color:var(--tx3);max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis';noteTd.textContent=rawNote||'—';
       const actTd=document.createElement('td');actTd.style.cssText='padding:10px 12px;text-align:right';
-      const viewBtn=document.createElement('button');viewBtn.className='btn-sm';viewBtn.textContent='View';
+      const viewBtn=document.createElement('button');viewBtn.className='btn btn-ghost btn-sm';viewBtn.textContent='View';
       viewBtn.addEventListener('click',()=>openDoseFollowup(c,renderDose));
       actTd.appendChild(viewBtn);
       tr.append(numTd,nameTd,doseTd,daysTd,noteTd,actTd);
@@ -2148,16 +2149,111 @@ function vRepeatLeads(v){
 
   const grid=document.createElement('div');v.appendChild(grid);
 
+  function openRepurchase(lead,onDone){
+    const{ov,m}=mkModal(true);
+    const lastPurch=lead.converted_at?fmtD(lead.converted_at):'—';
+    const dueAt=lead.reorder_due_at?fmtD(lead.reorder_due_at):'—';
+    const daysOver=lead.reorder_due_at?Math.ceil((new Date()-new Date(lead.reorder_due_at))/86400000):null;
+    const todayISO=new Date().toISOString().slice(0,10);
+    m.innerHTML=`<div class="modal-hdr"><span class="modal-t">Mark Repurchase — ${lead.lead_number}</span><button class="btn-x" id="rpX">✕</button></div>
+<div class="modal-body">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Client</div>
+      <div style="font-size:14px;font-weight:600">${lead.client_profiles?.full_name||lead.email||'—'}</div>
+    </div>
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Last Purchase</div>
+      <div style="font-size:14px;font-weight:600">${lastPurch}</div>
+    </div>
+    <div style="background:${daysOver&&daysOver>0?'var(--red-bg)':'var(--surf2)'};border-radius:var(--rs);padding:10px 12px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Reorder Due</div>
+      <div style="font-size:14px;font-weight:600;color:${daysOver&&daysOver>0?'var(--red)':'var(--tx)'}">${dueAt}${daysOver&&daysOver>0?` <span style="font-size:11px">(${daysOver}d overdue)</span>`:''}</div>
+    </div>
+    <div style="background:var(--surf2);border-radius:var(--rs);padding:10px 12px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:3px">Prescription</div>
+      <div style="font-size:14px;font-weight:600">${lead.prescriptions?.find(p=>p.is_current)?.product||'—'}</div>
+    </div>
+  </div>
+  <div class="fld"><label class="fld-l">Repurchase Date <span style="color:var(--red)">*</span></label><input class="inp" id="rpDate" type="date" value="${todayISO}" max="${todayISO}"></div>
+  <div class="fld"><label class="fld-l">Order Number <span style="font-weight:400;color:var(--tx3)">(optional)</span></label><input class="inp" id="rpOrder" placeholder="e.g. ORD-20045"></div>
+  <div class="fld"><label class="fld-l">Notes <span style="font-weight:400;color:var(--tx3)">(optional)</span></label><textarea class="inp" id="rpNotes" rows="2" placeholder="Any notes about this repurchase…" style="resize:vertical"></textarea></div>
+  <div class="banner ban-blue" style="margin-top:4px">Next reorder due will be set to <strong>repurchase date + 27 days</strong> automatically.</div>
+</div>
+<div class="modal-ftr"><button class="btn btn-ghost" id="rpCn">Cancel</button><button class="btn btn-blue" id="rpSv">✅ Mark Repurchased</button></div>`;
+    $('rpX').addEventListener('click',()=>ov.remove());
+    $('rpCn').addEventListener('click',()=>ov.remove());
+    $('rpSv').addEventListener('click',async()=>{
+      const dateVal=$('rpDate').value;
+      if(!dateVal){toast('Select a repurchase date','error');return;}
+      const btn=$('rpSv');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
+      const purchDate=new Date(dateVal);
+      const newConverted=purchDate.toISOString();
+      const newReorderDue=new Date(purchDate.getTime()+27*86400000).toISOString();
+      const orderNum=($('rpOrder').value||'').trim()||null;
+      const notes=($('rpNotes').value||'').trim()||null;
+      const{error}=await sb.from('leads').update({converted_at:newConverted,reorder_due_at:newReorderDue,order_number_linked:orderNum||lead.order_number_linked}).eq('id',lead.id);
+      if(!error){
+        const note='Repurchased on '+fmtD(newConverted)+(orderNum?' · Order: '+orderNum:'')+(notes?' — '+notes:'');
+        await logAct(lead.id,'repurchase_marked','converted','converted',note);
+        const live=LEADS.find(l=>l.id===lead.id);
+        if(live){live.converted_at=newConverted;live.reorder_due_at=newReorderDue;if(orderNum)live.order_number_linked=orderNum;}
+        toast('Repurchase recorded — next due in 27 days','success');
+        ov.remove();if(onDone)onDone();
+      }else{toast(error.message,'error');btn.disabled=false;btn.textContent='✅ Mark Repurchased';}
+    });
+  }
+
   function render(){
-    all.forEach(item=>{const live=LEADS.find(l=>l.id===item.id);if(live){item.status=live.status;item.conversion_type=live.conversion_type;item.poc_status=live.poc_status;item.followup_date=live.followup_date;}});
+    all.forEach(item=>{const live=LEADS.find(l=>l.id===item.id);if(live){item.status=live.status;item.conversion_type=live.conversion_type;item.poc_status=live.poc_status;item.followup_date=live.followup_date;item.converted_at=live.converted_at;item.reorder_due_at=live.reorder_due_at;}});
     grid.innerHTML='';
     let items=applyDateFilter(all);
     if(reorderFilter==='overdue')items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;return d&&new Date(d)<now;});
     else if(reorderFilter==='due_soon')items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;if(!d)return false;const dt=new Date(d);return dt>=now&&dt<=D3;});
     if(q)items=items.filter(l=>{const name=(l.client_profiles?.full_name||'').toLowerCase();const em=(l.email||'').toLowerCase();const ph=(l.phone||'').toLowerCase();const num=(l.lead_number||'').toLowerCase();return name.includes(q)||em.includes(q)||ph.includes(q)||num.includes(q);});
-    const cnt=document.createElement('div');cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';cnt.textContent=`${items.length} lead${items.length!==1?'s':''}`;grid.appendChild(cnt);
+    const cnt=document.createElement('div');cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:10px';cnt.textContent=`${items.length} lead${items.length!==1?'s':''}`;grid.appendChild(cnt);
     if(!items.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">🔍</div>No leads match.';grid.appendChild(e);return;}
-    const g=document.createElement('div');g.className='grid';items.forEach(l=>g.appendChild(buildCard(l)));grid.appendChild(g);
+
+    const tw=document.createElement('div');tw.style.cssText='border:1px solid var(--bdr);border-radius:var(--rs);overflow:hidden';
+    const tbl=document.createElement('table');tbl.style.cssText='width:100%;border-collapse:collapse';
+    tbl.innerHTML=`<thead><tr style="background:var(--surf2);border-bottom:1px solid var(--bdr)">
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600;width:36px">#</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Lead #</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Name</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Last Purchase</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Reorder Due</th>
+      <th style="padding:9px 12px;text-align:right;font-size:11px;color:var(--tx3);font-weight:600"></th>
+    </tr></thead>`;
+    const tbody=document.createElement('tbody');
+    items.forEach((l,idx)=>{
+      const due=l.reorder_due_at?new Date(l.reorder_due_at):null;
+      const daysOver=due?Math.ceil((Date.now()-due)/86400000):null;
+      const isOverdue=daysOver&&daysOver>0;
+      const isDueSoon=!isOverdue&&due&&due<=D3;
+      const dueFmt=due?fmtD(l.reorder_due_at):'—';
+      const dueColor=isOverdue?'var(--red)':isDueSoon?'var(--amber)':'var(--tx2)';
+      const dueSuffix=isOverdue?` <span style="font-size:11px;font-weight:400">(${daysOver}d overdue)</span>`:isDueSoon?` <span style="font-size:11px;font-weight:400">(soon)</span>`:'';
+      const lastPurch=l.converted_at?fmtD(l.converted_at):'—';
+
+      const tr=document.createElement('tr');tr.style.cssText=`border-bottom:1px solid var(--bdr);transition:background .1s;${idx%2?'background:var(--surf)':''}`;
+      tr.onmouseenter=()=>tr.style.background='var(--surf2)';tr.onmouseleave=()=>tr.style.background=idx%2?'var(--surf)':'';
+
+      const numTd=document.createElement('td');numTd.style.cssText='padding:10px 12px;font-size:12px;color:var(--tx3)';numTd.textContent=idx+1;
+      const leadNumTd=document.createElement('td');leadNumTd.style.cssText='padding:10px 12px;font-size:12px;font-family:"DM Mono",monospace;color:var(--tx3)';leadNumTd.textContent=l.lead_number||'—';
+      const nameTd=document.createElement('td');nameTd.style.cssText='padding:10px 12px';
+      nameTd.innerHTML=`<div style="font-size:13px;font-weight:600">${l.client_profiles?.full_name||'—'}</div><div style="font-size:11px;color:var(--tx3)">${l.phone||l.email||''}</div>`;
+      const purchTd=document.createElement('td');purchTd.style.cssText='padding:10px 12px;font-size:13px';purchTd.textContent=lastPurch;
+      const dueTd=document.createElement('td');dueTd.style.cssText=`padding:10px 12px;font-size:13px;font-weight:600;color:${dueColor}`;dueTd.innerHTML=dueFmt+dueSuffix;
+      const actTd=document.createElement('td');actTd.style.cssText='padding:10px 12px;text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end';
+      const viewBtn=document.createElement('button');viewBtn.className='btn btn-ghost btn-sm';viewBtn.textContent='Profile';
+      viewBtn.addEventListener('click',()=>openProfile(l));
+      const repurchBtn=document.createElement('button');repurchBtn.className='btn btn-green btn-sm';repurchBtn.textContent='🔁 Repurchase';
+      repurchBtn.addEventListener('click',()=>openRepurchase(l,render));
+      actTd.append(viewBtn,repurchBtn);
+      tr.append(numTd,leadNumTd,nameTd,purchTd,dueTd,actTd);
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);tw.appendChild(tbl);grid.appendChild(tw);
   }
   render();
 }
