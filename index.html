@@ -1949,7 +1949,173 @@ const activeEmails = new Set([
 
 
 
+// ── Dose Follow-up modal ─────────────────────────────────────────────────
+function openDoseFollowup(cust,onRefresh){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-end;justify-content:center';
+  const panel=document.createElement('div');
+  panel.style.cssText='background:var(--surf);border-radius:14px 14px 0 0;width:100%;max-width:660px;max-height:88vh;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px';
+
+  // Header
+  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:flex-start;gap:12px';
+  const lastDoseFmt=cust.last_order_date?new Date(cust.last_order_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const daysSince=cust.last_order_date?Math.floor((Date.now()-new Date(cust.last_order_date))/86400000):null;
+  hdr.innerHTML=`<div style="flex:1"><div style="font-size:18px;font-weight:700">${cust.full_name||cust.email||'Client'}</div><div style="font-size:12px;color:var(--tx3);margin-top:3px">${cust.phone?cust.phone+(cust.email?' · '+cust.email:''):cust.email||''}</div></div><button id="doseClose" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--tx3);line-height:1;padding:0">✕</button>`;
+  panel.appendChild(hdr);
+
+  // Info grid
+  const info=document.createElement('div');info.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:10px';
+  [['Last Dose',lastDoseFmt],['Days Since',daysSince!==null?daysSince+'d ago':'—'],['Last Product',cust.last_product||'—'],['Total Orders',cust.total_orders||'—'],['Lifetime Value',cust.lifetime_value?'AED '+parseFloat(cust.lifetime_value).toLocaleString():'—'],['City',cust.city||cust.region||'—']].forEach(([l,val])=>{
+    const c=document.createElement('div');c.style.cssText='background:var(--surf2);border-radius:var(--rs);padding:10px 12px';
+    c.innerHTML=`<div style="font-size:11px;color:var(--tx3);margin-bottom:3px">${l}</div><div style="font-size:14px;font-weight:600">${val}</div>`;
+    info.appendChild(c);
+  });
+  panel.appendChild(info);
+
+  // Follow-up notes
+  const notesSec=document.createElement('div');
+  const notesLabel=document.createElement('div');notesLabel.style.cssText='font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px';
+  notesLabel.innerHTML='📝 Follow-up Notes <span style="font-size:11px;color:var(--tx3);font-weight:400">newest first</span>';
+  notesSec.appendChild(notesLabel);
+
+  // Add note row
+  const addRow=document.createElement('div');addRow.style.cssText='display:flex;gap:8px;margin-bottom:14px';
+  const newNoteTA=document.createElement('textarea');newNoteTA.placeholder='Write a follow-up note…';newNoteTA.rows=2;
+  newNoteTA.style.cssText='flex:1;padding:8px 10px;border:1px solid var(--bdr);border-radius:var(--rs);background:var(--bg);color:var(--tx);resize:vertical;font-size:13px;font-family:inherit';
+  const addBtn=document.createElement('button');addBtn.className='btn';addBtn.style.cssText='align-self:flex-end;white-space:nowrap';addBtn.textContent='+ Add Note';
+  addRow.appendChild(newNoteTA);addRow.appendChild(addBtn);
+  notesSec.appendChild(addRow);
+
+  // Notes list
+  const notesList=document.createElement('div');
+  let currentNotesText=cust.agent_notes||'';
+
+  function renderNotesList(){
+    notesList.innerHTML='';
+    if(!currentNotesText.trim()){const e=document.createElement('div');e.style.cssText='font-size:13px;color:var(--tx3);padding:6px 0';e.textContent='No notes yet.';notesList.appendChild(e);return;}
+    // Split into timestamped entries
+    const lines=currentNotesText.split('\n');
+    const entries=[];let cur=null;
+    lines.forEach(line=>{
+      const m=line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2})\] ([\s\S]*)/);
+      if(m){if(cur)entries.push(cur);cur={ts:m[1],text:m[2]};}
+      else if(cur){cur.text+='\n'+line;}
+      else{entries.push({ts:null,text:line});}
+    });
+    if(cur)entries.push(cur);
+    entries.forEach(entry=>{
+      const row=document.createElement('div');row.style.cssText='padding:10px 13px;border:1px solid var(--bdr);border-radius:var(--rs);margin-bottom:8px;background:var(--bg)';
+      if(entry.ts){const ts=document.createElement('div');ts.style.cssText='font-size:11px;color:var(--tx3);margin-bottom:5px;font-family:"DM Mono",monospace';ts.textContent=entry.ts;row.appendChild(ts);}
+      const txt=document.createElement('div');txt.style.cssText='font-size:13px;white-space:pre-wrap;line-height:1.5';txt.textContent=entry.text;row.appendChild(txt);
+      notesList.appendChild(row);
+    });
+  }
+  renderNotesList();
+  notesSec.appendChild(notesList);
+  panel.appendChild(notesSec);
+
+  // Save handler
+  addBtn.addEventListener('click',async()=>{
+    const note=newNoteTA.value.trim();if(!note)return;
+    const ts=new Date().toISOString().slice(0,16).replace('T',' ');
+    const entry=`[${ts}] ${note}`;
+    currentNotesText=entry+(currentNotesText?'\n'+currentNotesText:'');
+    addBtn.disabled=true;addBtn.textContent='Saving…';
+    const{error}=await sb.from('customers').update({agent_notes:currentNotesText}).eq('id',cust.id);
+    if(!error){
+      cust.agent_notes=currentNotesText;
+      const live=CUSTOMERS.find(c=>c.id===cust.id);if(live)live.agent_notes=currentNotesText;
+      newNoteTA.value='';renderNotesList();
+      toast('Note saved','success');
+      if(onRefresh)onRefresh();
+    }else{toast('Save failed: '+error.message,'error');}
+    addBtn.disabled=false;addBtn.textContent='+ Add Note';
+  });
+
+  ov.appendChild(panel);
+  document.body.appendChild(ov);
+  panel.querySelector('#doseClose').addEventListener('click',()=>ov.remove());
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+// ── Repeat tab: two sections ─────────────────────────────────────────────
 function vRepeatLeads(v){
+  // ── Section 1: Dose Follow-up ──────────────────────────────────────────
+  const doseSec=document.createElement('div');doseSec.style.marginBottom='28px';v.appendChild(doseSec);
+
+  // Header + day-threshold control
+  const doseHdr=document.createElement('div');doseHdr.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px';
+  const doseTitle=document.createElement('div');doseTitle.style.cssText='font-size:15px;font-weight:700;margin-right:auto';doseTitle.textContent='💊 Dose Follow-up';
+  let _days=window._doseFollowupDays||25;
+  const threshLbl=document.createElement('label');threshLbl.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx3)';
+  const daysInp=document.createElement('input');daysInp.type='number';daysInp.min=1;daysInp.max=365;daysInp.value=_days;
+  daysInp.style.cssText='width:56px;padding:4px 8px;border:1px solid var(--bdr);border-radius:var(--rs);background:var(--bg);color:var(--tx);font-size:13px;text-align:center';
+  threshLbl.append('Purchased more than ');threshLbl.appendChild(daysInp);threshLbl.append(' days ago');
+  daysInp.addEventListener('change',()=>{_days=Math.max(1,parseInt(daysInp.value)||25);window._doseFollowupDays=_days;renderDose();});
+  doseHdr.appendChild(doseTitle);doseHdr.appendChild(threshLbl);
+  doseSec.appendChild(doseHdr);
+
+  const doseContent=document.createElement('div');doseSec.appendChild(doseContent);
+
+  function renderDose(){
+    doseContent.innerHTML='';
+    const cutoff=new Date(Date.now()-_days*86400000);
+    const clients=CUSTOMERS.filter(c=>c.agent_id===USER.id&&c.last_order_date&&new Date(c.last_order_date)<=cutoff)
+      .sort((a,b)=>new Date(a.last_order_date)-new Date(b.last_order_date));
+
+    if(!clients.length){
+      const e=document.createElement('div');e.className='empty';
+      e.innerHTML=`<div class="empty-ico">✅</div>All clients purchased within the last ${_days} days.`;
+      doseContent.appendChild(e);return;
+    }
+
+    const ban=document.createElement('div');ban.className='banner ban-amber';ban.style.marginBottom='12px';
+    ban.innerHTML=`💊 <strong>${clients.length} client${clients.length!==1?'s':''}</strong> last purchased <strong>${_days}+</strong> days ago — check in on their dose.`;
+    doseContent.appendChild(ban);
+
+    const tw=document.createElement('div');tw.style.cssText='border:1px solid var(--bdr);border-radius:var(--rs);overflow:hidden';
+    const tbl=document.createElement('table');tbl.style.cssText='width:100%;border-collapse:collapse';
+    tbl.innerHTML=`<thead><tr style="background:var(--surf2);border-bottom:1px solid var(--bdr)">
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600;width:36px">#</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Name</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Last Dose</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Days Since</th>
+      <th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">Latest Note</th>
+      <th style="padding:9px 12px;text-align:right;font-size:11px;color:var(--tx3);font-weight:600"></th>
+    </tr></thead>`;
+    const tbody=document.createElement('tbody');
+    clients.forEach((c,idx)=>{
+      const ds=Math.floor((Date.now()-new Date(c.last_order_date))/86400000);
+      const doseFmt=new Date(c.last_order_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      const urgColor=ds>=_days*2?'var(--red)':ds>=Math.round(_days*1.5)?'var(--amber)':'var(--tx2)';
+      // Latest note: strip timestamp prefix if present
+      const rawNote=(c.agent_notes||'').split('\n')[0].replace(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] /,'');
+      const tr=document.createElement('tr');tr.style.cssText=`border-bottom:1px solid var(--bdr);transition:background .1s;${idx%2?'background:var(--surf)':''}`;
+      tr.onmouseenter=()=>tr.style.background='var(--surf2)';tr.onmouseleave=()=>tr.style.background=idx%2?'var(--surf)':'';
+
+      const numTd=document.createElement('td');numTd.style.cssText='padding:10px 12px;font-size:12px;color:var(--tx3);font-family:"DM Mono",monospace';numTd.textContent=idx+1;
+      const nameTd=document.createElement('td');nameTd.style.cssText='padding:10px 12px';
+      nameTd.innerHTML=`<div style="font-size:13px;font-weight:600">${c.full_name||'—'}</div><div style="font-size:11px;color:var(--tx3)">${c.phone||c.email||''}</div>`;
+      const doseTd=document.createElement('td');doseTd.style.cssText='padding:10px 12px;font-size:13px';doseTd.textContent=doseFmt;
+      const daysTd=document.createElement('td');daysTd.style.cssText=`padding:10px 12px;font-size:13px;font-weight:700;color:${urgColor}`;daysTd.textContent=ds+'d';
+      const noteTd=document.createElement('td');noteTd.style.cssText='padding:10px 12px;font-size:12px;color:var(--tx3);max-width:200px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis';noteTd.textContent=rawNote||'—';
+      const actTd=document.createElement('td');actTd.style.cssText='padding:10px 12px;text-align:right';
+      const viewBtn=document.createElement('button');viewBtn.className='btn-sm';viewBtn.textContent='View';
+      viewBtn.addEventListener('click',()=>openDoseFollowup(c,renderDose));
+      actTd.appendChild(viewBtn);
+      tr.append(numTd,nameTd,doseTd,daysTd,noteTd,actTd);
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);tw.appendChild(tbl);doseContent.appendChild(tw);
+  }
+  renderDose();
+
+  // Divider
+  const divider=document.createElement('hr');divider.style.cssText='border:none;border-top:1px solid var(--bdr);margin:0 0 24px';v.appendChild(divider);
+
+  // ── Section 2: Reorder Leads ──────────────────────────────────────────
+  const rptHdr=document.createElement('div');rptHdr.style.cssText='font-size:15px;font-weight:700;margin-bottom:14px';rptHdr.textContent='🔁 Reorder Leads';v.appendChild(rptHdr);
+
   const now=new Date();
   const D3=new Date(Date.now()+3*86400000);
   const all=LEADS.filter(l=>l.agent_id===USER.id&&l.lead_type==='repeat');
@@ -1960,7 +2126,6 @@ function vRepeatLeads(v){
     b.textContent=`🔁 ${due.length} lead(s) due for reorder.`;v.appendChild(b);
   }
 
-  // Filter bar
   const fb=document.createElement('div');fb.className='fbar';
   const si=document.createElement('input');si.className='sinp';
   si.placeholder='Search name, email or phone…';si.style.cssText='width:260px;margin-right:auto';
@@ -1968,63 +2133,31 @@ function vRepeatLeads(v){
   si.addEventListener('input',e=>{q=e.target.value.toLowerCase();render();});
   fb.appendChild(si);
 
-  // Reorder filter chips
   let reorderFilter='all';
   const overdueCnt=all.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;return d&&new Date(d)<now;}).length;
   const dueSoonCnt=all.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;if(!d)return false;const dt=new Date(d);return dt>=now&&dt<=D3;}).length;
   [['all','All',all.length],['overdue','🔴 Overdue',overdueCnt],['due_soon','🟡 Due soon',dueSoonCnt]].forEach(([k,l,c])=>{
     if(c===0&&k!=='all')return;
-    const chip=document.createElement('span');
-    chip.className='fc'+(reorderFilter===k?' on':'');
+    const chip=document.createElement('span');chip.className='fc'+(reorderFilter===k?' on':'');
     chip.innerHTML=`${l} <span style="background:${reorderFilter===k?'var(--blue)':'var(--surf2)'};color:${reorderFilter===k?'#fff':'var(--tx3)'};padding:1px 6px;border-radius:10px;font-size:11px;margin-left:3px">${c}</span>`;
-    chip.addEventListener('click',()=>{
-      reorderFilter=k;
-      fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));
-      chip.classList.add('on');
-      render();
-    });
+    chip.addEventListener('click',()=>{reorderFilter=k;fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));chip.classList.add('on');render();});
     fb.appendChild(chip);
   });
   v.appendChild(fb);
-
   v.appendChild(mkDateFilter(()=>render()));
 
   const grid=document.createElement('div');v.appendChild(grid);
 
   function render(){
-    // Sync status from live LEADS array before rendering
     all.forEach(item=>{const live=LEADS.find(l=>l.id===item.id);if(live){item.status=live.status;item.conversion_type=live.conversion_type;item.poc_status=live.poc_status;item.followup_date=live.followup_date;}});
     grid.innerHTML='';
     let items=applyDateFilter(all);
-
-    // Reorder filter
-    if(reorderFilter==='overdue')
-      items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;return d&&new Date(d)<now;});
-    else if(reorderFilter==='due_soon')
-      items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;if(!d)return false;const dt=new Date(d);return dt>=now&&dt<=D3;});
-
-    // Search filter
-    if(q)items=items.filter(l=>{
-      const name=(l.client_profiles?.full_name||'').toLowerCase();
-      const em=(l.email||'').toLowerCase();
-      const ph=(l.phone||'').toLowerCase();
-      const num=(l.lead_number||'').toLowerCase();
-      return name.includes(q)||em.includes(q)||ph.includes(q)||num.includes(q);
-    });
-
-    const cnt=document.createElement('div');
-    cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';
-    cnt.textContent=`${items.length} lead${items.length!==1?'s':''}`;
-    grid.appendChild(cnt);
-
-    if(!items.length){
-      const e=document.createElement('div');e.className='empty';
-      e.innerHTML='<div class="empty-ico">🔍</div>No leads match.';
-      grid.appendChild(e);return;
-    }
-    const g=document.createElement('div');g.className='grid';
-    items.forEach(l=>g.appendChild(buildCard(l)));
-    grid.appendChild(g);
+    if(reorderFilter==='overdue')items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;return d&&new Date(d)<now;});
+    else if(reorderFilter==='due_soon')items=items.filter(l=>{const d=l.reorder_due_at||l.reorder_due_date;if(!d)return false;const dt=new Date(d);return dt>=now&&dt<=D3;});
+    if(q)items=items.filter(l=>{const name=(l.client_profiles?.full_name||'').toLowerCase();const em=(l.email||'').toLowerCase();const ph=(l.phone||'').toLowerCase();const num=(l.lead_number||'').toLowerCase();return name.includes(q)||em.includes(q)||ph.includes(q)||num.includes(q);});
+    const cnt=document.createElement('div');cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:14px';cnt.textContent=`${items.length} lead${items.length!==1?'s':''}`;grid.appendChild(cnt);
+    if(!items.length){const e=document.createElement('div');e.className='empty';e.innerHTML='<div class="empty-ico">🔍</div>No leads match.';grid.appendChild(e);return;}
+    const g=document.createElement('div');g.className='grid';items.forEach(l=>g.appendChild(buildCard(l)));grid.appendChild(g);
   }
   render();
 }
