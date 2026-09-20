@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>National Day ٩٦ — Health Check</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root {
+  --gd: #005C2E; --gm: #007A3D; --gl: #00A350;
+  --gold: #C9923A; --gold-l: #E8B86D; --gold-p: #FDF0DA;
+  --cream: #F6F0E4; --text: #1E2D1A; --t2: #4A5E46; --t3: #8A9B86;
+  --card: #FFFFFF; --bdr: rgba(0,92,46,0.13);
+  --sh: 0 12px 48px rgba(0,0,0,0.22); --r: 16px; --rs: 10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Tajawal','Inter',system-ui,sans-serif;background:var(--gd)}
+body{
+  background-image:repeating-linear-gradient(45deg,rgba(201,146,58,.06) 0,rgba(201,146,58,.06) 1px,transparent 1px,transparent 28px),
+    repeating-linear-gradient(-45deg,rgba(201,146,58,.06) 0,rgba(201,146,58,.06) 1px,transparent 1px,transparent 28px);
+  min-height:100%;display:flex;flex-direction:column;align-items:center;
+  padding-block:32px;padding-inline:16px;
+}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);width:100%;max-width:440px;padding:36px 32px;position:relative}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg,var(--gold),var(--gold-l),var(--gold));border-radius:var(--r) var(--r) 0 0}
+@media(max-width:480px){.card{padding:28px 18px}}
+
+.seal{width:88px;height:88px;border:2.5px solid var(--gold);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 18px;background:linear-gradient(135deg,var(--gd),var(--gm));position:relative}
+.seal::after{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(232,184,109,.35)}
+.seal .n{font-size:32px;font-weight:800;color:var(--gold-l);line-height:1;font-family:'Tajawal',sans-serif}
+.seal .nl{font-size:8px;color:rgba(232,184,109,.65);letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+
+h1{font-size:21px;font-weight:800;color:var(--text);text-align:center;text-wrap:balance;line-height:1.3;margin-bottom:6px}
+h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:balance}
+.sub{font-size:13px;color:var(--t2);text-align:center;line-height:1.55;margin-bottom:22px}
+.ar{display:block;font-family:'Tajawal',sans-serif;direction:rtl;font-size:12px;color:var(--t3);margin-top:3px}
+
+.prog{display:flex;gap:8px;justify-content:center;margin-bottom:26px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bdr);transition:background .3s,transform .3s}
+.dot.done{background:var(--gl)}
+.dot.active{background:var(--gold);transform:scale(1.4)}
+
+.slabel{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--gd);color:#fff;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stxt{font-size:14px;font-weight:700;color:var(--text)}
+.stxt .ar{font-size:11px}
+
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.01em}
+.field label .ar{font-size:10px;margin-top:0}
+.field input,.field select{border:1.5px solid var(--bdr);border-radius:var(--rs);padding:11px 13px;
+  font-size:15px;font-family:inherit;color:var(--text);background:var(--card);transition:border-color .2s;width:100%;outline:none}
+.field input:focus,.field select:focus{border-color:var(--gm)}
+.field .hint{font-size:10px;color:var(--t3)}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.bmi-box{background:var(--cream);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
+  display:flex;align-items:center;justify-content:space-between;border:1px solid var(--bdr)}
+.bmi-box .bl{font-size:11px;color:var(--t3);font-weight:500}
+.bmi-box .bv{font-size:28px;font-weight:800;color:var(--gd);transition:color .3s}
+.bmi-box .bc{font-size:12px;font-weight:600;margin-top:2px}
+.bmi-scale{height:7px;border-radius:4px;background:linear-gradient(90deg,#3B82F6 0%,#22C55E 25%,#F59E0B 62%,#EF4444 100%);position:relative;margin-bottom:6px}
+.bmi-mk{position:absolute;top:-5px;width:16px;height:16px;border-radius:50%;background:var(--text);
+  border:2px solid white;transform:translateX(-50%);transition:left .5s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.bmi-labs{display:flex;justify-content:space-between;font-size:9px;color:var(--t3);letter-spacing:.04em;margin-top:3px}
+
+.advice{background:linear-gradient(135deg,var(--gd),var(--gm));color:white;border-radius:var(--rs);
+  padding:16px 18px;margin-bottom:18px;position:relative;overflow:hidden}
+.advice::before{content:'⚕';position:absolute;right:-6px;top:-14px;font-size:70px;opacity:.07}
+.advice h3{font-size:11px;font-weight:700;margin-bottom:6px;opacity:.75;letter-spacing:.06em;text-transform:uppercase}
+.advice .av{font-size:24px;font-weight:800;font-family:'Tajawal',sans-serif}
+.advice p{font-size:13px;line-height:1.55;margin-top:6px;opacity:.92}
+.advice .aar{font-family:'Tajawal',sans-serif;direction:rtl;font-size:12px;opacity:.75;margin-top:8px;display:block;line-height:1.6}
+
+.btn{display:block;width:100%;padding:14px 18px;border:none;border-radius:var(--rs);
+  font-family:'Tajawal','Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+  transition:transform .15s,opacity .15s,box-shadow .15s;letter-spacing:.01em}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0);opacity:.9}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#D9A04A);color:white;box-shadow:0 4px 18px rgba(201,146,58,.35)}
+.btn-gold:hover{box-shadow:0 6px 26px rgba(201,146,58,.45)}
+.btn-grn{background:linear-gradient(135deg,var(--gm),var(--gl));color:white;box-shadow:0 4px 16px rgba(0,122,61,.28)}
+.btn-link{background:none;border:none;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;
+  padding:8px 0;text-align:center;display:block;width:100%;font-family:inherit}
+
+.ref-box{background:var(--cream);border:1px solid var(--bdr);border-radius:var(--rs);padding:14px 18px;text-align:center;margin-bottom:14px}
+.ref-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.ref-num{font-size:22px;font-weight:800;color:var(--gd);letter-spacing:.04em;font-family:'Tajawal',monospace}
+
+.info-box{background:var(--cream);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
+  font-size:13px;color:var(--t2);line-height:1.6;border:1px solid var(--bdr)}
+
+.dr-box{background:var(--cream);border-left:3px solid var(--gm);border-radius:0 var(--rs) var(--rs) 0;padding:15px 17px;margin-bottom:14px}
+.dr-lbl{font-size:10px;color:var(--gm);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.dr-txt{font-size:14px;color:var(--text);line-height:1.65;white-space:pre-wrap}
+
+.spill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.03em}
+.sp-wait{background:rgba(201,146,58,.12);color:var(--gold)}
+.sp-rdy{background:rgba(0,122,61,.1);color:var(--gm)}
+
+.gift-card{background:linear-gradient(135deg,var(--gd) 0%,#007A3D 60%,#009048 100%);
+  border-radius:var(--r);padding:26px 22px;text-align:center;color:white;position:relative;overflow:hidden;margin-bottom:16px}
+.gift-card::after{content:'🎁';position:absolute;right:-8px;bottom:-18px;font-size:88px;opacity:.1}
+.gift-title{font-size:19px;font-weight:800;margin-bottom:6px}
+.gift-sub{font-size:13px;opacity:.83;line-height:1.5}
+.gift-code{display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);
+  border-radius:8px;padding:8px 22px;font-size:21px;font-weight:800;letter-spacing:.1em;margin-top:14px;font-family:'Tajawal',monospace}
+
+.divider{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:11px;margin:14px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--bdr)}
+
+.err{color:#DC2626;font-size:13px;padding:9px 13px;background:#FEE2E2;border-radius:var(--rs);margin-bottom:12px;display:none}
+.err.on{display:block}
+
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;
+  animation:sp .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.panel{display:none;animation:fu .28s ease}
+.panel.on{display:block}
+@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.check-icon{width:60px;height:60px;border-radius:50%;background:rgba(0,122,61,.1);border:2px solid var(--gm);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;color:var(--gm)}
+
+.footer{margin-top:20px;text-align:center;font-size:11px;color:rgba(255,255,255,.35);max-width:440px}
+</style>
+
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<div class="card">
+
+  <!-- WELCOME -->
+  <div class="panel on" id="p-welcome">
+    <div class="seal"><span class="n">٩٦</span><span class="nl">National Day</span></div>
+    <h1>National Health Check<span class="ar">فحص اليوم الوطني الصحي</span></h1>
+    <p class="sub">Celebrate Saudi National Day 96 with a free health check by our medical team.<span class="ar" style="margin-top:5px">احتفل باليوم الوطني ٩٦ بفحص صحي مجاني مع فريقنا الطبي</span></p>
+    <button class="btn btn-gold" id="btn-start">Begin Your Health Check<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">ابدأ الفحص الصحي</span></button>
+    <div class="divider">or · أو</div>
+    <button class="btn-link" id="btn-to-check">Already registered? Check your results &nbsp;↩<span class="ar">تحقق من نتائجك</span></button>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="panel" id="p-register">
+    <div class="prog"><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <div class="slabel"><div class="snum">1</div><div class="stxt">Your Details<span class="ar">بياناتك الشخصية</span></div></div>
+    <div class="err" id="err-reg"></div>
+    <div class="field">
+      <label>Full Name<span class="ar">الاسم الكامل</span></label>
+      <input type="text" id="r-name" placeholder="Your full name / اسمك الكامل" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Mobile Number<span class="ar">رقم الجوال</span></label>
+      <input type="tel" id="r-phone" placeholder="+966 5X XXX XXXX" autocomplete="tel">
+      <span class="hint">Saudi mobile number · رقم سعودي</span>
+    </div>
+    <button class="btn btn-grn" id="btn-reg">Continue →</button>
+    <button class="btn-link" id="btn-bk-welcome" style="margin-top:8px">← Back</button>
+  </div>
+
+  <!-- INBODY -->
+  <div class="panel" id="p-inbody">
+    <div class="prog"><div class="dot done"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
+    <div class="slabel"><div class="snum">2</div><div class="stxt">InBody Test<span class="ar">قياس مؤشر كتلة الجسم</span></div></div>
+    <p style="font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.5">Enter your measurements from the InBody machine.<span class="ar">أدخل قياساتك من جهاز إن بودي.</span></p>
+    <div class="r2">
+      <div class="field"><label>Height / الطول</label><input type="number" id="ib-h" placeholder="170" min="100" max="220"><span class="hint">cm</span></div>
+      <div class="field"><label>Weight / الوزن</label><input type="number" id="ib-w" placeholder="75" min="20" max="300"><span class="hint">kg</span></div>
+    </div>
+    <div class="bmi-box">
+      <div>
+        <div class="bl">BMI · مؤشر كتلة الجسم</div>
+        <div class="bv" id="bv">—</div>
+        <div class="bc" id="bc" style="color:var(--t3)">Enter measurements above</div>
+      </div>
+    </div>
+    <div class="bmi-scale" id="bscale" style="display:none"><div class="bmi-mk" id="bmk"></div></div>
+    <div class="bmi-labs" id="blabs" style="display:none"><span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span></div>
+    <div class="err" id="err-ib" style="margin-top:10px"></div>
+    <button class="btn btn-grn" id="btn-ib" style="margin-top:14px">Next Step →</button>
+    <button class="btn-link" id="btn-bk-reg" style="margin-top:8px">← Back</button>
+  </div>
+
+  <!-- METRICS -->
+  <div class="panel" id="p-metrics">
+    <div class="prog"><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div><div class="dot"></div></div>
+    <div class="slabel"><div class="snum">3</div><div class="stxt">Health Measurements<span class="ar">القياسات الصحية</span></div></div>
+    <div id="bmi-advice"></div>
+    <p style="font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.5">Proceed to the calibration station and enter your readings below.<span class="ar" style="margin-top:3px">انتقل إلى محطة القياس وأدخل قراءاتك أدناه.</span></p>
+    <div class="r2">
+      <div class="field"><label>Systolic BP<span class="ar">الضغط الانقباضي</span></label><input type="number" id="m-bps" placeholder="120" min="60" max="220"><span class="hint">mmHg — upper number</span></div>
+      <div class="field"><label>Diastolic BP<span class="ar">الضغط الانبساطي</span></label><input type="number" id="m-bpd" placeholder="80" min="40" max="150"><span class="hint">mmHg — lower number</span></div>
+    </div>
+    <div class="field">
+      <label>Blood Sugar<span class="ar">سكر الدم</span></label>
+      <div style="display:flex;gap:8px">
+        <input type="number" id="m-sug" placeholder="5.2" min="1" max="60" step="0.1" style="flex:1">
+        <select id="m-unit" style="padding:11px 10px;border:1.5px solid var(--bdr);border-radius:var(--rs);font-family:inherit;font-size:13px;background:var(--card);color:var(--text);outline:none;flex-shrink:0">
+          <option value="mmol">mmol/L</option>
+          <option value="mgdl">mg/dL</option>
+        </select>
+      </div>
+    </div>
+    <div class="err" id="err-met"></div>
+    <button class="btn btn-gold" id="btn-sub">Submit for Expert Consultation<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">إرسال للاستشارة الطبية</span></button>
+    <button class="btn-link" id="btn-bk-ib" style="margin-top:8px">← Back</button>
+  </div>
+
+  <!-- SUBMITTED -->
+  <div class="panel" id="p-done">
+    <div class="prog"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot active"></div></div>
+    <div class="check-icon">✓</div>
+    <h2 style="text-align:center;margin-bottom:6px">Submitted!<span class="ar">تم الإرسال</span></h2>
+    <p style="font-size:13px;color:var(--t2);text-align:center;line-height:1.5;margin-bottom:18px">Our medical expert will review your health data and provide personalised advice.<span class="ar" style="margin-top:4px">سيراجع خبيرنا الطبي بياناتك ويقدم مشورة شخصية.</span></p>
+    <div class="ref-box">
+      <div class="ref-lbl">Reference Number · رقم المرجع</div>
+      <div class="ref-num" id="ref-out">—</div>
+    </div>
+    <div class="info-box">📱 <strong>Keep this reference.</strong> Return here and tap "Check Results" once your expert advice is ready.<span class="ar" style="font-size:11px;margin-top:5px">احتفظ برقم المرجع. عد هنا واضغط "تحقق من النتائج" عند جاهزية المشورة.</span></div>
+    <button class="btn btn-gold" id="btn-go-check">Check Results Now<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">تحقق من النتائج الآن</span></button>
+  </div>
+
+  <!-- CHECK RESULTS -->
+  <div class="panel" id="p-check">
+    <div class="seal" style="width:56px;height:56px"><span class="n" style="font-size:19px">٩٦</span></div>
+    <h2 style="text-align:center;margin-bottom:6px">Check Your Results<span class="ar">تحقق من نتائجك</span></h2>
+    <p class="sub" style="margin-bottom:18px">Enter your registered mobile number to view your expert consultation.<span class="ar" style="margin-top:3px">أدخل رقم جوالك المسجل لعرض استشارتك.</span></p>
+    <div class="field">
+      <label>Mobile Number<span class="ar">رقم الجوال</span></label>
+      <input type="tel" id="c-ph" placeholder="+966 5X XXX XXXX" autocomplete="tel">
+    </div>
+    <div class="err" id="err-chk"></div>
+    <button class="btn btn-grn" id="btn-chk">Find My Results<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">ابحث عن نتائجي</span></button>
+    <button class="btn-link" id="btn-bk-chk" style="margin-top:8px">← Home</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="panel" id="p-results">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">Expert Advice<span class="ar" style="font-size:11px">مشورة الخبير</span></h2>
+      <span class="spill sp-rdy" id="r-status">✓ Ready</span>
+    </div>
+    <div class="dr-box" id="dr-box">
+      <div class="dr-lbl">From Dr. <span id="dr-name">Expert</span></div>
+      <div class="dr-txt" id="dr-txt">—</div>
+    </div>
+    <div id="r-wait" style="display:none;text-align:center;padding:20px 0">
+      <span class="spill sp-wait" style="margin:0 auto 12px;display:inline-flex">⏳ Under Review · قيد المراجعة</span>
+      <p style="font-size:13px;color:var(--t2);line-height:1.5">Your results are being reviewed. Please check back in a few minutes.<span class="ar" style="margin-top:4px">جارٍ مراجعة نتائجك. يرجى العودة بعد قليل.</span></p>
+    </div>
+    <div id="gift-section" style="display:none">
+      <div class="divider">Your Gift · هديتك</div>
+      <div class="gift-card">
+        <div class="gift-title">🎁 Free Gift Awaits!<div style="font-family:'Tajawal';font-size:15px;margin-top:3px;opacity:.88">هديتك المجانية بانتظارك</div></div>
+        <div class="gift-sub">Present this code at the gift collection point<br><span style="font-family:'Tajawal';font-size:12px;opacity:.8">قدّم هذا الرمز عند نقطة توزيع الهدايا</span></div>
+        <div class="gift-code" id="gift-code">—</div>
+      </div>
+      <button class="btn btn-gold" id="btn-claim">Claim My Free Gift<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">احصل على الهدية المجانية</span></button>
+      <div id="claimed-msg" style="display:none;text-align:center;padding:12px;font-size:14px;color:var(--gm);font-weight:700">✓ Gift claimed! Head to the collection point. / توجه إلى نقطة التوزيع.</div>
+    </div>
+    <button class="btn-link" id="btn-bk-res" style="margin-top:14px">← Check another number</button>
+  </div>
+
+</div>
+<div class="footer">Saudi National Day 96 · Health Initiative · اليوم الوطني السعودي ٩٦ · فحص صحي مجاني</div>
+
+<script>
+const{createClient}=supabase;
+const sb=createClient('https://rmpmhkllnrrybiezpjfb.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtcG1oa2xsbnJyeWJpZXpwamZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjA1ODAsImV4cCI6MjA5Mjg5NjU4MH0.HbHN6oc6bnEUlmZdIHB6fxO6r2M-17xo1BTG_pIAGNU');
+
+let S={name:'',phone:'',height:null,weight:null,bmi:null,cat:'',leadId:null,leadNum:null};
+try{const s=localStorage.getItem('nd96');if(s)Object.assign(S,JSON.parse(s));}catch(e){}
+function save(){try{localStorage.setItem('nd96',JSON.stringify(S));}catch(e){}}
+
+const $=id=>document.getElementById(id);
+function show(id){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));const el=$('p-'+id);if(el)el.classList.add('on');}
+function err(id,msg){const e=$(id);if(!e)return;e.textContent=msg;e.classList.add('on');}
+function clr(id){const e=$(id);if(e)e.classList.remove('on');}
+
+function cleanPh(p){let s=p.replace(/\s+/g,'').trim();if(s.startsWith('05'))s='+966'+s.slice(1);else if(/^5\d{8}$/.test(s))s='+966'+s;return s;}
+
+// BMI
+const CATS=[
+  {max:18.5,label:'Underweight',ar:'نقص الوزن',c:'#3B82F6'},
+  {max:25,label:'Normal weight',ar:'وزن طبيعي',c:'#22C55E'},
+  {max:30,label:'Overweight',ar:'زيادة الوزن',c:'#F59E0B'},
+  {max:Infinity,label:'Obese',ar:'السمنة',c:'#EF4444'},
+];
+const ADVICE={
+  'Underweight':{en:'Your BMI indicates you may be underweight. Our medical expert will assess your nutritional health and provide a personalised wellness plan.',ar:'يشير مؤشر كتلة جسمك إلى نقص الوزن. سيقيّم خبيرنا الطبي صحتك الغذائية ويضع خطة شخصية.'},
+  'Normal weight':{en:'Your BMI is in the healthy range — excellent! Our expert will confirm your results and share personalised wellness recommendations.',ar:'مؤشر كتلة جسمك ضمن النطاق الصحي — ممتاز! سيؤكد خبيرنا نتائجك ويقدم توصيات صحية مخصصة.'},
+  'Overweight':{en:'Your BMI is above the healthy range. Please proceed to the calibration station to measure your blood pressure and blood sugar. Our expert will provide a personalised plan.',ar:'مؤشر كتلة جسمك فوق الطبيعي. انتقل لقياس ضغط الدم والسكر. سيوفر خبيرنا خطة صحية شخصية.'},
+  'Obese':{en:'Your BMI indicates obesity — it is important to take action. Please proceed to the blood pressure and sugar calibration station immediately. Our team will provide a comprehensive personalised health plan.',ar:'يشير مؤشر كتلة جسمك إلى السمنة. انتقل فوراً لقياس الضغط والسكر. سيقدم فريقنا خطة صحية شاملة.'},
+};
+
+function getCat(b){return CATS.find(c=>b<c.max)||CATS[3];}
+function pct(b){return Math.min(100,Math.max(0,((b-14)/26)*100));}
+
+function updateBMI(){
+  const h=parseFloat($('ib-h').value),w=parseFloat($('ib-w').value);
+  if(!h||!w||h<100||w<20){$('bv').textContent='—';$('bc').textContent='Enter measurements above';$('bc').style.color='var(--t3)';$('bscale').style.display='none';$('blabs').style.display='none';return;}
+  const b=parseFloat((w/((h/100)**2)).toFixed(1));
+  const cat=getCat(b);
+  $('bv').textContent=b.toFixed(1);
+  $('bc').textContent=cat.label+' / '+cat.ar;
+  $('bc').style.color=cat.c;
+  $('bscale').style.display='block';$('blabs').style.display='flex';
+  $('bmk').style.left=pct(b)+'%';
+}
+
+function injectAdvice(){
+  const a=ADVICE[S.cat]||ADVICE['Normal weight'];
+  $('bmi-advice').innerHTML=`<div class="advice"><h3>Your BMI Result · نتيجة مؤشر كتلة الجسم</h3><div class="av">${S.bmi} <span style="font-size:14px;opacity:.7">— ${S.cat}</span></div><p>${a.en}</p><span class="aar">${a.ar}</span></div>`;
+}
+
+// Button loading helper
+function load(id,on,txt){const b=$(id);if(!b)return;b.disabled=on;if(on)b.innerHTML='<span class="spin"></span> '+(txt||'Please wait…');else b.textContent=txt||'—';}
+
+// === REGISTER ===
+async function doReg(){
+  clr('err-reg');
+  const name=$('r-name').value.trim();
+  const rawPh=$('r-phone').value.trim();
+  if(!name){err('err-reg','Please enter your full name · أدخل اسمك الكامل');return;}
+  if(!rawPh){err('err-reg','Please enter your mobile number · أدخل رقم جوالك');return;}
+  const phone=cleanPh(rawPh);
+
+  // Check existing
+  const{data:ex}=await sb.from('leads').select('id,lead_number,status').eq('phone',phone).eq('lead_type_tag','national_day_96').limit(1).maybeSingle();
+  if(ex){S.leadId=ex.id;S.leadNum=ex.lead_number;S.phone=phone;S.name=name;save();$('ref-out').textContent=ex.lead_number||('ND96-'+phone.slice(-4));show('done');return;}
+
+  load('btn-reg',true,'Registering…');
+  const{data:lead,error}=await sb.from('leads').insert({
+    phone,email:'nd96_'+Date.now()+'@nd96.noemail.placeholder',
+    status:'claimed',lead_type:'new',
+    source:'National Day 96',lead_type_tag:'national_day_96',
+    claimed_at:new Date().toISOString(),
+  }).select('id,lead_number').single();
+  load('btn-reg',false,'Continue →');
+  if(error){err('err-reg','Registration failed. Please try again. · فشل التسجيل.');console.error(error);return;}
+  S.name=name;S.phone=phone;S.leadId=lead.id;S.leadNum=lead.lead_number;save();
+  show('inbody');
+}
+
+// === INBODY ===
+function doInBody(){
+  clr('err-ib');
+  const h=parseFloat($('ib-h').value),w=parseFloat($('ib-w').value);
+  if(!h||h<100||h>220){err('err-ib','Enter a valid height (100–220 cm) · أدخل طولاً صحيحاً');return;}
+  if(!w||w<20||w>300){err('err-ib','Enter a valid weight (20–300 kg) · أدخل وزناً صحيحاً');return;}
+  const b=parseFloat((w/((h/100)**2)).toFixed(1));
+  S.height=h;S.weight=w;S.bmi=b;S.cat=getCat(b).label;save();
+  injectAdvice();show('metrics');
+}
+
+// === SUBMIT METRICS ===
+async function doSubmit(){
+  clr('err-met');
+  const bps=parseInt($('m-bps').value),bpd=parseInt($('m-bpd').value);
+  const sugRaw=parseFloat($('m-sug').value),unit=$('m-unit').value;
+  if(!bps||bps<60||bps>220){err('err-met','Enter valid systolic BP · أدخل ضغطاً انقباضياً صحيحاً');return;}
+  if(!bpd||bpd<40||bpd>150){err('err-met','Enter valid diastolic BP · أدخل ضغطاً انبساطياً صحيحاً');return;}
+  if(!sugRaw||sugRaw<=0){err('err-met','Enter your blood sugar reading · أدخل قراءة سكر الدم');return;}
+  const sug=unit==='mgdl'?parseFloat((sugRaw/18).toFixed(1)):sugRaw;
+  load('btn-sub',true,'Submitting…');
+  const notes=`[ND96 Health Check ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}]\nBMI: ${S.bmi} (${S.cat}) | Height: ${S.height}cm | Weight: ${S.weight}kg\nBlood Pressure: ${bps}/${bpd} mmHg | Blood Sugar: ${sug} mmol/L`;
+  const{error:pe}=await sb.from('client_profiles').insert({lead_id:S.leadId,full_name:S.name,height_cm:S.height,weight_kg:S.weight,agent_notes:notes});
+  if(pe)await sb.from('client_profiles').update({full_name:S.name,height_cm:S.height,weight_kg:S.weight,agent_notes:notes}).eq('lead_id',S.leadId);
+  const{error:le}=await sb.from('leads').update({status:'with_doctor',last_status_updated_at:new Date().toISOString()}).eq('id',S.leadId);
+  load('btn-sub',false,'Submit for Expert Consultation');
+  if(le){err('err-met','Submission failed. Please try again. · فشل الإرسال.');return;}
+  $('ref-out').textContent=S.leadNum||('ND96-'+S.phone.slice(-4));show('done');
+}
+
+// === CHECK RESULTS ===
+async function doCheck(){
+  clr('err-chk');
+  const rawPh=$('c-ph').value.trim();
+  if(!rawPh){err('err-chk','Enter your mobile number · أدخل رقم جوالك');return;}
+  const phone=cleanPh(rawPh);
+  load('btn-chk',true,'Searching…');
+  const{data,error}=await sb.from('leads').select('id,lead_number,status,doctor_action,doctor_action_note,doctor_action_at,doctor_name').eq('phone',phone).eq('lead_type_tag','national_day_96').order('created_at',{ascending:false}).limit(1).maybeSingle();
+  load('btn-chk',false,'Find My Results');
+  if(error||!data){err('err-chk','No registration found for this number. · لم يتم العثور على تسجيل لهذا الرقم.');return;}
+  S.leadId=data.id;S.leadNum=data.lead_number;S.phone=phone;save();
+  renderResults(data);
+}
+
+function renderResults(d){
+  const ready=d.doctor_action_note&&(d.status==='prescribed'||d.doctor_action==='approved'||d.doctor_action==='followup'||d.doctor_action==='rejected');
+  if(ready){
+    $('dr-box').style.display='block';$('r-wait').style.display='none';
+    $('dr-name').textContent=d.doctor_name||'Our Expert';
+    $('dr-txt').textContent=d.doctor_action_note;
+    $('r-status').className='spill sp-rdy';$('r-status').textContent='✓ Ready';
+    $('gift-section').style.display='block';
+    const code='ND96-'+(d.lead_number||d.id.slice(-6).toUpperCase());
+    $('gift-code').textContent=code;
+    try{if(localStorage.getItem('nd96_g_'+d.id)){$('btn-claim').style.display='none';$('claimed-msg').style.display='block';}}catch(e){}
+  }else{
+    $('dr-box').style.display='none';$('r-wait').style.display='block';
+    $('gift-section').style.display='none';
+    $('r-status').className='spill sp-wait';$('r-status').textContent='⏳ Under Review';
+  }
+  show('results');
+}
+
+// === CLAIM GIFT ===
+async function doClaim(){
+  const btn=$('btn-claim');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Claiming…';
+  const{data:prof}=await sb.from('client_profiles').select('id,agent_notes').eq('lead_id',S.leadId).maybeSingle();
+  if(prof){const upd=(prof.agent_notes||'')+`\n[GIFT_CLAIMED: ${new Date().toLocaleDateString('en-GB')}]`;await sb.from('client_profiles').update({agent_notes:upd}).eq('id',prof.id);}
+  try{localStorage.setItem('nd96_g_'+S.leadId,'1');}catch(e){}
+  btn.style.display='none';$('claimed-msg').style.display='block';
+}
+
+// === WIRES ===
+$('btn-start').onclick=()=>{if(S.phone)$('r-phone').value=S.phone;if(S.name)$('r-name').value=S.name;show('register');};
+$('btn-to-check').onclick=()=>{if(S.phone)$('c-ph').value=S.phone;show('check');};
+$('btn-bk-welcome').onclick=()=>show('welcome');
+$('btn-reg').onclick=doReg;
+$('btn-bk-reg').onclick=()=>show('register');
+$('btn-ib').onclick=doInBody;
+$('btn-bk-ib').onclick=()=>show('inbody');
+$('btn-sub').onclick=doSubmit;
+$('btn-go-check').onclick=()=>{if(S.phone)$('c-ph').value=S.phone;show('check');};
+$('btn-chk').onclick=doCheck;
+$('btn-bk-chk').onclick=()=>show('welcome');
+$('btn-bk-res').onclick=()=>show('check');
+$('btn-claim').onclick=doClaim;
+$('ib-h').addEventListener('input',updateBMI);
+$('ib-w').addEventListener('input',updateBMI);
+
+// Restore shortcut for returning users
+if(S.leadId){const t=$('btn-to-check');t.innerHTML='↩ Check My Results<span class="ar">تحقق من نتائجك</span>';}
+</script>
+</body>
+</html>
