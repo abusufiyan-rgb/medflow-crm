@@ -3,113 +3,131 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>National Day ٩٦ — Health Check</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600&display=swap">
+<title>Valeo Health — National Day 96</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
 :root {
-  --gd: #005C2E; --gm: #007A3D; --gl: #00A350;
-  --gold: #C9923A; --gold-l: #E8B86D; --gold-p: #FDF0DA;
-  --cream: #F6F0E4; --text: #1E2D1A; --t2: #4A5E46; --t3: #8A9B86;
-  --card: #FFFFFF; --bdr: rgba(0,92,46,0.13);
-  --sh: 0 12px 48px rgba(0,0,0,0.22); --r: 16px; --rs: 10px;
+  --pk: #E5007E; --pk-l: #FF4DAD; --pk-p: #FFF0F8;
+  --tl: #00B9D1; --tl-l: #33CCDF; --tl-p: #E8F9FC;
+  --gold: #C9923A; --gold-l: #E8B86D;
+  --novo: #001E6B;
+  --text: #1A1A2E; --t2: #4A4A6A; --t3: #9090AA;
+  --card: #FFFFFF; --bdr: rgba(229,0,126,0.13); --bdr2: rgba(0,185,209,0.15);
+  --sh: 0 16px 56px rgba(229,0,126,0.14),0 4px 16px rgba(0,0,0,0.08);
+  --r: 18px; --rs: 11px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{font-family:'Tajawal','Inter',system-ui,sans-serif;background:var(--gd)}
+html,body{font-family:'Inter','Tajawal',system-ui,sans-serif;background:#f5f0f8}
 body{
-  background-image:repeating-linear-gradient(45deg,rgba(201,146,58,.06) 0,rgba(201,146,58,.06) 1px,transparent 1px,transparent 28px),
-    repeating-linear-gradient(-45deg,rgba(201,146,58,.06) 0,rgba(201,146,58,.06) 1px,transparent 1px,transparent 28px);
+  background-image:radial-gradient(circle at 20% 20%,rgba(229,0,126,.06) 0,transparent 50%),
+    radial-gradient(circle at 80% 80%,rgba(0,185,209,.07) 0,transparent 50%);
   min-height:100%;display:flex;flex-direction:column;align-items:center;
   padding-block:32px;padding-inline:16px;
 }
-.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);width:100%;max-width:440px;padding:36px 32px;position:relative}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;
-  background:linear-gradient(90deg,var(--gold),var(--gold-l),var(--gold));border-radius:var(--r) var(--r) 0 0}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);width:100%;max-width:440px;padding:36px 32px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;
+  background:linear-gradient(90deg,var(--pk),var(--tl));border-radius:var(--r) var(--r) 0 0}
 @media(max-width:480px){.card{padding:28px 18px}}
 
-.seal{width:88px;height:88px;border:2.5px solid var(--gold);border-radius:50%;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  margin:0 auto 18px;background:linear-gradient(135deg,var(--gd),var(--gm));position:relative}
-.seal::after{content:'';position:absolute;inset:5px;border-radius:50%;border:1px solid rgba(232,184,109,.35)}
-.seal .n{font-size:32px;font-weight:800;color:var(--gold-l);line-height:1;font-family:'Tajawal',sans-serif}
-.seal .nl{font-size:8px;color:rgba(232,184,109,.65);letter-spacing:.12em;text-transform:uppercase;font-weight:500}
+/* Brand header */
+.brand-hdr{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px}
+.valeo-v svg{display:block}
+.valeo-wordmark{font-size:19px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.valeo-wordmark span{display:block;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-top:1px}
+.brand-sep{width:1px;height:32px;background:var(--bdr)}
+.novo-mark{font-size:13px;font-weight:700;color:var(--novo);letter-spacing:-.2px;line-height:1}
+.novo-mark small{display:block;font-size:8px;font-weight:500;letter-spacing:.06em;color:var(--t3);margin-top:2px}
 
-h1{font-size:21px;font-weight:800;color:var(--text);text-align:center;text-wrap:balance;line-height:1.3;margin-bottom:6px}
+/* Small brand strip for inner panels */
+.mini-brand{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.mini-v{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--text)}
+.mini-v svg{flex-shrink:0}
+
+.seal{width:56px;height:56px;border:2px solid var(--pk);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 14px;background:linear-gradient(135deg,var(--pk),var(--pk-l));position:relative}
+.seal .n{font-size:19px;font-weight:800;color:#fff;line-height:1;font-family:'Tajawal',sans-serif}
+.seal .nl{font-size:7px;color:rgba(255,255,255,.75);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+
+h1{font-size:22px;font-weight:800;color:var(--text);text-align:center;text-wrap:balance;line-height:1.25;margin-bottom:6px}
 h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:balance}
 .sub{font-size:13px;color:var(--t2);text-align:center;line-height:1.55;margin-bottom:22px}
+.tagline{font-family:'Tajawal',sans-serif;direction:rtl;font-size:17px;font-weight:800;color:var(--pk);text-align:center;display:block;margin-bottom:4px}
 .ar{display:block;font-family:'Tajawal',sans-serif;direction:rtl;font-size:12px;color:var(--t3);margin-top:3px}
 
 .prog{display:flex;gap:8px;justify-content:center;margin-bottom:26px}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--bdr);transition:background .3s,transform .3s}
-.dot.done{background:var(--gl)}
-.dot.active{background:var(--gold);transform:scale(1.4)}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.1);transition:background .3s,transform .3s}
+.dot.done{background:var(--tl)}
+.dot.active{background:var(--pk);transform:scale(1.4)}
 
 .slabel{display:flex;align-items:center;gap:8px;margin-bottom:18px}
-.snum{width:26px;height:26px;border-radius:50%;background:var(--gd);color:#fff;font-size:12px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.snum{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--pk),var(--pk-l));color:#fff;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 8px rgba(229,0,126,.3)}
 .stxt{font-size:14px;font-weight:700;color:var(--text)}
 .stxt .ar{font-size:11px}
 
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
 .field label{font-size:12px;font-weight:600;color:var(--t2);letter-spacing:.01em}
 .field label .ar{font-size:10px;margin-top:0}
-.field input,.field select{border:1.5px solid var(--bdr);border-radius:var(--rs);padding:11px 13px;
+.field input,.field select{border:1.5px solid rgba(0,0,0,.1);border-radius:var(--rs);padding:11px 13px;
   font-size:15px;font-family:inherit;color:var(--text);background:var(--card);transition:border-color .2s;width:100%;outline:none}
-.field input:focus,.field select:focus{border-color:var(--gm)}
+.field input:focus,.field select:focus{border-color:var(--pk)}
 .field .hint{font-size:10px;color:var(--t3)}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
-.bmi-box{background:var(--cream);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
+.bmi-box{background:var(--pk-p);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
   display:flex;align-items:center;justify-content:space-between;border:1px solid var(--bdr)}
 .bmi-box .bl{font-size:11px;color:var(--t3);font-weight:500}
-.bmi-box .bv{font-size:28px;font-weight:800;color:var(--gd);transition:color .3s}
+.bmi-box .bv{font-size:28px;font-weight:800;color:var(--pk);transition:color .3s}
 .bmi-box .bc{font-size:12px;font-weight:600;margin-top:2px}
 .bmi-scale{height:7px;border-radius:4px;background:linear-gradient(90deg,#3B82F6 0%,#22C55E 25%,#F59E0B 62%,#EF4444 100%);position:relative;margin-bottom:6px}
 .bmi-mk{position:absolute;top:-5px;width:16px;height:16px;border-radius:50%;background:var(--text);
   border:2px solid white;transform:translateX(-50%);transition:left .5s cubic-bezier(.34,1.56,.64,1);box-shadow:0 2px 6px rgba(0,0,0,.2)}
 .bmi-labs{display:flex;justify-content:space-between;font-size:9px;color:var(--t3);letter-spacing:.04em;margin-top:3px}
 
-.advice{background:linear-gradient(135deg,var(--gd),var(--gm));color:white;border-radius:var(--rs);
+.advice{background:linear-gradient(135deg,var(--pk) 0%,#B5006A 100%);color:white;border-radius:var(--rs);
   padding:16px 18px;margin-bottom:18px;position:relative;overflow:hidden}
-.advice::before{content:'⚕';position:absolute;right:-6px;top:-14px;font-size:70px;opacity:.07}
-.advice h3{font-size:11px;font-weight:700;margin-bottom:6px;opacity:.75;letter-spacing:.06em;text-transform:uppercase}
+.advice::before{content:'⚕';position:absolute;right:-6px;top:-14px;font-size:70px;opacity:.08}
+.advice h3{font-size:11px;font-weight:700;margin-bottom:6px;opacity:.8;letter-spacing:.06em;text-transform:uppercase}
 .advice .av{font-size:24px;font-weight:800;font-family:'Tajawal',sans-serif}
 .advice p{font-size:13px;line-height:1.55;margin-top:6px;opacity:.92}
 .advice .aar{font-family:'Tajawal',sans-serif;direction:rtl;font-size:12px;opacity:.75;margin-top:8px;display:block;line-height:1.6}
 
 .btn{display:block;width:100%;padding:14px 18px;border:none;border-radius:var(--rs);
-  font-family:'Tajawal','Inter',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:'Inter','Tajawal',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
   transition:transform .15s,opacity .15s,box-shadow .15s;letter-spacing:.01em}
 .btn:hover{transform:translateY(-1px)}
 .btn:active{transform:translateY(0);opacity:.9}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-gold{background:linear-gradient(135deg,var(--gold),#D9A04A);color:white;box-shadow:0 4px 18px rgba(201,146,58,.35)}
-.btn-gold:hover{box-shadow:0 6px 26px rgba(201,146,58,.45)}
-.btn-grn{background:linear-gradient(135deg,var(--gm),var(--gl));color:white;box-shadow:0 4px 16px rgba(0,122,61,.28)}
-.btn-link{background:none;border:none;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;
+.btn-pk{background:linear-gradient(135deg,var(--pk),#C4006C);color:white;box-shadow:0 4px 18px rgba(229,0,126,.35)}
+.btn-pk:hover{box-shadow:0 6px 26px rgba(229,0,126,.45)}
+.btn-tl{background:linear-gradient(135deg,var(--tl),#0099B0);color:white;box-shadow:0 4px 16px rgba(0,185,209,.28)}
+.btn-link{background:none;border:none;color:var(--pk);font-size:13px;font-weight:600;cursor:pointer;
   padding:8px 0;text-align:center;display:block;width:100%;font-family:inherit}
 
-.ref-box{background:var(--cream);border:1px solid var(--bdr);border-radius:var(--rs);padding:14px 18px;text-align:center;margin-bottom:14px}
+.ref-box{background:var(--pk-p);border:1px solid var(--bdr);border-radius:var(--rs);padding:14px 18px;text-align:center;margin-bottom:14px}
 .ref-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
-.ref-num{font-size:22px;font-weight:800;color:var(--gd);letter-spacing:.04em;font-family:'Tajawal',monospace}
+.ref-num{font-size:22px;font-weight:800;color:var(--pk);letter-spacing:.04em;font-family:'Tajawal',monospace}
 
-.info-box{background:var(--cream);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
-  font-size:13px;color:var(--t2);line-height:1.6;border:1px solid var(--bdr)}
+.info-box{background:var(--tl-p);border-radius:var(--rs);padding:13px 15px;margin-bottom:14px;
+  font-size:13px;color:var(--t2);line-height:1.6;border:1px solid var(--bdr2)}
 
-.dr-box{background:var(--cream);border-left:3px solid var(--gm);border-radius:0 var(--rs) var(--rs) 0;padding:15px 17px;margin-bottom:14px}
-.dr-lbl{font-size:10px;color:var(--gm);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.dr-box{background:var(--pk-p);border-left:3px solid var(--pk);border-radius:0 var(--rs) var(--rs) 0;padding:15px 17px;margin-bottom:14px}
+.dr-lbl{font-size:10px;color:var(--pk);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
 .dr-txt{font-size:14px;color:var(--text);line-height:1.65;white-space:pre-wrap}
 
 .spill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.03em}
-.sp-wait{background:rgba(201,146,58,.12);color:var(--gold)}
-.sp-rdy{background:rgba(0,122,61,.1);color:var(--gm)}
+.sp-wait{background:rgba(0,185,209,.12);color:var(--tl)}
+.sp-rdy{background:rgba(229,0,126,.1);color:var(--pk)}
 
-.gift-card{background:linear-gradient(135deg,var(--gd) 0%,#007A3D 60%,#009048 100%);
+.gift-card{background:linear-gradient(135deg,var(--pk) 0%,#B5006A 50%,#8B0050 100%);
   border-radius:var(--r);padding:26px 22px;text-align:center;color:white;position:relative;overflow:hidden;margin-bottom:16px}
-.gift-card::after{content:'🎁';position:absolute;right:-8px;bottom:-18px;font-size:88px;opacity:.1}
-.gift-title{font-size:19px;font-weight:800;margin-bottom:6px}
-.gift-sub{font-size:13px;opacity:.83;line-height:1.5}
-.gift-code{display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);
-  border-radius:8px;padding:8px 22px;font-size:21px;font-weight:800;letter-spacing:.1em;margin-top:14px;font-family:'Tajawal',monospace}
+.gift-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(0,185,209,.2)}
+.gift-card::after{content:'🎁';position:absolute;right:-8px;bottom:-18px;font-size:88px;opacity:.12}
+.gift-title{font-size:19px;font-weight:800;margin-bottom:6px;position:relative}
+.gift-sub{font-size:13px;opacity:.85;line-height:1.5;position:relative}
+.gift-code{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32);
+  border-radius:8px;padding:8px 22px;font-size:21px;font-weight:800;letter-spacing:.1em;margin-top:14px;font-family:'Tajawal',monospace;position:relative}
 
 .divider{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:11px;margin:14px 0}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--bdr)}
@@ -125,10 +143,11 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
 .panel.on{display:block}
 @keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-.check-icon{width:60px;height:60px;border-radius:50%;background:rgba(0,122,61,.1);border:2px solid var(--gm);
-  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;color:var(--gm)}
+.check-icon{width:60px;height:60px;border-radius:50%;background:var(--pk-p);border:2px solid var(--pk);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;color:var(--pk)}
 
-.footer{margin-top:20px;text-align:center;font-size:11px;color:rgba(255,255,255,.35);max-width:440px}
+.footer{margin-top:20px;text-align:center;font-size:11px;color:var(--t3);max-width:440px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.footer-sep{width:3px;height:3px;border-radius:50%;background:var(--bdr);display:inline-block}
 </style>
 
 </head>
@@ -139,10 +158,21 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
 
   <!-- WELCOME -->
   <div class="panel on" id="p-welcome">
-    <div class="seal"><span class="n">٩٦</span><span class="nl">National Day</span></div>
-    <h1>National Health Check<span class="ar">فحص اليوم الوطني الصحي</span></h1>
-    <p class="sub">Celebrate Saudi National Day 96 with a free health check by our medical team.<span class="ar" style="margin-top:5px">احتفل باليوم الوطني ٩٦ بفحص صحي مجاني مع فريقنا الطبي</span></p>
-    <button class="btn btn-gold" id="btn-start">Begin Your Health Check<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">ابدأ الفحص الصحي</span></button>
+    <div class="brand-hdr">
+      <div class="valeo-v">
+        <svg viewBox="0 0 52 46" width="52" height="46" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 0 L26 46 L26 24 L13 0 Z" fill="#E5007E"/>
+          <path d="M52 0 L26 46 L26 24 L39 0 Z" fill="#00B9D1"/>
+        </svg>
+      </div>
+      <div class="valeo-wordmark" style="color:var(--text)">VALEO<span style="color:var(--gold)">HEALTH</span></div>
+      <div class="brand-sep"></div>
+      <div class="novo-mark">𝒏𝒐𝒗𝒐<small>Nordisk · نوفو نورديسك</small></div>
+    </div>
+    <span class="tagline">عيشها أخف</span>
+    <h1 style="font-size:18px;margin-bottom:4px">Step Into Lighter You</h1>
+    <p class="sub">Free health check at our National Day 96 booth — InBody, expert consultation &amp; gift.<span class="ar" style="margin-top:5px">فحص صحي مجاني في يوم وطني ٩٦ — قياس جسم وفحص ومشورة خبير وهدية</span></p>
+    <button class="btn btn-pk" id="btn-start">Begin Your Health Check<span style="display:block;font-size:12px;opacity:.82;font-family:'Tajawal';margin-top:2px">ابدأ الفحص الصحي</span></button>
     <div class="divider">or · أو</div>
     <button class="btn-link" id="btn-to-check">Already registered? Check your results &nbsp;↩<span class="ar">تحقق من نتائجك</span></button>
   </div>
@@ -161,7 +191,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
       <input type="tel" id="r-phone" placeholder="+966 5X XXX XXXX" autocomplete="tel">
       <span class="hint">Saudi mobile number · رقم سعودي</span>
     </div>
-    <button class="btn btn-grn" id="btn-reg">Continue →</button>
+    <button class="btn btn-pk" id="btn-reg">Continue →</button>
     <button class="btn-link" id="btn-bk-welcome" style="margin-top:8px">← Back</button>
   </div>
 
@@ -184,7 +214,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
     <div class="bmi-scale" id="bscale" style="display:none"><div class="bmi-mk" id="bmk"></div></div>
     <div class="bmi-labs" id="blabs" style="display:none"><span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span></div>
     <div class="err" id="err-ib" style="margin-top:10px"></div>
-    <button class="btn btn-grn" id="btn-ib" style="margin-top:14px">Next Step →</button>
+    <button class="btn btn-tl" id="btn-ib" style="margin-top:14px">Next Step →</button>
     <button class="btn-link" id="btn-bk-reg" style="margin-top:8px">← Back</button>
   </div>
 
@@ -209,7 +239,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
       </div>
     </div>
     <div class="err" id="err-met"></div>
-    <button class="btn btn-gold" id="btn-sub">Submit for Expert Consultation<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">إرسال للاستشارة الطبية</span></button>
+    <button class="btn btn-pk" id="btn-sub">Submit for Expert Consultation<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">إرسال للاستشارة الطبية</span></button>
     <button class="btn-link" id="btn-bk-ib" style="margin-top:8px">← Back</button>
   </div>
 
@@ -224,12 +254,17 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
       <div class="ref-num" id="ref-out">—</div>
     </div>
     <div class="info-box">📱 <strong>Keep this reference.</strong> Return here and tap "Check Results" once your expert advice is ready.<span class="ar" style="font-size:11px;margin-top:5px">احتفظ برقم المرجع. عد هنا واضغط "تحقق من النتائج" عند جاهزية المشورة.</span></div>
-    <button class="btn btn-gold" id="btn-go-check">Check Results Now<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">تحقق من النتائج الآن</span></button>
+    <button class="btn btn-tl" id="btn-go-check">Check Results Now<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">تحقق من النتائج الآن</span></button>
   </div>
 
   <!-- CHECK RESULTS -->
   <div class="panel" id="p-check">
-    <div class="seal" style="width:56px;height:56px"><span class="n" style="font-size:19px">٩٦</span></div>
+    <div style="text-align:center;margin-bottom:14px">
+      <svg viewBox="0 0 52 46" width="40" height="35" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 0 L26 46 L26 24 L13 0 Z" fill="#E5007E"/>
+        <path d="M52 0 L26 46 L26 24 L39 0 Z" fill="#00B9D1"/>
+      </svg>
+    </div>
     <h2 style="text-align:center;margin-bottom:6px">Check Your Results<span class="ar">تحقق من نتائجك</span></h2>
     <p class="sub" style="margin-bottom:18px">Enter your registered mobile number to view your expert consultation.<span class="ar" style="margin-top:3px">أدخل رقم جوالك المسجل لعرض استشارتك.</span></p>
     <div class="field">
@@ -237,7 +272,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
       <input type="tel" id="c-ph" placeholder="+966 5X XXX XXXX" autocomplete="tel">
     </div>
     <div class="err" id="err-chk"></div>
-    <button class="btn btn-grn" id="btn-chk">Find My Results<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">ابحث عن نتائجي</span></button>
+    <button class="btn btn-pk" id="btn-chk">Find My Results<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">ابحث عن نتائجي</span></button>
     <button class="btn-link" id="btn-bk-chk" style="margin-top:8px">← Home</button>
   </div>
 
@@ -245,7 +280,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
   <div class="panel" id="p-results">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <h2 style="margin:0">Expert Advice<span class="ar" style="font-size:11px">مشورة الخبير</span></h2>
-      <span class="spill sp-wait" id="r-status">⏳ Under Review</span>
+      <span class="spill sp-rdy" id="r-status">✓ Ready</span>
     </div>
     <div class="dr-box" id="dr-box">
       <div class="dr-lbl">From Dr. <span id="dr-name">Expert</span></div>
@@ -262,14 +297,20 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
         <div class="gift-sub">Present this code at the gift collection point<br><span style="font-family:'Tajawal';font-size:12px;opacity:.8">قدّم هذا الرمز عند نقطة توزيع الهدايا</span></div>
         <div class="gift-code" id="gift-code">—</div>
       </div>
-      <button class="btn btn-gold" id="btn-claim">Claim My Free Gift<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">احصل على الهدية المجانية</span></button>
-      <div id="claimed-msg" style="display:none;text-align:center;padding:12px;font-size:14px;color:var(--gm);font-weight:700">✓ Gift claimed! Head to the collection point. / توجه إلى نقطة التوزيع.</div>
+      <button class="btn btn-pk" id="btn-claim">Claim My Free Gift<span style="display:block;font-size:12px;opacity:.78;font-family:'Tajawal';margin-top:2px">احصل على الهدية المجانية</span></button>
+      <div id="claimed-msg" style="display:none;text-align:center;padding:12px;font-size:14px;color:var(--pk);font-weight:700">✓ Gift claimed! Head to the collection point. / توجه إلى نقطة التوزيع.</div>
     </div>
     <button class="btn-link" id="btn-bk-res" style="margin-top:14px">← Check another number</button>
   </div>
 
 </div>
-<div class="footer">Saudi National Day 96 · Health Initiative · اليوم الوطني السعودي ٩٦ · فحص صحي مجاني</div>
+<div class="footer">
+  <span style="color:var(--pk);font-weight:700">VALEO HEALTH</span>
+  <span class="footer-sep"></span>
+  <span style="color:var(--novo);font-weight:600">novo Nordisk</span>
+  <span class="footer-sep"></span>
+  <span>National Day 96 · اليوم الوطني ٩٦</span>
+</div>
 
 <script>
 const{createClient}=supabase;
@@ -334,10 +375,7 @@ async function doReg(){
 
   // Check existing
   const{data:ex}=await sb.from('leads').select('id,lead_number,status').eq('phone',phone).eq('lead_type_tag','national_day_96').limit(1).maybeSingle();
-  if(ex){S.leadId=ex.id;S.leadNum=ex.lead_number;S.phone=phone;S.name=name;save();
-    if(ex.status==='claimed'){show('inbody');}
-    else{$('ref-out').textContent=ex.lead_number||('ND96-'+phone.slice(-4));show('done');}
-    return;}
+  if(ex){S.leadId=ex.id;S.leadNum=ex.lead_number;S.phone=phone;S.name=name;save();$('ref-out').textContent=ex.lead_number||('ND96-'+phone.slice(-4));show('done');return;}
 
   load('btn-reg',true,'Registering…');
   const{data:lead,error}=await sb.from('leads').insert({
