@@ -245,7 +245,7 @@ h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px;text-wrap:
   <div class="panel" id="p-results">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <h2 style="margin:0">Expert Advice<span class="ar" style="font-size:11px">مشورة الخبير</span></h2>
-      <span class="spill sp-rdy" id="r-status">✓ Ready</span>
+      <span class="spill sp-wait" id="r-status">⏳ Under Review</span>
     </div>
     <div class="dr-box" id="dr-box">
       <div class="dr-lbl">From Dr. <span id="dr-name">Expert</span></div>
@@ -334,7 +334,10 @@ async function doReg(){
 
   // Check existing
   const{data:ex}=await sb.from('leads').select('id,lead_number,status').eq('phone',phone).eq('lead_type_tag','national_day_96').limit(1).maybeSingle();
-  if(ex){S.leadId=ex.id;S.leadNum=ex.lead_number;S.phone=phone;S.name=name;save();$('ref-out').textContent=ex.lead_number||('ND96-'+phone.slice(-4));show('done');return;}
+  if(ex){S.leadId=ex.id;S.leadNum=ex.lead_number;S.phone=phone;S.name=name;save();
+    if(ex.status==='claimed'){show('inbody');}
+    else{$('ref-out').textContent=ex.lead_number||('ND96-'+phone.slice(-4));show('done');}
+    return;}
 
   load('btn-reg',true,'Registering…');
   const{data:lead,error}=await sb.from('leads').insert({
