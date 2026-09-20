@@ -373,7 +373,9 @@ async function doSubmit(){
   const notes=`[ND96 Health Check ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}]\nBMI: ${S.bmi} (${S.cat}) | Height: ${S.height}cm | Weight: ${S.weight}kg\nBlood Pressure: ${bps}/${bpd} mmHg | Blood Sugar: ${sug} mmol/L`;
   const{error:pe}=await sb.from('client_profiles').insert({lead_id:S.leadId,full_name:S.name,height_cm:S.height,weight_kg:S.weight,agent_notes:notes});
   if(pe)await sb.from('client_profiles').update({full_name:S.name,height_cm:S.height,weight_kg:S.weight,agent_notes:notes}).eq('lead_id',S.leadId);
-  const{error:le}=await sb.from('leads').update({status:'with_doctor',last_status_updated_at:new Date().toISOString()}).eq('id',S.leadId);
+  const{data:drRow}=await sb.from('profiles').select('id,full_name').ilike('full_name','%sumaiya%').eq('role','doctor').limit(1).maybeSingle();
+  const drId=drRow?.id||null;const drName=drRow?.full_name||'Dr. Sumaiya';
+  const{error:le}=await sb.from('leads').update({status:'with_doctor',doctor_id:drId,doctor_name:drName,last_status_updated_at:new Date().toISOString()}).eq('id',S.leadId);
   load('btn-sub',false,'Submit for Expert Consultation');
   if(le){err('err-met','Submission failed. Please try again. · فشل الإرسال.');return;}
   $('ref-out').textContent=S.leadNum||('ND96-'+S.phone.slice(-4));show('done');
