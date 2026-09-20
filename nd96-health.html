@@ -396,11 +396,11 @@ async function doCheck(){
 }
 
 function renderResults(d){
-  const ready=d.doctor_action_note&&(d.status==='prescribed'||d.doctor_action==='approved'||d.doctor_action==='followup'||d.doctor_action==='rejected');
+  const ready=d.status==='prescribed'||d.doctor_action==='approved'||d.doctor_action==='followup'||d.doctor_action==='rejected';
   if(ready){
     $('dr-box').style.display='block';$('r-wait').style.display='none';
     $('dr-name').textContent=d.doctor_name||'Our Expert';
-    $('dr-txt').textContent=d.doctor_action_note;
+    $('dr-txt').textContent=d.doctor_action_note||(d.doctor_action==='approved'||d.status==='prescribed'?'Your health check is complete. Our expert has reviewed your results and you are cleared to collect your gift.':'Our expert has reviewed your results. Please see the reception desk for further guidance.');
     $('r-status').className='spill sp-rdy';$('r-status').textContent='✓ Ready';
     $('gift-section').style.display='block';
     const code='ND96-'+(d.lead_number||d.id.slice(-6).toUpperCase());
