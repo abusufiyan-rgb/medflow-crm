@@ -42,7 +42,7 @@ function applyDateFilter(leads){const r=getDateRange();if(!r)return leads;return
 function deduplicateLeads(leads){const map=new Map();const sorted=[...leads].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));sorted.forEach(l=>{const key=l.email?l.email.toLowerCase():'__noemail_'+l.id;if(!map.has(key)){map.set(key,l);return;}
 const existing=map.get(key);const diff=Math.abs(new Date(l.created_at)-new Date(existing.created_at))/(86400000);if(diff>7)map.set(key+'_'+l.id,l);});return Array.from(map.values());}
 const SEL='id,lead_number,email,phone,status,lead_type,lead_type_tag,source,utm_campaign,city,region,agent_id,agent_name,doctor_id,doctor_name,secondary_agent_id,secondary_agent_name,claimed_at,consultation_at,converted_at,reorder_due_at,poc_status,doc_changes,is_high_potential,high_potential_reason,order_number_linked,consultation_type,is_first_order,created_at,followup_date,is_reorder_lead,last_status_updated_at,conversion_type,converted_by,poc_updated_at,landing_url,is_archived,archived_at,archived_by,doctor_action,doctor_action_at,doctor_action_note,doctor_followup_date,coach_order_created,coach_order_at,client_profiles(full_name,bmi,age,agent_notes,doctor_notes),prescriptions(product,is_current,doctor_name,dosage_notes,prescribed_at)';
-function detectForm(lead){const u=lead.landing_url||'';if(u.includes('kuwait'))return 'Kuwait Form';if(u.includes('bilingual'))return 'General Form';const match=u.match(/\/([^/?#]+\.html)/);return match?match[1]:'Direct';}const SEL_FULL='*,client_profiles(*),prescriptions(*)';async function loadLeads(){try{if(PROF.role==='agent'){const[a,b,c]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').eq('is_archived',false).order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).eq('is_archived',false).order('created_at',{ascending:false}).limit(2000),sb.from('leads').select(SEL).eq('secondary_agent_id',USER.id).eq('is_archived',false).order('created_at',{ascending:false}).limit(500)]);const seen=new Set();LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[]),...(c.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));}else if(PROF.role==='doctor'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').eq('is_archived',false).order('created_at',{ascending:false}).limit(200),sb.from('leads').select(SEL).eq('doctor_id',USER.id).eq('is_archived',false).order('created_at',{ascending:false}).limit(200)]);const seen=new Set();LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});}else{
+function detectForm(lead){const u=lead.landing_url||'';if(u.includes('kuwait'))return 'Kuwait Form';if(u.includes('bilingual'))return 'General Form';const match=u.match(/\/([^/?#]+\.html)/);return match?match[1]:'Direct';}const SEL_FULL='*,client_profiles(*),prescriptions(*)';async function loadLeads(){try{if(PROF.role==='agent'){const[a,b,c]=await Promise.all([sb.from('leads').select(SEL).eq('status','new').eq('is_archived',false).order('created_at',{ascending:false}).limit(300),sb.from('leads').select(SEL).eq('agent_id',USER.id).eq('is_archived',false).order('created_at',{ascending:false}).limit(2000),sb.from('leads').select(SEL).eq('secondary_agent_id',USER.id).eq('is_archived',false).order('created_at',{ascending:false}).limit(500)]);const seen=new Set();LEADS=deduplicateLeads([...(a.data||[]),...(b.data||[]),...(c.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;}));}else if(PROF.role==='doctor'){const[a,b]=await Promise.all([sb.from('leads').select(SEL).eq('status','with_doctor').eq('is_archived',false).order('created_at',{ascending:false}).limit(500),sb.from('leads').select(SEL).eq('doctor_id',USER.id).in('status',['with_doctor','prescribed','converted']).eq('is_archived',false).order('created_at',{ascending:false}).limit(1000)]);const seen=new Set();LEADS=[...(a.data||[]),...(b.data||[])].filter(l=>{if(seen.has(l.id))return false;seen.add(l.id);return true;});}else{
   // Paginate — Supabase PostgREST caps each response at 1000 rows regardless of .limit()
   const PAGE=1000;let all=[];let from=0;let keepGoing=true;
   while(keepGoing){
@@ -1611,88 +1611,116 @@ async function vDoctorMyStats(v){
 }
 function vDoctorDone(v){
   const wrap=document.createElement('div');v.appendChild(wrap);
-  function render(){
-    wrap.innerHTML='';
-    const _drMatch=l=>l.doctor_id===USER.id||(!l.doctor_id&&(l.doctor_name||'').toLowerCase().includes((PROF.name||'').split(' ')[0].toLowerCase()));
-    const done=LEADS.filter(l=>_drMatch(l)&&(['prescribed','converted'].includes(l.status)||l.doctor_action==='rejected'));
-    // Search bar + filter row
-    const topRow=document.createElement('div');
-    topRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap';
-    topRow.innerHTML=`<input class="inp" id="doneSearch" placeholder="🔍  Search by name, phone, lead #…" style="max-width:320px;flex:1"><div style="display:flex;gap:6px;flex-wrap:wrap" id="doneFbar"></div>`;
-    wrap.appendChild(topRow);
-    // Filter chips
-    const fbar=wrap.querySelector('#doneFbar');
-    let activeF='all';
-    const FLTRS=[
-      {k:'all',l:'All'},
-      {k:'approved',l:'✓ Prescribed',fn:l=>l.doctor_action==='approved'||l.status==='prescribed'},
-      {k:'converted',l:'Converted',fn:l=>l.status==='converted'},
-      {k:'rejected',l:'✕ Rejected',fn:l=>l.doctor_action==='rejected'},
-    ];
-    const listWrap=document.createElement('div');wrap.appendChild(listWrap);
-    function applySearch(leads){const q=(document.getElementById('doneSearch')?.value||'').trim().toLowerCase();if(!q)return leads;return leads.filter(l=>(l.client_profiles?.full_name||'').toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.lead_number||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q));}
-    function renderList(){
-      listWrap.innerHTML='';
-      const cur=FLTRS.find(f=>f.k===activeF);
-      let filtered=cur.fn?done.filter(cur.fn):done;
-      filtered=applySearch(filtered);
-      filtered.sort((a,b)=>new Date(b.doctor_action_at||b.last_status_updated_at||b.created_at)-new Date(a.doctor_action_at||a.last_status_updated_at||a.created_at));
-      if(!filtered.length){listWrap.innerHTML='<div class="empty"><div class="empty-ico">📋</div>No completed consultations found.</div>';return;}
-      const tw=document.createElement('div');tw.className='tbl-wrap';
-      tw.innerHTML=`<table><thead><tr>
-        <th>#</th><th>Patient</th><th>Phone</th><th>Agent</th><th>Type</th>
-        <th>Scheduled</th><th>Outcome</th><th>Prescription</th><th>Actioned</th><th></th>
-      </tr></thead><tbody>${filtered.map(l=>{
-        const cp=l.client_profiles;
-        const rx=l.prescriptions?.find(p=>p.is_current);
-        const isApproved=l.doctor_action==='approved'||l.status==='prescribed';
-        const isConverted=l.status==='converted';
-        const isRejected=l.doctor_action==='rejected';
-        const outcomeBadge=isConverted
-          ?`<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">✅ Converted</span>`
-          :isApproved
-          ?`<span class="bdg" style="background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bd)">✓ Prescribed</span>`
-          :isRejected
-          ?`<span class="bdg" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">✕ Rejected</span>`
-          :`<span style="color:var(--tx3)">—</span>`;
-        const typeLabel=l.consultation_type==='direct'?`<span style="color:var(--purple);font-size:11px">Direct</span>`:`<span style="color:var(--blue);font-size:11px">Agent</span>`;
-        const convertBtn=isApproved&&!isConverted?`<button class="btn btn-green btn-sm" onclick="event.stopPropagation();openConvert(window._doneLeadMap['${l.id}'],'doctor')" style="white-space:nowrap">Mark Converted</button>`:'';
-        const isDirect=l.consultation_type==='direct';
-        const showAssign=isDirect||!l.agent_id;
-        const assignLabel=l.agent_id?'Reassign Agent':'Assign Agent';
-        const assignAgentBtn=showAssign?`<button class="btn btn-sm" onclick="event.stopPropagation();openReassignAgent(window._doneLeadMap['${l.id}'])" style="white-space:nowrap;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">${assignLabel}</button>`:'';
-        const agentCell=l.agent_name?`<span style="font-size:12px;color:var(--tx2)">${l.agent_name}</span>`:`<span style="font-size:11px;color:var(--red);font-weight:500">No Agent</span>`;
-        return`<tr style="cursor:pointer" onclick="openLeadViewModal(window._doneLeadMap['${l.id}'])">
-          <td class="mono" style="font-size:11px;color:var(--tx3)">${l.lead_number}</td>
-          <td style="font-weight:500;max-width:160px"><span style="unicode-bidi:plaintext">${cp?.full_name||'—'}</span></td>
-          <td style="font-size:12px">${l.phone||'—'}</td>
-          <td>${agentCell}</td>
-          <td>${typeLabel}</td>
-          <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${fmtDT(l.consultation_at)||'—'}</td>
-          <td>${outcomeBadge}</td>
-          <td style="font-size:12px;color:var(--teal)">${rx?.product||l.doctor_action_note||'—'}</td>
-          <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${fmtDT(l.doctor_action_at)||'—'}</td>
-          <td style="white-space:nowrap">${assignAgentBtn}${convertBtn}</td>
-        </tr>`;
-      }).join('')}</tbody></table>`;
-      // Store lead map for click handler
-      window._doneLeadMap={};filtered.forEach(l=>{window._doneLeadMap[l.id]=l;});
-      listWrap.appendChild(tw);
-      // Count label
-      const cnt=document.createElement('div');cnt.style.cssText='font-size:11px;color:var(--tx3);margin-top:8px;text-align:right';cnt.textContent=filtered.length+' consultation'+(filtered.length!==1?'s':'');listWrap.appendChild(cnt);
-    }
-    FLTRS.forEach(f=>{
-      const cnt=f.fn?done.filter(f.fn).length:done.length;
-      const chip=document.createElement('span');
-      chip.className='fc'+(activeF===f.k?' on':'');
-      chip.innerHTML=`${f.l}<span style="background:${activeF===f.k?'var(--blue)':'var(--surf2)'};color:${activeF===f.k?'#fff':'var(--tx3)'};padding:1px 6px;border-radius:10px;font-size:11px;margin-left:6px">${cnt}</span>`;
-      chip.addEventListener('click',()=>{activeF=f.k;fbar.querySelectorAll('.fc').forEach(c=>{c.classList.remove('on');const sp=c.querySelector('span');if(sp){sp.style.background='var(--surf2)';sp.style.color='var(--tx3)';}});chip.classList.add('on');const sp=chip.querySelector('span');if(sp){sp.style.background='var(--blue)';sp.style.color='#fff';}renderList();});
-      fbar.appendChild(chip);
-    });
-    document.getElementById('doneSearch')?.addEventListener('input',()=>renderList());
-    renderList();
+  let activeF='all';
+  let _allDone=[];
+  let _searchTimer=null;
+
+  function renderTable(leads){
+    const listWrap=document.getElementById('doneListWrap');
+    if(!listWrap)return;
+    listWrap.innerHTML='';
+    if(!leads.length){listWrap.innerHTML='<div class="empty"><div class="empty-ico">📋</div>No completed consultations found.</div>';return;}
+    const tw=document.createElement('div');tw.className='tbl-wrap';
+    tw.innerHTML=`<table><thead><tr>
+      <th>#</th><th>Patient</th><th>Phone</th><th>Agent</th><th>Type</th>
+      <th>Scheduled</th><th>Outcome</th><th>Prescription</th><th>Actioned</th><th></th>
+    </tr></thead><tbody>${leads.map(l=>{
+      const cp=l.client_profiles;
+      const rx=l.prescriptions?.find(p=>p.is_current);
+      const isApproved=l.doctor_action==='approved'||l.status==='prescribed';
+      const isConverted=l.status==='converted';
+      const isRejected=l.doctor_action==='rejected';
+      const outcomeBadge=isConverted
+        ?'<span class="bdg" style="background:var(--green-bg);color:var(--green);border-color:var(--green-bd)">✅ Converted</span>'
+        :isApproved
+        ?'<span class="bdg" style="background:var(--teal-bg);color:var(--teal);border-color:var(--teal-bd)">✓ Prescribed</span>'
+        :isRejected
+        ?'<span class="bdg" style="background:var(--red-bg);color:var(--red);border-color:var(--red-bd)">✕ Rejected</span>'
+        :'<span style="color:var(--tx3)">—</span>';
+      const typeLabel=l.consultation_type==='direct'?'<span style="color:var(--purple);font-size:11px">Direct</span>':'<span style="color:var(--blue);font-size:11px">Agent</span>';
+      const isDirect=l.consultation_type==='direct';
+      const showAssign=isDirect||!l.agent_id;
+      const assignLabel=l.agent_id?'Reassign Agent':'Assign Agent';
+      const assignAgentBtn=showAssign?'<button class="btn btn-sm" onclick="event.stopPropagation();openReassignAgent(window._doneLeadMap[\''+l.id+'\'])" style="white-space:nowrap;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">'+assignLabel+'</button>':'';
+      const convertBtn=isApproved&&!isConverted?'<button class="btn btn-green btn-sm" onclick="event.stopPropagation();openConvert(window._doneLeadMap[\''+l.id+'\'],\'doctor\')" style="white-space:nowrap">Mark Converted</button>':'';
+      const agentCell=l.agent_name?'<span style="font-size:12px;color:var(--tx2)">'+l.agent_name+'</span>':'<span style="font-size:11px;color:var(--red);font-weight:500">No Agent</span>';
+      return'<tr style="cursor:pointer" onclick="openLeadViewModal(window._doneLeadMap[\''+l.id+'\'])">'
+        +'<td class="mono" style="font-size:11px;color:var(--tx3)">'+l.lead_number+'</td>'
+        +'<td style="font-weight:500;max-width:160px"><span style="unicode-bidi:plaintext">'+(cp?.full_name||'—')+'</span></td>'
+        +'<td style="font-size:12px">'+(l.phone||'—')+'</td>'
+        +'<td>'+agentCell+'</td>'
+        +'<td>'+typeLabel+'</td>'
+        +'<td style="font-size:11px;font-family:\'DM Mono\',monospace;color:var(--tx3)">'+(fmtDT(l.consultation_at)||'—')+'</td>'
+        +'<td>'+outcomeBadge+'</td>'
+        +'<td style="font-size:12px;color:var(--teal)">'+(rx?.product||l.doctor_action_note||'—')+'</td>'
+        +'<td style="font-size:11px;font-family:\'DM Mono\',monospace;color:var(--tx3)">'+(fmtDT(l.doctor_action_at)||'—')+'</td>'
+        +'<td style="white-space:nowrap">'+assignAgentBtn+convertBtn+'</td>'
+        +'</tr>';
+    }).join('')}</tbody></table>`;
+    window._doneLeadMap={};leads.forEach(l=>{window._doneLeadMap[l.id]=l;});
+    listWrap.appendChild(tw);
+    const cnt=document.createElement('div');cnt.style.cssText='font-size:11px;color:var(--tx3);margin-top:8px;text-align:right';cnt.textContent=leads.length+' consultation'+(leads.length!==1?'s':'');listWrap.appendChild(cnt);
   }
-  render();
+
+  async function fetchDone(searchQ){
+    const listWrap=document.getElementById('doneListWrap');
+    if(!listWrap)return;
+    listWrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--tx3)"><span class="spin"></span></div>';
+    let q=sb.from('leads').select(SEL).eq('doctor_id',USER.id).eq('is_archived',false).order('doctor_action_at',{ascending:false,nullsFirst:false}).limit(2000);
+    if(activeF==='approved')q=q.or('doctor_action.eq.approved,status.eq.prescribed');
+    else if(activeF==='converted')q=q.eq('status','converted');
+    else if(activeF==='rejected')q=q.eq('doctor_action','rejected');
+    else q=q.or('status.in.(prescribed,converted),doctor_action.eq.rejected');
+    if(searchQ){q=q.or('phone.ilike.%25'+searchQ+'%25,lead_number.ilike.%25'+searchQ+'%25,email.ilike.%25'+searchQ+'%25');}
+    const{data,error}=await q;
+    if(error){listWrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--red)">Failed to load: '+error.message+'</div>';return;}
+    let leads=data||[];
+    // If searching by name, filter client side (name is in nested relation)
+    if(searchQ){const sq=searchQ.toLowerCase();leads=leads.filter(l=>(l.client_profiles?.full_name||'').toLowerCase().includes(sq)||(l.phone||'').includes(sq)||(l.lead_number||'').toLowerCase().includes(sq)||(l.email||'').toLowerCase().includes(sq));}
+    _allDone=leads;
+    // Update chip counts from fetched data
+    document.querySelectorAll('[data-done-chip]').forEach(chip=>{
+      const k=chip.dataset.doneChip;
+      let cnt=0;
+      if(k==='all')cnt=leads.length;
+      else if(k==='approved')cnt=leads.filter(l=>l.doctor_action==='approved'||l.status==='prescribed').length;
+      else if(k==='converted')cnt=leads.filter(l=>l.status==='converted').length;
+      else if(k==='rejected')cnt=leads.filter(l=>l.doctor_action==='rejected').length;
+      const sp=chip.querySelector('span');if(sp)sp.textContent=cnt;
+    });
+    renderTable(leads);
+  }
+
+  // Build shell
+  wrap.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<input class="inp" id="doneSearch" placeholder="🔍  Search by name, phone, email, lead #…" style="max-width:360px;flex:1">'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap" id="doneFbar"></div>'
+    +'</div>'
+    +'<div id="doneListWrap"></div>';
+
+  // Filter chips
+  const fbar=wrap.querySelector('#doneFbar');
+  [{k:'all',l:'All'},{k:'approved',l:'✓ Prescribed'},{k:'converted',l:'Converted'},{k:'rejected',l:'✕ Rejected'}].forEach(f=>{
+    const chip=document.createElement('span');
+    chip.className='fc'+(activeF===f.k?' on':'');
+    chip.dataset.doneChip=f.k;
+    chip.innerHTML=f.l+'<span style="background:'+(activeF===f.k?'var(--blue)':'var(--surf2)')+';color:'+(activeF===f.k?'#fff':'var(--tx3)')+';padding:1px 6px;border-radius:10px;font-size:11px;margin-left:6px">—</span>';
+    chip.addEventListener('click',()=>{
+      activeF=f.k;
+      fbar.querySelectorAll('.fc').forEach(c=>{c.classList.remove('on');const sp=c.querySelector('span');if(sp){sp.style.background='var(--surf2)';sp.style.color='var(--tx3)';}});
+      chip.classList.add('on');const sp=chip.querySelector('span');if(sp){sp.style.background='var(--blue)';sp.style.color='#fff';}
+      fetchDone((document.getElementById('doneSearch')?.value||'').trim());
+    });
+    fbar.appendChild(chip);
+  });
+
+  // Search with debounce — hits backend
+  wrap.querySelector('#doneSearch').addEventListener('input',e=>{
+    clearTimeout(_searchTimer);
+    _searchTimer=setTimeout(()=>fetchDone(e.target.value.trim()),400);
+  });
+
+  fetchDone('');
 }
 async function openLeadViewModal(lead){const cp=lead.client_profiles;const{data:freshRx}=await sb.from('prescriptions').select('product,is_current,doctor_name,dosage_notes,prescribed_at').eq('lead_id',lead.id).eq('is_current',true).maybeSingle();const rx=freshRx??lead.prescriptions?.find(p=>p.is_current)??null;const isMyLead=lead.agent_id===USER.id;const{ov,m}=mkModal(true);let html=`<div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><span class="modal-t">Lead — ${lead.lead_number}</span><span class="bdg s-${['claimed','contacting'].includes(lead.status)?'contacting':['in_progress','engaged'].includes(lead.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(lead.status)?'lost':lead.status}">${getStatusLabel(lead)}</span></div><button class="btn-x" id="lvX">✕</button></div><div class="modal-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Patient</div><div style="font-size:14px;font-weight:600;unicode-bidi:plaintext">${cp?.full_name||'—'}</div></div><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Phone</div><div style="font-size:14px;font-weight:600">${lead.phone}</div></div><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Primary Agent</div><div style="font-size:13px">${lead.agent_name||'—'}</div></div>${lead.secondary_agent_name?`<div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">2nd Agent</div><div style="font-size:13px;color:var(--blue);font-weight:500">${lead.secondary_agent_name}</div></div>`:''}<div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Doctor</div><div style="font-size:13px;color:var(--purple)">${lead.doctor_name||'—'}</div></div></div>`;if(rx){html+=`<div class="banner ban-green" style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;opacity:0.8">Current Prescription</div><div style="font-size:15px;font-weight:700">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:12px;margin-top:3px;opacity:0.9">${rx.dosage_notes}</div>`:''}<div style="font-size:11px;margin-top:4px;opacity:0.75">${rx.doctor_name?'Prescribed by Dr. '+rx.doctor_name:''} ${rx.prescribed_at?'· '+fmtD(rx.prescribed_at):''}</div></div>`;}else if(lead.doctor_action!=='rejected'){html+=`<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--tx3);text-align:center">No prescription yet</div>`;}if(lead.doctor_action==='rejected'){html+=`<div class="banner ban-red" style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;opacity:0.8">Rejected by Dr. ${lead.doctor_name||'Doctor'}</div><div style="font-size:13px;white-space:pre-wrap">${lead.doctor_action_note||'—'}</div></div>`;}if(cp?.doctor_notes){html+=`<div class="sec" style="color:var(--purple);border-color:var(--purple-bd)">Doctor's Clinical Notes</div><div class="banner ban-purple" style="white-space:pre-wrap;line-height:1.6;margin-bottom:12px">${cp.doctor_notes}</div>`;}html+=`</div><div class="modal-ftr" style="justify-content:space-between"><div style="display:flex;gap:8px"><button class="btn btn-ghost" id="lvLogs">View Logs</button></div><div style="display:flex;gap:8px"><button class="btn btn-ghost" id="lvCn">Close</button>${isMyLead?'<button class="btn btn-blue" id="lvProf">Edit Full Profile</button>':''}</div></div>`;m.innerHTML=html;ov.appendChild(m);document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});m.querySelector('#lvX').addEventListener('click',()=>ov.remove());m.querySelector('#lvCn').addEventListener('click',()=>ov.remove());const pb=m.querySelector('#lvProf');if(pb)pb.addEventListener('click',()=>{ov.remove();openProfile(lead);});m.querySelector('#lvLogs').addEventListener('click',async()=>{const lb=m.querySelector('#lvLogs');lb.disabled=true;lb.innerHTML='<span class="spin"></span>';const{data:logs,error}=await sb.from('activity_logs').select('action,from_value,to_value,note,actor_name,actor_role,created_at').eq('lead_id',lead.id).order('created_at',{ascending:false}).limit(50);lb.disabled=false;lb.textContent='View Logs';if(error){toast('Could not load logs: '+error.message,'error');return;}const body=m.querySelector('.modal-body');const _actionLabel={lead_claimed:'Lead Claimed',sent_to_doctor:'Sent to Doctor',prescription_issued:'Prescription Issued',consultation_rejected:'Consultation Rejected',status_change:'Status Updated',profile_updated:'Profile Updated',converted:'Converted',archived:'Archived',restored:'Restored',agent_reassigned:'Agent Reassigned',reorder_lead_created:'Reorder Lead Created',poc_update:'POC Updated'};const _roleColor={agent:'var(--blue)',doctor:'var(--purple)',admin:'var(--amber)'};body.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Activity Log — '+lead.lead_number+'</div>'+(logs&&logs.length?logs.map(l=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)"><div style="width:3px;min-width:3px;border-radius:2px;background:${_roleColor[l.actor_role]||'var(--bdr2)'};margin-top:3px"></div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px"><span style="font-size:12px;font-weight:600">${_actionLabel[l.action]||l.action}</span><span style="font-size:10px;color:var(--tx3);font-family:'DM Mono',monospace;white-space:nowrap">${fmtDT(l.created_at)}</span></div><div style="font-size:11px;color:var(--tx2)">${l.actor_name||'System'} <span style="color:${_roleColor[l.actor_role]||'var(--tx3)'};font-size:10px">(${l.actor_role||'—'})</span></div>${(l.from_value||l.to_value)?`<div style="font-size:11px;color:var(--tx3);margin-top:2px">${l.from_value?'From: <strong>'+l.from_value+'</strong> ':''}${l.to_value?'→ <strong>'+l.to_value+'</strong>':''}</div>`:''} ${l.note?`<div style="font-size:11px;color:var(--tx3);margin-top:2px;font-style:italic">${l.note}</div>`:''}</div></div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--tx3)">No activity logged yet.</div>');});}
 
