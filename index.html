@@ -1657,17 +1657,19 @@ function vDoctorDone(v){
           :`<span style="color:var(--tx3)">—</span>`;
         const typeLabel=l.consultation_type==='direct'?`<span style="color:var(--purple);font-size:11px">Direct</span>`:`<span style="color:var(--blue);font-size:11px">Agent</span>`;
         const convertBtn=isApproved&&!isConverted?`<button class="btn btn-green btn-sm" onclick="event.stopPropagation();openConvert(window._doneLeadMap['${l.id}'],'doctor')" style="white-space:nowrap">Mark Converted</button>`:'';
+        const assignAgentBtn=!l.agent_id?`<button class="btn btn-sm" onclick="event.stopPropagation();openReassignAgent(window._doneLeadMap['${l.id}'])" style="white-space:nowrap;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">Assign Agent</button>`:'';
+        const agentCell=l.agent_name?`<span style="font-size:12px;color:var(--tx2)">${l.agent_name}</span>`:`<span style="font-size:11px;color:var(--red);font-weight:500">No Agent</span>`;
         return`<tr style="cursor:pointer" onclick="openLeadViewModal(window._doneLeadMap['${l.id}'])">
           <td class="mono" style="font-size:11px;color:var(--tx3)">${l.lead_number}</td>
           <td style="font-weight:500;max-width:160px"><span style="unicode-bidi:plaintext">${cp?.full_name||'—'}</span></td>
           <td style="font-size:12px">${l.phone||'—'}</td>
-          <td style="font-size:12px;color:var(--tx2)">${l.agent_name||'—'}</td>
+          <td>${agentCell}</td>
           <td>${typeLabel}</td>
           <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${fmtDT(l.consultation_at)||'—'}</td>
           <td>${outcomeBadge}</td>
           <td style="font-size:12px;color:var(--teal)">${rx?.product||l.doctor_action_note||'—'}</td>
           <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${fmtDT(l.doctor_action_at)||'—'}</td>
-          <td>${convertBtn}</td>
+          <td style="white-space:nowrap">${assignAgentBtn}${convertBtn}</td>
         </tr>`;
       }).join('')}</tbody></table>`;
       // Store lead map for click handler
