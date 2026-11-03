@@ -1657,7 +1657,10 @@ function vDoctorDone(v){
           :`<span style="color:var(--tx3)">—</span>`;
         const typeLabel=l.consultation_type==='direct'?`<span style="color:var(--purple);font-size:11px">Direct</span>`:`<span style="color:var(--blue);font-size:11px">Agent</span>`;
         const convertBtn=isApproved&&!isConverted?`<button class="btn btn-green btn-sm" onclick="event.stopPropagation();openConvert(window._doneLeadMap['${l.id}'],'doctor')" style="white-space:nowrap">Mark Converted</button>`:'';
-        const assignAgentBtn=!l.agent_id?`<button class="btn btn-sm" onclick="event.stopPropagation();openReassignAgent(window._doneLeadMap['${l.id}'])" style="white-space:nowrap;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">Assign Agent</button>`:'';
+        const isDirect=l.consultation_type==='direct';
+        const showAssign=isDirect||!l.agent_id;
+        const assignLabel=l.agent_id?'Reassign Agent':'Assign Agent';
+        const assignAgentBtn=showAssign?`<button class="btn btn-sm" onclick="event.stopPropagation();openReassignAgent(window._doneLeadMap['${l.id}'])" style="white-space:nowrap;background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd)">${assignLabel}</button>`:'';
         const agentCell=l.agent_name?`<span style="font-size:12px;color:var(--tx2)">${l.agent_name}</span>`:`<span style="font-size:11px;color:var(--red);font-weight:500">No Agent</span>`;
         return`<tr style="cursor:pointer" onclick="openLeadViewModal(window._doneLeadMap['${l.id}'])">
           <td class="mono" style="font-size:11px;color:var(--tx3)">${l.lead_number}</td>
