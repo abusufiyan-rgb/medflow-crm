@@ -1671,7 +1671,7 @@ function vDoctorDone(v){
     else if(activeF==='converted')q=q.eq('status','converted');
     else if(activeF==='rejected')q=q.eq('doctor_action','rejected');
     else q=q.or('status.in.(prescribed,converted),doctor_action.eq.rejected');
-    if(searchQ){q=q.or('phone.ilike.%25'+searchQ+'%25,lead_number.ilike.%25'+searchQ+'%25,email.ilike.%25'+searchQ+'%25');}
+    if(searchQ){q=q.or('phone.ilike.%'+searchQ+'%,lead_number.ilike.%'+searchQ+'%,email.ilike.%'+searchQ+'%');}
     const{data,error}=await q;
     if(error){listWrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--red)">Failed to load: '+error.message+'</div>';return;}
     let leads=data||[];
