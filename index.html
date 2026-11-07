@@ -1662,33 +1662,30 @@ function vDoctorDone(v){
     const cnt=document.createElement('div');cnt.style.cssText='font-size:11px;color:var(--tx3);margin-top:8px;text-align:right';cnt.textContent=leads.length+' consultation'+(leads.length!==1?'s':'');listWrap.appendChild(cnt);
   }
 
-  async function fetchDone(searchQ){
+  function applyFilterAndSearch(){
+    const q=(document.getElementById('doneSearch')?.value||'').trim().toLowerCase();
+    let leads=_allDone;
+    if(activeF==='approved')leads=leads.filter(l=>l.doctor_action==='approved'||l.status==='prescribed');
+    else if(activeF==='converted')leads=leads.filter(l=>l.status==='converted');
+    else if(activeF==='rejected')leads=leads.filter(l=>l.doctor_action==='rejected');
+    if(q)leads=leads.filter(l=>(l.client_profiles?.full_name||'').toLowerCase().includes(q)||(l.phone||'').includes(q)||(l.lead_number||'').toLowerCase().includes(q)||(l.email||'').toLowerCase().includes(q));
+    renderTable(leads);
+  }
+
+  async function fetchDone(){
     const listWrap=document.getElementById('doneListWrap');
     if(!listWrap)return;
     listWrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--tx3)"><span class="spin"></span></div>';
-    let q=sb.from('leads').select(SEL).eq('doctor_id',USER.id).eq('is_archived',false).order('doctor_action_at',{ascending:false,nullsFirst:false}).limit(2000);
-    if(activeF==='approved')q=q.or('doctor_action.eq.approved,status.eq.prescribed');
-    else if(activeF==='converted')q=q.eq('status','converted');
-    else if(activeF==='rejected')q=q.eq('doctor_action','rejected');
-    else q=q.or('status.in.(prescribed,converted),doctor_action.eq.rejected');
-    if(searchQ){q=q.or('phone.ilike.%'+searchQ+'%,lead_number.ilike.%'+searchQ+'%,email.ilike.%'+searchQ+'%');}
-    const{data,error}=await q;
+    const{data,error}=await sb.from('leads').select(SEL).eq('doctor_id',USER.id).eq('is_archived',false).or('status.in.(prescribed,converted),doctor_action.eq.rejected').order('doctor_action_at',{ascending:false,nullsFirst:false}).limit(2000);
     if(error){listWrap.innerHTML='<div style="padding:32px;text-align:center;color:var(--red)">Failed to load: '+error.message+'</div>';return;}
-    let leads=data||[];
-    // If searching by name, filter client side (name is in nested relation)
-    if(searchQ){const sq=searchQ.toLowerCase();leads=leads.filter(l=>(l.client_profiles?.full_name||'').toLowerCase().includes(sq)||(l.phone||'').includes(sq)||(l.lead_number||'').toLowerCase().includes(sq)||(l.email||'').toLowerCase().includes(sq));}
-    _allDone=leads;
-    // Update chip counts from fetched data
+    _allDone=data||[];
+    // Update chip counts
     document.querySelectorAll('[data-done-chip]').forEach(chip=>{
       const k=chip.dataset.doneChip;
-      let cnt=0;
-      if(k==='all')cnt=leads.length;
-      else if(k==='approved')cnt=leads.filter(l=>l.doctor_action==='approved'||l.status==='prescribed').length;
-      else if(k==='converted')cnt=leads.filter(l=>l.status==='converted').length;
-      else if(k==='rejected')cnt=leads.filter(l=>l.doctor_action==='rejected').length;
+      const cnt=k==='all'?_allDone.length:k==='approved'?_allDone.filter(l=>l.doctor_action==='approved'||l.status==='prescribed').length:k==='converted'?_allDone.filter(l=>l.status==='converted').length:k==='rejected'?_allDone.filter(l=>l.doctor_action==='rejected').length:0;
       const sp=chip.querySelector('span');if(sp)sp.textContent=cnt;
     });
-    renderTable(leads);
+    applyFilterAndSearch();
   }
 
   // Build shell
@@ -1709,18 +1706,15 @@ function vDoctorDone(v){
       activeF=f.k;
       fbar.querySelectorAll('.fc').forEach(c=>{c.classList.remove('on');const sp=c.querySelector('span');if(sp){sp.style.background='var(--surf2)';sp.style.color='var(--tx3)';}});
       chip.classList.add('on');const sp=chip.querySelector('span');if(sp){sp.style.background='var(--blue)';sp.style.color='#fff';}
-      fetchDone((document.getElementById('doneSearch')?.value||'').trim());
+      applyFilterAndSearch();
     });
     fbar.appendChild(chip);
   });
 
-  // Search with debounce — hits backend
-  wrap.querySelector('#doneSearch').addEventListener('input',e=>{
-    clearTimeout(_searchTimer);
-    _searchTimer=setTimeout(()=>fetchDone(e.target.value.trim()),400);
-  });
+  // Search — instant client-side filter on loaded data
+  wrap.querySelector('#doneSearch').addEventListener('input',()=>applyFilterAndSearch());
 
-  fetchDone('');
+  fetchDone();
 }
 async function openLeadViewModal(lead){const cp=lead.client_profiles;const{data:freshRx}=await sb.from('prescriptions').select('product,is_current,doctor_name,dosage_notes,prescribed_at').eq('lead_id',lead.id).eq('is_current',true).maybeSingle();const rx=freshRx??lead.prescriptions?.find(p=>p.is_current)??null;const isMyLead=lead.agent_id===USER.id;const{ov,m}=mkModal(true);let html=`<div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><span class="modal-t">Lead — ${lead.lead_number}</span><span class="bdg s-${['claimed','contacting'].includes(lead.status)?'contacting':['in_progress','engaged'].includes(lead.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(lead.status)?'lost':lead.status}">${getStatusLabel(lead)}</span></div><button class="btn-x" id="lvX">✕</button></div><div class="modal-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Patient</div><div style="font-size:14px;font-weight:600;unicode-bidi:plaintext">${cp?.full_name||'—'}</div></div><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Phone</div><div style="font-size:14px;font-weight:600">${lead.phone}</div></div><div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Primary Agent</div><div style="font-size:13px">${lead.agent_name||'—'}</div></div>${lead.secondary_agent_name?`<div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">2nd Agent</div><div style="font-size:13px;color:var(--blue);font-weight:500">${lead.secondary_agent_name}</div></div>`:''}<div><div style="font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Doctor</div><div style="font-size:13px;color:var(--purple)">${lead.doctor_name||'—'}</div></div></div>`;if(rx){html+=`<div class="banner ban-green" style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;opacity:0.8">Current Prescription</div><div style="font-size:15px;font-weight:700">${rx.product}</div>${rx.dosage_notes?`<div style="font-size:12px;margin-top:3px;opacity:0.9">${rx.dosage_notes}</div>`:''}<div style="font-size:11px;margin-top:4px;opacity:0.75">${rx.doctor_name?'Prescribed by Dr. '+rx.doctor_name:''} ${rx.prescribed_at?'· '+fmtD(rx.prescribed_at):''}</div></div>`;}else if(lead.doctor_action!=='rejected'){html+=`<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--tx3);text-align:center">No prescription yet</div>`;}if(lead.doctor_action==='rejected'){html+=`<div class="banner ban-red" style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;opacity:0.8">Rejected by Dr. ${lead.doctor_name||'Doctor'}</div><div style="font-size:13px;white-space:pre-wrap">${lead.doctor_action_note||'—'}</div></div>`;}if(cp?.doctor_notes){html+=`<div class="sec" style="color:var(--purple);border-color:var(--purple-bd)">Doctor's Clinical Notes</div><div class="banner ban-purple" style="white-space:pre-wrap;line-height:1.6;margin-bottom:12px">${cp.doctor_notes}</div>`;}html+=`</div><div class="modal-ftr" style="justify-content:space-between"><div style="display:flex;gap:8px"><button class="btn btn-ghost" id="lvLogs">View Logs</button></div><div style="display:flex;gap:8px"><button class="btn btn-ghost" id="lvCn">Close</button>${isMyLead?'<button class="btn btn-blue" id="lvProf">Edit Full Profile</button>':''}</div></div>`;m.innerHTML=html;ov.appendChild(m);document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});m.querySelector('#lvX').addEventListener('click',()=>ov.remove());m.querySelector('#lvCn').addEventListener('click',()=>ov.remove());const pb=m.querySelector('#lvProf');if(pb)pb.addEventListener('click',()=>{ov.remove();openProfile(lead);});m.querySelector('#lvLogs').addEventListener('click',async()=>{const lb=m.querySelector('#lvLogs');lb.disabled=true;lb.innerHTML='<span class="spin"></span>';const{data:logs,error}=await sb.from('activity_logs').select('action,from_value,to_value,note,actor_name,actor_role,created_at').eq('lead_id',lead.id).order('created_at',{ascending:false}).limit(50);lb.disabled=false;lb.textContent='View Logs';if(error){toast('Could not load logs: '+error.message,'error');return;}const body=m.querySelector('.modal-body');const _actionLabel={lead_claimed:'Lead Claimed',sent_to_doctor:'Sent to Doctor',prescription_issued:'Prescription Issued',consultation_rejected:'Consultation Rejected',status_change:'Status Updated',profile_updated:'Profile Updated',converted:'Converted',archived:'Archived',restored:'Restored',agent_reassigned:'Agent Reassigned',reorder_lead_created:'Reorder Lead Created',poc_update:'POC Updated'};const _roleColor={agent:'var(--blue)',doctor:'var(--purple)',admin:'var(--amber)'};body.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Activity Log — '+lead.lead_number+'</div>'+(logs&&logs.length?logs.map(l=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)"><div style="width:3px;min-width:3px;border-radius:2px;background:${_roleColor[l.actor_role]||'var(--bdr2)'};margin-top:3px"></div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px"><span style="font-size:12px;font-weight:600">${_actionLabel[l.action]||l.action}</span><span style="font-size:10px;color:var(--tx3);font-family:'DM Mono',monospace;white-space:nowrap">${fmtDT(l.created_at)}</span></div><div style="font-size:11px;color:var(--tx2)">${l.actor_name||'System'} <span style="color:${_roleColor[l.actor_role]||'var(--tx3)'};font-size:10px">(${l.actor_role||'—'})</span></div>${(l.from_value||l.to_value)?`<div style="font-size:11px;color:var(--tx3);margin-top:2px">${l.from_value?'From: <strong>'+l.from_value+'</strong> ':''}${l.to_value?'→ <strong>'+l.to_value+'</strong>':''}</div>`:''} ${l.note?`<div style="font-size:11px;color:var(--tx3);margin-top:2px;font-style:italic">${l.note}</div>`:''}</div></div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--tx3)">No activity logged yet.</div>');});}
 
