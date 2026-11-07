@@ -2545,178 +2545,138 @@ async function openExportModal(){
 
 function vDoctorDashboard(v){const hdr=document.createElement('div');hdr.style.cssText='font-size:16px;font-weight:600;margin-bottom:16px';hdr.textContent='Doctor Consultation Stats';v.appendChild(hdr);const filterRow=document.createElement('div');filterRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rs);padding:12px 16px';filterRow.innerHTML=`<span style="font-size:12px;color:var(--tx3);font-weight:500;margin-right:4px">Period</span><span class="dq on" data-p="all">All Time</span><span class="dq" data-p="today">Today</span><span class="dq" data-p="week">This Week</span><span class="dq" data-p="month">This Month</span><span style="width:1px;height:20px;background:var(--bdr);margin:0 4px"></span><label style="font-size:12px;color:var(--tx3)">From</label><input type="date" id="ddFrom" class="inp" style="width:140px;padding:5px 8px;font-size:12px"><label style="font-size:12px;color:var(--tx3)">To</label><input type="date" id="ddTo" class="inp" style="width:140px;padding:5px 8px;font-size:12px">`;v.appendChild(filterRow);const area=document.createElement('div');v.appendChild(area);function getFiltered(){const from=$('ddFrom')?.value||null,to=$('ddTo')?.value||null;return LEADS.filter(l=>{if(!l.doctor_id)return false;const ref=l.consultation_at||l.last_status_updated_at||l.claimed_at;if(from&&(!ref||ref.slice(0,10)<from))return false;if(to&&(!ref||ref.slice(0,10)>to))return false;return true;});}function render(){const leads=getFiltered();const map={};leads.forEach(l=>{const dn=l.doctor_name||'Unknown';if(!map[dn])map[dn]={name:dn,assigned:0,pending:0,completed:0,approved:0,rejected:0};const d=map[dn];d.assigned++;if(l.status==='with_doctor'&&!l.doctor_action)d.pending++;if(l.doctor_action==='approved'){d.approved++;d.completed++;}if(l.doctor_action==='rejected'){d.rejected++;d.completed++;}});const rows=Object.values(map).sort((a,b)=>b.assigned-a.assigned);const tot={assigned:rows.reduce((s,d)=>s+d.assigned,0),pending:rows.reduce((s,d)=>s+d.pending,0),completed:rows.reduce((s,d)=>s+d.completed,0),approved:rows.reduce((s,d)=>s+d.approved,0),rejected:rows.reduce((s,d)=>s+d.rejected,0)};area.innerHTML='';const stats=document.createElement('div');stats.className='stats';stats.style.marginBottom='20px';[[tot.assigned,'Total Assigned','var(--blue)'],[tot.pending,'Pending','var(--amber)'],[tot.completed,'Completed','var(--tx)'],[tot.approved,'Approved','var(--green)'],[tot.rejected,'Rejected','var(--red)']].forEach(([n,l,c])=>{const s=document.createElement('div');s.className='stat';s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;stats.appendChild(s);});area.appendChild(stats);const tw=document.createElement('div');tw.className='tbl-wrap';tw.innerHTML=`<table><thead><tr><th>Doctor</th><th style="text-align:center">Assigned</th><th style="text-align:center">Pending</th><th style="text-align:center">Completed</th><th style="text-align:center">Approved</th><th style="text-align:center">Rejected</th><th style="text-align:center">Approval Rate</th></tr></thead><tbody>${rows.length?rows.map(d=>{const pct=d.completed>0?Math.round(d.approved/d.completed*100):null;return`<tr><td style="font-weight:600;color:var(--purple)">${d.name}</td><td style="text-align:center"><span style="font-weight:700;color:var(--blue)">${d.assigned}</span></td><td style="text-align:center"><span style="font-weight:700;color:${d.pending>0?'var(--amber)':'var(--tx3)'}">${d.pending}</span></td><td style="text-align:center;font-weight:700">${d.completed}</td><td style="text-align:center"><span style="font-weight:700;color:${d.approved>0?'var(--green)':'var(--tx3)'}">${d.approved}</span></td><td style="text-align:center"><span style="font-weight:700;color:${d.rejected>0?'var(--red)':'var(--tx3)'}">${d.rejected}</span></td><td style="text-align:center">${pct!=null?`<span style="font-size:13px;font-weight:700;color:${pct>=70?'var(--green)':pct>=40?'var(--amber)':'var(--red)'}">${pct}%</span>`:'<span style="color:var(--tx3)">—</span>'}</td></tr>`;}).join(''):'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--tx3)">No consultations in this period</td></tr>'}</tbody></table>`;area.appendChild(tw);}filterRow.querySelectorAll('[data-p]').forEach(btn=>btn.addEventListener('click',()=>{filterRow.querySelectorAll('[data-p]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');const today=new Date().toISOString().slice(0,10);const p=btn.dataset.p;let from=null,to=null;if(p==='today'){from=today;to=today;}else if(p==='week'){const d=new Date();d.setDate(d.getDate()-d.getDay());from=d.toISOString().slice(0,10);to=today;}else if(p==='month'){from=today.slice(0,7)+'-01';to=today;}const fe=$('ddFrom'),te=$('ddTo');if(fe)fe.value=from||'';if(te)te.value=to||'';render();}));$('ddFrom')?.addEventListener('change',()=>{filterRow.querySelectorAll('[data-p]').forEach(b=>b.classList.remove('on'));render();});$('ddTo')?.addEventListener('change',()=>{filterRow.querySelectorAll('[data-p]').forEach(b=>b.classList.remove('on'));render();});render();}
 function vAdminDashboard(v){
-  const now=new Date();
-  const filtered=applyDateFilter(LEADS);
+  // ── helpers ──────────────────────────────────────────────────
+  const toDay=d=>d?d.slice(0,10):'';
+  const pct=(n,d)=>d?Math.round(n/d*100)+'%':'0%';
+  const pctColor=(n,d)=>{const r=d?Math.round(n/d*100):0;return r>=50?'var(--green)':r>=25?'var(--amber)':'var(--red)';};
 
-  // Stats row
-  const statData=[
-    [LEADS.length,'Total Leads','var(--tx)'],
-    [LEADS.filter(l=>l.status==='new').length,'In Pool','var(--tx3)'],
-    [LEADS.filter(l=>['contacting','engaged','qualified'].includes(l.status)).length,'Active','var(--amber)'],
-    [LEADS.filter(l=>l.status==='with_doctor').length,'With Doctor','var(--purple)'],
-    [LEADS.filter(l=>l.status==='converted').length,'Converted','var(--green)'],
-    [LEADS.filter(l=>l.status==='lost').length,'Lost','var(--red)'],
-  ];
-  const stats=document.createElement('div');stats.className='stats';
-  statData.forEach(([n,l,c])=>{
-    const s=document.createElement('div');s.className='stat';
-    s.innerHTML=`<div class="stat-n" style="color:${c}">${n}</div><div class="stat-l">${l}</div>`;
-    stats.appendChild(s);
-  });
-  v.appendChild(stats);
+  // ── date filter + re-render wiring ───────────────────────────
+  v.appendChild(mkDateFilter(()=>renderAll()));
 
-  // Agent performance table
-  const agents=[...new Set(LEADS.filter(l=>l.agent_name).map(l=>l.agent_name))];
-  if(agents.length){
-    const agHdr=document.createElement('div');
-    agHdr.style.cssText='font-size:13px;font-weight:600;margin:20px 0 10px';
-    agHdr.textContent='Agent Performance';
-    v.appendChild(agHdr);
-    const agTw=document.createElement('div');agTw.className='tbl-wrap';
-    agTw.innerHTML=`<table><thead><tr>
-      <th>Agent</th><th>Total</th><th>Active</th><th>With Doctor</th>
-      <th>Converted</th><th>Lost</th><th>Conv Rate</th>
-    </tr></thead><tbody>
-    ${agents.map(a=>{
-      const al=LEADS.filter(l=>l.agent_name===a);
-      const active=al.filter(l=>['contacting','engaged','qualified'].includes(l.status)).length;
-      const wd=al.filter(l=>l.status==='with_doctor').length;
-      const conv=al.filter(l=>l.status==='converted').length;
-      const lost=al.filter(l=>l.status==='lost').length;
-      const rate=al.length?Math.round(conv/al.length*100):0;
-      return`<tr style="cursor:pointer" data-agent="${a}" class="agent-perf-row">
-        <td style="font-weight:500;color:var(--blue);text-decoration:underline;cursor:pointer">${a}</td>
-        <td>${al.length}</td>
-        <td style="color:var(--amber);font-weight:500">${active}</td>
-        <td style="color:var(--purple);font-weight:500">${wd}</td>
-        <td style="color:var(--green);font-weight:500">${conv}</td>
-        <td style="color:var(--red);font-weight:500">${lost}</td>
-        <td><span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:${rate>=50?'var(--green)':rate>=25?'var(--amber)':'var(--red)'}">${rate}%</span></td>
-      </tr>`;
-    }).join('')}
-    </tbody></table>`;
-    v.appendChild(agTw);
-    // Click agent row to filter lead table below
-    agTw.querySelectorAll('.agent-perf-row').forEach(row=>{
-      row.addEventListener('click',()=>{
-        const agent=row.dataset.agent;
-        // Toggle filter - click same agent again to clear
-        if(_q===agent.toLowerCase()){
-          _q='';
-          si.value='';
-          row.style.background='';
-          agTw.querySelectorAll('.agent-perf-row').forEach(r=>r.style.background='');
-        } else {
-          _q=agent.toLowerCase();
-          si.value=agent;
-          agTw.querySelectorAll('.agent-perf-row').forEach(r=>r.style.background='');
-          row.style.background='var(--blue-bg)';
-        }
-        renderAdminTable();
-        // Scroll to table
-        tableArea.scrollIntoView({behavior:'smooth',block:'start'});
-      });
-      row.addEventListener('mouseenter',()=>{
-        if(row.style.background!=='var(--blue-bg)')row.style.background='var(--surf2)';
-      });
-      row.addEventListener('mouseleave',()=>{
-        if(row.style.background!=='var(--blue-bg)')row.style.background='';
-      });
+  const wrap=document.createElement('div');v.appendChild(wrap);
+
+  function renderAll(){
+    wrap.innerHTML='';
+    const leads=applyDateFilter(LEADS);
+
+    // ── 1. Overall KPI tiles ─────────────────────────────────
+    const total      = leads.length;
+    const pickedUp   = leads.filter(l=>l.agent_id).length;
+    const connected  = leads.filter(l=>['contacting','claimed','engaged','in_progress','qualified','with_doctor','prescribed','converted'].includes(l.status)).length;
+    const notAttempt = leads.filter(l=>l.status==='new').length;
+    const sameDayC   = leads.filter(l=>l.doctor_action_at&&l.consultation_at&&toDay(l.consultation_at)===toDay(l.doctor_action_at)).length;
+    const completedC = leads.filter(l=>l.doctor_action&&['approved','rejected'].includes(l.doctor_action)).length;
+    const prescribed = leads.filter(l=>l.status==='prescribed'||l.doctor_action==='approved').length;
+    const converted  = leads.filter(l=>l.status==='converted').length;
+
+    const kpiData=[
+      {n:total,     l:'Total Leads',           c:'var(--tx)'},
+      {n:pickedUp,  l:'Picked Up by Agent',    c:'var(--blue)'},
+      {n:connected, l:'Connected',              c:'var(--amber)'},
+      {n:notAttempt,l:'Not Attempted',          c:'var(--tx3)'},
+      {n:sameDayC,  l:'Same-Day Consultation',  c:'var(--purple)'},
+      {n:completedC,l:'Consultation Completed', c:'var(--blue)'},
+      {n:prescribed,l:'Prescribed',             c:'var(--green)'},
+      {n:converted, l:'Converted',              c:'var(--green)'},
+    ];
+    const kpiRow=document.createElement('div');
+    kpiRow.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px';
+    kpiData.forEach(({n,l,c})=>{
+      const tile=document.createElement('div');
+      tile.style.cssText='background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rs);padding:14px 16px';
+      tile.innerHTML=`<div style="font-size:22px;font-weight:700;font-family:\'DM Mono\',monospace;color:${c};line-height:1.1">${n}</div><div style="font-size:11px;color:var(--tx3);margin-top:4px;font-weight:500">${l}</div>`;
+      kpiRow.appendChild(tile);
     });
-  }
+    wrap.appendChild(kpiRow);
 
-  // Date filter + search
-  v.appendChild(mkDateFilter(()=>renderAdminTable()));
-  const fb=document.createElement('div');fb.className='fbar';
-  const si=document.createElement('input');si.className='sinp';
-  si.placeholder='Search lead, name, email, phone…';si.style.width='240px';
-  let _q='';si.addEventListener('input',e=>{_q=e.target.value.toLowerCase();renderAdminTable();});
-  fb.appendChild(si);
-  // Status filter chips
-  ['all','new','contacting','engaged','qualified','with_doctor','prescribed','converted','lost','invalid'].forEach(s=>{
-    const c=document.createElement('span');c.className='fc'+(s==='all'?' on':'');
-    c.textContent=s==='all'?'All':(SL[s]||s);
-    c.addEventListener('click',()=>{fb.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));c.classList.add('on');AS=s;renderAdminTable();});
-    fb.appendChild(c);
-  });
-  v.appendChild(fb);
-
-  const tableArea=document.createElement('div');v.appendChild(tableArea);
-
-  function renderAdminTable(){
-    tableArea.innerHTML='';
-    const _statusGroups={contacting:['contacting','claimed'],engaged:['engaged','in_progress'],lost:['lost','unqualified','dnd','closed','supplement']};
-    let items=applyDateFilter(LEADS).filter(l=>{
-      const ms=!_q||[l.lead_number,l.phone,l.email,(l.client_profiles?.full_name||''),(l.agent_name||'')].some(x=>(x||'').toLowerCase().includes(_q));
-      const mf=AS==='all'||l.status===AS||(_statusGroups[AS]||[]).includes(l.status);
-      return ms&&mf;
-    });
-    const cnt=document.createElement('div');
-    cnt.style.cssText='font-size:13px;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:10px';
-    cnt.innerHTML=`<span>${items.length} lead${items.length!==1?'s':''}</span>`
-      +(_q?`<span style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);padding:2px 10px;border-radius:20px;font-size:12px;cursor:pointer" id="clearAgentFilter">Agent: ${si.value} ✕</span>`:'');
-    tableArea.appendChild(cnt);
-    const _clf=document.getElementById('clearAgentFilter');
-    if(_clf)_clf.addEventListener('click',()=>{
-      _q='';si.value='';
-      agTw?.querySelectorAll('.agent-perf-row').forEach(r=>r.style.background='');
-      renderAdminTable();
-    });
-    if(!items.length){
-      const e=document.createElement('div');e.className='empty';
-      e.innerHTML='<div class="empty-ico">📭</div>No leads found.';
-      tableArea.appendChild(e);return;
+    // ── 2. Agent performance table ───────────────────────────
+    const agentNames=[...new Set(leads.filter(l=>l.agent_name).map(l=>l.agent_name))].sort();
+    if(agentNames.length){
+      const h=document.createElement('div');
+      h.style.cssText='font-size:13px;font-weight:600;margin-bottom:10px';
+      h.textContent='Agent Performance';
+      wrap.appendChild(h);
+      const tw=document.createElement('div');tw.className='tbl-wrap';tw.style.marginBottom='24px';
+      tw.innerHTML=`<table><thead><tr>
+        <th>Agent</th><th>Total</th><th>Picked Up</th><th>Connected</th>
+        <th>Not Attempted</th><th>Sent to Doctor</th><th>Prescribed</th><th>Converted</th><th>Conv %</th>
+      </tr></thead><tbody>
+      ${agentNames.map(a=>{
+        const al=leads.filter(l=>l.agent_name===a||l.secondary_agent_name===a);
+        const ap=al.filter(l=>l.agent_id).length;
+        const ac=al.filter(l=>['contacting','claimed','engaged','in_progress','qualified','with_doctor','prescribed','converted'].includes(l.status)).length;
+        const na=al.filter(l=>l.status==='new').length;
+        const wd=al.filter(l=>['with_doctor','prescribed','converted'].includes(l.status)||l.doctor_action).length;
+        const pr=al.filter(l=>l.status==='prescribed'||l.doctor_action==='approved').length;
+        const cv=al.filter(l=>l.status==='converted').length;
+        const rate=al.length?Math.round(cv/al.length*100):0;
+        return`<tr>
+          <td style="font-weight:500;color:var(--blue)">${a}</td>
+          <td>${al.length}</td>
+          <td style="color:var(--blue)">${ap}</td>
+          <td style="color:var(--amber);font-weight:500">${ac}</td>
+          <td style="color:var(--tx3)">${na}</td>
+          <td style="color:var(--purple);font-weight:500">${wd}</td>
+          <td style="color:var(--green);font-weight:500">${pr}</td>
+          <td style="color:var(--green);font-weight:600">${cv}</td>
+          <td><span style="font-family:\'DM Mono\',monospace;font-size:12px;font-weight:600;color:${pctColor(cv,al.length)}">${pct(cv,al.length)}</span></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+      wrap.appendChild(tw);
     }
-    const tw=document.createElement('div');tw.className='tbl-wrap';
-    tw.innerHTML=`<table><thead><tr>
-      <th>Lead #</th><th>Name</th><th>Email</th><th>Phone</th>
-      <th>Agent</th><th>Lead Status</th><th>POC Status</th>
-      <th>Last Activity</th><th>Claimed</th><th>Converted</th><th>Rx</th>
-    </tr></thead>
-    <tbody>${items.map(l=>{
-      const rx=l.prescriptions?.find(p=>p.is_current);
-      const lastAct=l.last_status_updated_at||l.poc_updated_at||l.claimed_at;
-      const statusNorm=['claimed','contacting'].includes(l.status)?'contacting':['in_progress','engaged'].includes(l.status)?'engaged':['unqualified','dnd','closed','lost','supplement'].includes(l.status)?'lost':l.status;
-      return`<tr data-lid="${l.id}" style="cursor:pointer">
-        <td class="mono" style="font-size:12px">${l.lead_number}</td>
-        <td style="font-weight:500;unicode-bidi:plaintext;font-family:'Noto Sans Arabic','DM Sans',sans-serif">${l.client_profiles?.full_name||'—'}</td>
-        <td style="font-size:12px;color:var(--tx3)">${l.email&&!l.email.includes("@noemail")||l.email.includes("@proxy.com")? l.email:"—"}</td>
-        <td style="font-size:12px;font-family:'DM Mono',monospace">${l.phone||'—'}</td>
-        <td style="font-size:12px">${l.agent_name||'<span style="color:var(--tx3)">—</span>'}</td>
-        <td><span class="bdg s-${statusNorm}">${getStatusLabel(l)}</span></td>
-        <td style="font-size:11px;color:var(--tx3);max-width:160px;overflow:hidden;text-overflow:ellipsis">${l.poc_status||'—'}</td>
-        <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--tx3)">${lastAct?fmtD(lastAct):'—'}</td>
-        <td style="font-size:11px;font-family:'DM Mono',monospace">${l.claimed_at?fmtD(l.claimed_at):'—'}</td>
-        <td style="font-size:11px;font-family:'DM Mono',monospace">${l.converted_at?fmtD(l.converted_at):'—'}</td>
-        <td style="font-size:11px">${rx?.product||'—'}</td>
-      </tr>`;
-    }).join('')}</tbody></table>`;
-    // Row click → open full profile (same as doctor view)
-    tw.querySelectorAll('tbody tr').forEach(row=>{
-      row.style.cursor='pointer';
-      row.addEventListener('mouseenter',()=>row.style.background='var(--blue-bg)');
-      row.addEventListener('mouseleave',()=>row.style.background='');
-      row.addEventListener('click',async(e)=>{
-        // Don't trigger on checkbox clicks
-        if(e.target.tagName==='INPUT')return;
-        const lid=row.dataset.lid;
-        if(!lid)return;
-        // Find in LEADS first (fast), else fetch from DB
-        let lead=LEADS.find(l=>l.id===lid);
-        if(lead&&lead.client_profiles){
-          openAdminProfile(lead);return;
-        }
-        // Fetch full lead with profile
-        row.style.opacity='0.6';
-        const{data:full}=await sb.from('leads').select('*,client_profiles(*),prescriptions(*)').eq('id',lid).single();
-        row.style.opacity='1';
-        if(full)openAdminProfile(full);
-        else toast('Could not load lead','error');
-      });
-    });
-    tableArea.appendChild(tw);
+
+    // ── 3. Doctor performance table ──────────────────────────
+    const doctorNames=[...new Set(leads.filter(l=>l.doctor_name).map(l=>l.doctor_name))].sort();
+    if(doctorNames.length){
+      const h=document.createElement('div');
+      h.style.cssText='font-size:13px;font-weight:600;margin-bottom:10px';
+      h.textContent='Doctor Performance';
+      wrap.appendChild(h);
+
+      const tw=document.createElement('div');tw.className='tbl-wrap';tw.style.marginBottom='24px';
+      // Two column groups: Self (direct) and Agent-Assigned
+      tw.innerHTML=`<table><thead>
+        <tr>
+          <th rowspan="2" style="vertical-align:middle">Doctor</th>
+          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--bdr);background:var(--purple-bg);color:var(--purple)">Self / Direct</th>
+          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--bdr);background:var(--blue-bg);color:var(--blue)">Agent-Assigned</th>
+        </tr>
+        <tr>
+          <th style="font-size:11px">Received</th><th style="font-size:11px">Consulted</th><th style="font-size:11px">Converted</th><th style="font-size:11px">Sent to Agent</th>
+          <th style="font-size:11px">Received</th><th style="font-size:11px">Consulted</th><th style="font-size:11px">Converted</th><th style="font-size:11px">Sent to Agent</th>
+        </tr>
+      </thead><tbody>
+      ${doctorNames.map(d=>{
+        const dl=leads.filter(l=>l.doctor_name===d);
+        const self=dl.filter(l=>l.consultation_type==='direct');
+        const asgn=dl.filter(l=>l.consultation_type!=='direct');
+        const sRec=self.length;
+        const sCon=self.filter(l=>l.doctor_action&&['approved','rejected'].includes(l.doctor_action)).length;
+        const sCv =self.filter(l=>l.status==='converted').length;
+        const sSA =self.filter(l=>l.agent_id).length;
+        const aRec=asgn.length;
+        const aCon=asgn.filter(l=>l.doctor_action&&['approved','rejected'].includes(l.doctor_action)).length;
+        const aCv =asgn.filter(l=>l.status==='converted').length;
+        const aSA =asgn.filter(l=>l.agent_id).length;
+        return`<tr>
+          <td style="font-weight:500;color:var(--purple)">${d}</td>
+          <td>${sRec}</td>
+          <td style="color:${sCon?'var(--blue)':'var(--tx3)'};font-weight:${sCon?'600':'400'}">${sCon}</td>
+          <td style="color:${sCv?'var(--green)':'var(--tx3)'};font-weight:${sCv?'600':'400'}">${sCv}</td>
+          <td style="color:var(--tx3)">${sSA}</td>
+          <td>${aRec}</td>
+          <td style="color:${aCon?'var(--blue)':'var(--tx3)'};font-weight:${aCon?'600':'400'}">${aCon}</td>
+          <td style="color:${aCv?'var(--green)':'var(--tx3)'};font-weight:${aCv?'600':'400'}">${aCv}</td>
+          <td style="color:var(--tx3)">${aSA}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>`;
+      wrap.appendChild(tw);
+    }
   }
-  renderAdminTable();
+
+  renderAll();
 }
 
 
