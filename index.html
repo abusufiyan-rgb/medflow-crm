@@ -471,29 +471,15 @@ async function openLeadPreview(lead){
 async function claimLead(lead){const{error}=await sb.from('leads').update({status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString()}).eq('id',lead.id);if(error)throw new Error(error.message);await logAct(lead.id,'lead_claimed','new','claimed');toast('Lead claimed!','success');await loadLeads();renderNav();renderView();}
 async function claimLeadDoctor(lead){const{error}=await sb.from('leads').update({status:'with_doctor',doctor_id:USER.id,doctor_name:PROF.name,consultation_type:'doctor_claimed',claimed_at:new Date().toISOString()}).eq('id',lead.id);if(error)throw new Error(error.message);await logAct(lead.id,'lead_claimed','new','with_doctor');toast('Lead claimed for consultation!','success');await loadLeads();renderNav();NAV='consults';renderView();}
 async function vDoctorPool(v){
-  const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px';
-  const hdrTitle=document.createElement('div');hdrTitle.style.cssText='font-size:16px;font-weight:600;flex:1';hdrTitle.textContent='Lead Pool';
-  const hdrCount=document.createElement('span');hdrCount.style.cssText='font-size:13px;color:var(--tx3)';
-  hdr.appendChild(hdrTitle);hdr.appendChild(hdrCount);v.appendChild(hdr);
-  const banner=document.createElement('div');banner.className='banner ban-blue';
-  banner.textContent='Claim a lead directly to your Consultations. Pool-claimed leads appear with a green indicator, separate from agent-referred leads.';
+  const banner=document.createElement('div');banner.className='banner ban-blue';banner.style.marginBottom='16px';
+  banner.textContent='Claim a lead directly to your Consultations. Pool-claimed leads appear with a green indicator in your Consultations tab.';
   v.appendChild(banner);
-  const si=document.createElement('input');si.className='inp';si.placeholder='Search name, phone, lead #…';si.style.cssText='max-width:300px;margin:12px 0';v.appendChild(si);
-  const grid=document.createElement('div');grid.className='grid';v.appendChild(grid);
-  grid.innerHTML='<div style="padding:40px;text-align:center;color:var(--tx3)"><span class="spin spin-d"></span> Loading…</div>';
+  const loading=document.createElement('div');loading.style.cssText='padding:40px;text-align:center;color:var(--tx3)';
+  loading.innerHTML='<span class="spin spin-d"></span>';v.appendChild(loading);
   const{data,error}=await sb.from('leads').select(SEL).eq('status','new').eq('is_archived',false).order('created_at',{ascending:false}).limit(500);
-  if(error){grid.innerHTML=`<div class="empty"><div class="empty-ico">⚠️</div>${error.message}</div>`;return;}
-  const pool=data||[];
-  hdrCount.textContent=pool.length+' lead'+(pool.length!==1?'s':'')+' available';
-  function render(){
-    grid.innerHTML='';
-    const q=si.value.trim().toLowerCase();
-    const items=pool.filter(l=>!q||[(l.client_profiles?.full_name||''),(l.phone||''),(l.lead_number||''),(l.source||'')].some(x=>x.toLowerCase().includes(q)));
-    if(!items.length){grid.innerHTML='<div class="empty"><div class="empty-ico">📭</div>No leads in pool.</div>';return;}
-    items.forEach(l=>grid.appendChild(buildCard(l)));
-  }
-  si.addEventListener('input',render);
-  render();
+  loading.remove();
+  if(error){const e=document.createElement('div');e.className='banner ban-red';e.textContent='Failed to load pool: '+error.message;v.appendChild(e);return;}
+  vGrid(v,data||[],'Lead Pool',true,{showHP:true});
 }
 function mkModal(sm=false,lg=false){const ov=document.createElement('div');ov.className='overlay';const m=document.createElement('div');m.className='modal'+(sm?' modal-sm':lg?' modal-lg':'');ov.appendChild(m);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);return{ov,m};}
 async function openProfile(lead){const isDoc=PROF.role==='doctor';let docEdit=false;let prof={lead_id:lead.id,conditions:[],medications:[],weight_methods:[],gi_issues:[]};async function rebuild(){const[{data:cp},{data:rx}]=await Promise.all([sb.from('client_profiles').select('*').eq('lead_id',lead.id).maybeSingle(),sb.from('prescriptions').select('*').eq('lead_id',lead.id).eq('is_current',true).maybeSingle()]);if(cp)prof={...cp};document.querySelectorAll('.profile-ov').forEach(e=>e.remove());const ov=document.createElement('div');ov.className='overlay profile-ov';const m=document.createElement('div');m.className='modal';const can=!isDoc||docEdit;const bmi=calcBMI(parseFloat(prof.height_cm),parseFloat(prof.weight_kg));const bi=bmiInfo(bmi);const inp=(id,v,type='text')=>`<input class="inp" id="pm${id}" type="${type}" value="${v||''}"${!can?' readonly':''}>`;const sel=(id,v,opts)=>!can?`<input class="inp" value="${v||'—'}" readonly>`:`<select class="inp" id="pm${id}"><option value="">Select</option>${opts.map(o=>`<option${v===o?' selected':''}>${o}</option>`).join('')}</select>`;const chips=(opts,arr,key)=>opts.map(o=>`<span class="chip${(arr||[]).includes(o)?' on':''}${!can?' ro':''}" data-key="${key}" data-v="${o.replace(/"/g,'&quot;')}">${o}</span>`).join('');m.innerHTML=`<div class="modal-hdr"><div style="display:flex;align-items:center;gap:10px"><span class="modal-t">Profile — ${lead.lead_number}</span>${lead.doc_changes?'<span style="background:var(--amber-bg);color:var(--amber);font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--amber-bd)">Doctor updated</span>':''}</div><button class="btn-x" id="pmClose">✕</button></div>
