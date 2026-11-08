@@ -470,16 +470,21 @@ async function openLeadPreview(lead){
 
 async function claimLead(lead){const{error}=await sb.from('leads').update({status:'claimed',agent_id:USER.id,agent_name:PROF.name,claimed_at:new Date().toISOString()}).eq('id',lead.id);if(error)throw new Error(error.message);await logAct(lead.id,'lead_claimed','new','claimed');toast('Lead claimed!','success');await loadLeads();renderNav();renderView();}
 async function claimLeadDoctor(lead){const{error}=await sb.from('leads').update({status:'with_doctor',doctor_id:USER.id,doctor_name:PROF.name,consultation_type:'doctor_claimed',claimed_at:new Date().toISOString()}).eq('id',lead.id);if(error)throw new Error(error.message);await logAct(lead.id,'lead_claimed','new','with_doctor');toast('Lead claimed for consultation!','success');await loadLeads();renderNav();NAV='consults';renderView();}
-function vDoctorPool(v){
-  const pool=LEADS.filter(l=>l.status==='new'&&!l.is_archived);
+async function vDoctorPool(v){
   const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px';
-  hdr.innerHTML=`<div style="font-size:16px;font-weight:600;flex:1">Lead Pool</div><span style="font-size:13px;color:var(--tx3)">${pool.length} lead${pool.length!==1?'s':''} available</span>`;
-  v.appendChild(hdr);
+  const hdrTitle=document.createElement('div');hdrTitle.style.cssText='font-size:16px;font-weight:600;flex:1';hdrTitle.textContent='Lead Pool';
+  const hdrCount=document.createElement('span');hdrCount.style.cssText='font-size:13px;color:var(--tx3)';
+  hdr.appendChild(hdrTitle);hdr.appendChild(hdrCount);v.appendChild(hdr);
   const banner=document.createElement('div');banner.className='banner ban-blue';
-  banner.textContent='Claim a lead directly to your Consultations. These will appear with a green indicator, separate from agent-referred leads.';
+  banner.textContent='Claim a lead directly to your Consultations. Pool-claimed leads appear with a green indicator, separate from agent-referred leads.';
   v.appendChild(banner);
   const si=document.createElement('input');si.className='inp';si.placeholder='Search name, phone, lead #…';si.style.cssText='max-width:300px;margin:12px 0';v.appendChild(si);
   const grid=document.createElement('div');grid.className='grid';v.appendChild(grid);
+  grid.innerHTML='<div style="padding:40px;text-align:center;color:var(--tx3)"><span class="spin spin-d"></span> Loading…</div>';
+  const{data,error}=await sb.from('leads').select(SEL).eq('status','new').eq('is_archived',false).order('created_at',{ascending:false}).limit(500);
+  if(error){grid.innerHTML=`<div class="empty"><div class="empty-ico">⚠️</div>${error.message}</div>`;return;}
+  const pool=data||[];
+  hdrCount.textContent=pool.length+' lead'+(pool.length!==1?'s':'')+' available';
   function render(){
     grid.innerHTML='';
     const q=si.value.trim().toLowerCase();
