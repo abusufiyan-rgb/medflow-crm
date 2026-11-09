@@ -2721,40 +2721,47 @@ function vAdminDashboard(v){
       wrap.appendChild(h);
 
       const tw=document.createElement('div');tw.className='tbl-wrap';tw.style.marginBottom='24px';
-      // Two column groups: Self (direct) and Agent-Assigned
+      // Doctor-Direct = added by doctor themselves OR claimed from pool
+      // Agent-Referred = agent sent the lead to the doctor
       tw.innerHTML=`<table><thead>
         <tr>
-          <th rowspan="2" style="vertical-align:middle">Doctor</th>
-          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--bdr);background:var(--purple-bg);color:var(--purple)">Self / Direct</th>
-          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--bdr);background:var(--blue-bg);color:var(--blue)">Agent-Assigned</th>
+          <th rowspan="2" style="vertical-align:middle;border-right:2px solid var(--bdr)">Doctor</th>
+          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--purple-bd);background:var(--purple-bg);color:var(--purple);font-size:11px;letter-spacing:.04em">🩺 Doctor Direct <span style="font-weight:400;font-size:10px;opacity:.8">(added / pool-claimed)</span></th>
+          <th colspan="4" style="text-align:center;border-bottom:1px solid var(--blue-bd);background:var(--blue-bg);color:var(--blue);font-size:11px;letter-spacing:.04em">👤 Agent-Referred <span style="font-weight:400;font-size:10px;opacity:.8">(sent by agent)</span></th>
         </tr>
         <tr>
-          <th style="font-size:11px">Received</th><th style="font-size:11px">Consulted</th><th style="font-size:11px">Converted</th><th style="font-size:11px">Sent to Agent</th>
-          <th style="font-size:11px">Received</th><th style="font-size:11px">Consulted</th><th style="font-size:11px">Converted</th><th style="font-size:11px">Sent to Agent</th>
+          <th style="font-size:11px;background:var(--purple-bg);color:var(--purple)">Received</th>
+          <th style="font-size:11px;background:var(--purple-bg);color:var(--purple)">Consulted</th>
+          <th style="font-size:11px;background:var(--purple-bg);color:var(--purple)">Prescribed</th>
+          <th style="font-size:11px;background:var(--purple-bg);color:var(--purple)">Converted</th>
+          <th style="font-size:11px;background:var(--blue-bg);color:var(--blue)">Received</th>
+          <th style="font-size:11px;background:var(--blue-bg);color:var(--blue)">Consulted</th>
+          <th style="font-size:11px;background:var(--blue-bg);color:var(--blue)">Prescribed</th>
+          <th style="font-size:11px;background:var(--blue-bg);color:var(--blue)">Converted</th>
         </tr>
       </thead><tbody>
       ${doctorNames.map(d=>{
         const dl=leads.filter(l=>l.doctor_name===d);
-        const self=dl.filter(l=>l.consultation_type==='direct');
-        const asgn=dl.filter(l=>l.consultation_type!=='direct');
+        const self=dl.filter(l=>l.consultation_type==='direct'||l.consultation_type==='doctor_claimed');
+        const asgn=dl.filter(l=>l.consultation_type==='agent_driven'||!l.consultation_type);
         const sRec=self.length;
-        const sCon=self.filter(l=>l.doctor_action&&['approved','rejected'].includes(l.doctor_action)).length;
+        const sCon=self.filter(l=>l.doctor_action&&['approved','rejected','followup'].includes(l.doctor_action)).length;
+        const sPrx=self.filter(l=>['prescribed','converted'].includes(l.status)||l.doctor_action==='approved').length;
         const sCv =self.filter(l=>l.status==='converted').length;
-        const sSA =self.filter(l=>l.agent_id).length;
         const aRec=asgn.length;
-        const aCon=asgn.filter(l=>l.doctor_action&&['approved','rejected'].includes(l.doctor_action)).length;
+        const aCon=asgn.filter(l=>l.doctor_action&&['approved','rejected','followup'].includes(l.doctor_action)).length;
+        const aPrx=asgn.filter(l=>['prescribed','converted'].includes(l.status)||l.doctor_action==='approved').length;
         const aCv =asgn.filter(l=>l.status==='converted').length;
-        const aSA =asgn.filter(l=>l.agent_id).length;
         return`<tr>
-          <td style="font-weight:500;color:var(--purple)">${d}</td>
-          <td>${sRec}</td>
-          <td style="color:${sCon?'var(--blue)':'var(--tx3)'};font-weight:${sCon?'600':'400'}">${sCon}</td>
-          <td style="color:${sCv?'var(--green)':'var(--tx3)'};font-weight:${sCv?'600':'400'}">${sCv}</td>
-          <td style="color:var(--tx3)">${sSA}</td>
-          <td>${aRec}</td>
-          <td style="color:${aCon?'var(--blue)':'var(--tx3)'};font-weight:${aCon?'600':'400'}">${aCon}</td>
-          <td style="color:${aCv?'var(--green)':'var(--tx3)'};font-weight:${aCv?'600':'400'}">${aCv}</td>
-          <td style="color:var(--tx3)">${aSA}</td>
+          <td style="font-weight:600;color:var(--purple);border-right:2px solid var(--bdr);white-space:nowrap">${d}</td>
+          <td style="background:color-mix(in srgb,var(--purple-bg) 40%,transparent)">${sRec||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--purple-bg) 40%,transparent);color:${sCon?'var(--blue)':'var(--tx3)'};font-weight:${sCon?'600':'400'}">${sCon||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--purple-bg) 40%,transparent);color:${sPrx?'var(--teal)':'var(--tx3)'};font-weight:${sPrx?'600':'400'}">${sPrx||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--purple-bg) 40%,transparent);color:${sCv?'var(--green)':'var(--tx3)'};font-weight:${sCv?'600':'400'}">${sCv||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--blue-bg) 40%,transparent)">${aRec||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--blue-bg) 40%,transparent);color:${aCon?'var(--blue)':'var(--tx3)'};font-weight:${aCon?'600':'400'}">${aCon||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--blue-bg) 40%,transparent);color:${aPrx?'var(--teal)':'var(--tx3)'};font-weight:${aPrx?'600':'400'}">${aPrx||'—'}</td>
+          <td style="background:color-mix(in srgb,var(--blue-bg) 40%,transparent);color:${aCv?'var(--green)':'var(--tx3)'};font-weight:${aCv?'600':'400'}">${aCv||'—'}</td>
         </tr>`;
       }).join('')}
       </tbody></table>`;
